@@ -1,0 +1,2427 @@
+{
+  "version": 1,
+  "built": "2026-09-08",
+  "rule": "Every item passed a CONFIRM checker and a hostile REFUTE checker, each fetching an independent source; an unverifiable fact is cut, not softened. See docs/TRIVIA.md.",
+  "count": 67,
+  "items": [
+    {
+      "id": "elevator-history-otis-1854-safety-demo",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "In which year did Elisha Otis show a crowd that his elevator safety brake worked, by having the rope cut while he stood safely on the platform?",
+      "answer": "1854",
+      "distractors": [
+        "1839",
+        "1866",
+        "1881"
+      ],
+      "fact": "At the 1854 Crystal Palace exhibition in New York, Elisha Otis rode a platform lift up and had the rope cut on purpose. His new safety brake caught the platform almost at once, and he was perfectly safe. That show helped people trust riding in elevators.",
+      "sources": [
+        {
+          "title": "Elevator history timeline - Otis Elevator",
+          "url": "https://www.otis.com/en/us/our-company/history",
+          "quote": "Standing high above the crowd on a platform lift, Otis orders the retaining rope to be cut. The platform drops a few inches and the crowd screams. But the safety brake immediately halts the descent."
+        },
+        {
+          "title": "NIHF Inductee Elisha Otis Invented Elevator Brakes",
+          "url": "https://www.invent.org/inductees/elisha-graves-otis",
+          "quote": "In 1854, Otis dramatized his safety device on the floor of the Crystal Palace Exposition in New York. The inventor ascended in an elevator inside an open-sided shaft. Halfway up, he had the hoisting cable cut with an axe. The platform held fast."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "The Electric Elevator - IEEE REACH / IEEE History Center ETHW (PDF)",
+          "source_url": "https://reach.ieee.org/wp-content/uploads/2019/02/IEEE-REACH-The-Electric-Elevator-Secondary-Source.pdf"
+        },
+        {
+          "lens": "refute",
+          "source_title": "The Technological Breakthrough in Our Midst That Allowed Buildings To Grow Tall - Village Preservation",
+          "source_url": "https://villagepreservation.org/2021/03/23/the-technological-breakthrough-in-our-midst-that-allowed-buildings-to-grow-tall/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-history-haughwout-five-floors",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "The first Otis passenger elevator was put into a New York shop called the Haughwout Building in 1857 - how many floors did that shop have?",
+      "answer": "5",
+      "distractors": [
+        "3",
+        "8",
+        "12"
+      ],
+      "fact": "In 1857 Otis installed its first passenger elevator in the E.V. Haughwout Building, a five-floor department store at 488 Broadway in New York City.",
+      "sources": [
+        {
+          "title": "Elevator history timeline - Otis Elevator",
+          "url": "https://www.otis.com/en/us/our-company/history",
+          "quote": "In 1857, Otis installs its first passenger elevator in New York City's E.V. Haughwout Building, a five-story department store whose wealthy clients include Mary Todd Lincoln."
+        },
+        {
+          "title": "The Technological Breakthrough in Our Midst That Allowed Buildings To Grow Tall - Village Preservation",
+          "url": "https://villagepreservation.org/2021/03/23/the-technological-breakthrough-in-our-midst-that-allowed-buildings-to-grow-tall/",
+          "quote": "On March 23, 1857 the first Otis commercial passenger elevator was installed at 488 Broadway at Broome Street at the E.V. Haughwout Building. The elevator carried customers between the store's five floors."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "E. V. Haughwout Building | Historic Districts Council (LPC designation text)",
+          "source_url": "https://hdc.org/buildings/e-v-haughwout-building/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "E. V. Haughwout Building - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/E._V._Haughwout_Building"
+        }
+      ]
+    },
+    {
+      "id": "elevator-history-siemens-electric-1880",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "Who built the world's first electric passenger elevator, in 1880?",
+      "answer": "Werner von Siemens",
+      "distractors": [
+        "Elisha Otis",
+        "Thomas Edison",
+        "Gustave Eiffel"
+      ],
+      "fact": "In 1880 Werner von Siemens built the world's first electric passenger elevator. It was shown at a trade exhibition in Mannheim, Germany, where it carried visitors up a 20-metre lookout tower. The next year his company ran the world's first electric streetcar, near Berlin.",
+      "sources": [
+        {
+          "title": "Werner von Siemens (1816-1892) - Siemens Historical Institute biography (PDF)",
+          "url": "https://assets.new.siemens.com/siemens/assets/api/uuid:782bbeff44b427c909de6feeaa67625f2959365b/001-biography-werner-von-siemens-201604.pdf",
+          "quote": "In 1880, Werner von Siemens constructed the world's first electric passenger elevator."
+        },
+        {
+          "title": "Siemens company history, phase 2: 1866-1896 - Siemens Historical Institute (PDF)",
+          "url": "https://assets.new.siemens.com/siemens/assets/api/uuid:b124794f4ca360167468ce93e91f7d9a3d145c88/071-company-history-phase2-1866-1896-en.pdf",
+          "quote": "In 1880, the electrical engineering company installed the world's first passenger elevator in a building in Mannheim, Germany."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "The Electric Elevator - IEEE REACH / IEEE History Center ETHW (PDF)",
+          "source_url": "https://reach.ieee.org/wp-content/uploads/2019/02/IEEE-REACH-The-Electric-Elevator-Secondary-Source.pdf"
+        },
+        {
+          "lens": "refute",
+          "source_title": "First elevator presented in Mannheim in 1880 - Kurpfaelzer Mile of Innovations",
+          "source_url": "https://www.meile-der-innovationen.de/en/innovationen/1880-erster-fahrstuhl-praesentiert-in-mannheim-werner-von-siemens"
+        }
+      ]
+    },
+    {
+      "id": "elevator-history-eiffel-hydraulic-1889",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "What powered the first lifts inside the Eiffel Tower when it opened in 1889?",
+      "answer": "Water pressure (hydraulic)",
+      "distractors": [
+        "Electric motors",
+        "A team of horses",
+        "Hand-turned cranks"
+      ],
+      "fact": "In June 1889 five hydraulic lifts, pushed up by water pressure, went into service in the Eiffel Tower. Otis built the ones in the North and South pillars. Some of the tower's lifts are still hydraulic today, and the newer ones are electric.",
+      "sources": [
+        {
+          "title": "The Eiffel Tower's Lifts - toureiffel.paris",
+          "url": "https://www.toureiffel.paris/en/the-monument/lifts",
+          "quote": "Five hydraulic elevators went into operation"
+        },
+        {
+          "title": "Elevator history timeline - Otis Elevator",
+          "url": "https://www.otis.com/en/us/our-company/history",
+          "quote": "Otis wins the contract to supply elevators for the North and South pillars of the Eiffel Tower, which becomes the centerpiece of the 1889 Exposition Universelle in Paris."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Eiffel Tower - Graces Guide",
+          "source_url": "https://www.gracesguide.co.uk/Eiffel_Tower"
+        },
+        {
+          "lens": "refute",
+          "source_title": "The Eiffel Tower's Lifts - toureiffel.paris",
+          "source_url": "https://www.toureiffel.paris/en/the-monument/lifts"
+        }
+      ]
+    },
+    {
+      "id": "elevator-history-eiffel-lifts-distance",
+      "category": "elevator",
+      "difficulty": 3,
+      "question": "As of 2026, roughly how far do all the Eiffel Tower's lifts travel together in one year?",
+      "answer": "About 103,000 km",
+      "distractors": [
+        "About 1,000 km",
+        "About 10,000 km",
+        "About 1,000,000 km"
+      ],
+      "fact": "As of 2026 the Eiffel Tower's lifts travel more than 103,000 km a year all together - about two and a half times around the Earth.",
+      "sources": [
+        {
+          "title": "The Eiffel Tower's Lifts - toureiffel.paris",
+          "url": "https://www.toureiffel.paris/en/the-monument/lifts",
+          "quote": "Their annual journeys combined are equal to two and half times around the world or more than 103,000 kilometers."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Eiffel Tower | Otis Global Projects",
+          "source_url": "https://www.otis.com/en/bg/our-company/global-projects/project-showcase/eiffel-tower"
+        },
+        {
+          "lens": "refute",
+          "source_title": "The Eiffel Tower's Lifts - toureiffel.paris",
+          "source_url": "https://www.toureiffel.paris/en/the-monument/lifts"
+        }
+      ]
+    },
+    {
+      "id": "elevator-history-paternoster-name",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "A paternoster is a lift made of open cabins that go round in a loop without stopping - what do the Latin words 'pater noster' mean?",
+      "answer": "'Our Father'",
+      "distractors": [
+        "'Round Trip'",
+        "'Little Room'",
+        "'Always Moving'"
+      ],
+      "fact": "'Paternoster' is Latin for 'Our Father', the first words of the Lord's Prayer. The lift got the name because its cabins go round in a loop like a string of rosary prayer beads.",
+      "sources": [
+        {
+          "title": "The Paternoster Lift | EFM | The University of Sheffield",
+          "url": "https://sheffield.ac.uk/efm/paternoster",
+          "quote": "The name comes from system's resemblance to rosary prayer beads and is Latin for 'Our Father', which begins the Lord's Prayer."
+        },
+        {
+          "title": "Paternoster lift - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Paternoster_lift",
+          "quote": "The name paternoster ('Our Father', the first two words of the Lord's Prayer in Latin) was originally applied to the device because the elevator is in the form of a loop and is thus similar to rosary beads used as an aid in reciting prayers."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Paternoster Lift: A Risky Ride Up | Aston University",
+          "source_url": "https://www.aston.ac.uk/about/history/heritage-trail/paternoster-lift"
+        },
+        {
+          "lens": "refute",
+          "source_title": "The Paternoster Lift | EFM | The University of Sheffield",
+          "source_url": "https://sheffield.ac.uk/efm/paternoster"
+        }
+      ]
+    },
+    {
+      "id": "elevator-history-paternoster-sheffield-38-cars",
+      "category": "elevator",
+      "difficulty": 3,
+      "question": "As of 2026 the world's largest paternoster lift, in the Arts Tower at the University of Sheffield, has how many two-person cars?",
+      "answer": "38",
+      "distractors": [
+        "12",
+        "24",
+        "56"
+      ],
+      "fact": "As of 2026 Guinness World Records lists the largest paternoster as the one in the 78-metre Arts Tower at the University of Sheffield: 38 two-person cars moving in a continuous loop, so 76 people can ride at once.",
+      "sources": [
+        {
+          "title": "Largest paternoster elevator | Guinness World Records",
+          "url": "https://www.guinnessworldrecords.com/world-records/106874-largest-paternoster-elevator",
+          "quote": "a chain of open-sided compartments slowly moving in a continuous loop"
+        },
+        {
+          "title": "The Paternoster Lift | EFM | The University of Sheffield",
+          "url": "https://sheffield.ac.uk/efm/paternoster",
+          "quote": "38 two-person cars"
+        },
+        {
+          "title": "Iconic Arts Tower at University of Sheffield celebrates 60 years | The University of Sheffield",
+          "url": "https://sheffield.ac.uk/news/iconic-arts-tower-university-sheffield-celebrates-60-years",
+          "quote": "38 open two-person cars operating continuously"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "University tower and record-breaking lift turn 60 - BBC via AOL",
+          "source_url": "https://www.aol.com/articles/university-tower-record-breaking-lift-070657000.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Largest paternoster elevator | Guinness World Records",
+          "source_url": "https://www.guinnessworldrecords.com/world-records/106874-largest-paternoster-elevator"
+        }
+      ]
+    },
+    {
+      "id": "elevator-history-autotronic-dallas-1950",
+      "category": "elevator",
+      "difficulty": 3,
+      "question": "In 1950 the Otis company fitted its first 'Autotronic' lifts - fast elevators that ran with no human operator inside - in a new office building in which US city?",
+      "answer": "Dallas",
+      "distractors": [
+        "Chicago",
+        "New York",
+        "San Francisco"
+      ],
+      "fact": "In 1950 Otis installed its first Autotronic system in the 11-storey Atlantic Refining Building in Dallas, Texas. Its high-speed elevators ran themselves with nobody driving them - Otis called it the world's first building of its kind. Push-button lifts had existed since the 1890s, but they were slow and simple; the Autotronic ones were fast and worked out where to go by themselves.",
+      "sources": [
+        {
+          "title": "Elevator history timeline - Otis Elevator",
+          "url": "https://www.otis.com/en/us/our-company/history",
+          "quote": "The first Autotronic system is installed in the new 11-story Atlantic Refining Building in Dallas - the world's first building to feature Otis high-speed, no-operator elevators."
+        },
+        {
+          "title": "The Evolution of Elevators: Physical-Human Interface, Digital Interaction, and Megatall Buildings - Frontiers of Engineering (National Academies, NCBI Bookshelf)",
+          "url": "https://www.ncbi.nlm.nih.gov/books/NBK481624/",
+          "quote": "in 1950 the first operatorless elevator was installed at the Atlantic Refining Building in Dallas."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "When Were Elevators Common? The Full Timeline - ScienceInsights",
+          "source_url": "https://scienceinsights.org/when-were-elevators-common-the-full-timeline/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Elevator history timeline - Otis Elevator",
+          "source_url": "https://www.otis.com/en/us/our-company/history"
+        }
+      ]
+    },
+    {
+      "id": "elevator-history-empire-state-73-elevators",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "As of 2026, how many Otis elevators does the Empire State Building in New York have?",
+      "answer": "73",
+      "distractors": [
+        "27",
+        "45",
+        "112"
+      ],
+      "fact": "As of 2026 the Empire State Building has 73 Otis elevators - and 1,860 steps from the street to its 102nd-floor observation deck. The building was finished in 1931 after just 410 days of construction.",
+      "sources": [
+        {
+          "title": "Empire State Building Facts | Empire State Building",
+          "url": "https://www.esbnyc.com/about/facts-figures",
+          "quote": "the Empire State Building houses a whopping 73 Otis elevators"
+        },
+        {
+          "title": "Elevator history timeline - Otis Elevator",
+          "url": "https://www.otis.com/en/us/our-company/history",
+          "quote": "The Empire State Building opens, equipped with 61 passenger elevators and six freight elevators from Otis."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "12 Fun & Interesting Facts About The Empire State Building - New York Harbor Tours",
+          "source_url": "https://www.newyorkharbortours.com/nyc-blog/facts-empire-state-building"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Empire State Building Facts | Empire State Building",
+          "source_url": "https://www.esbnyc.com/about/facts-figures"
+        }
+      ]
+    },
+    {
+      "id": "elevator-history-colosseum-capstans",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "In ancient Rome, how were the lifts under the Colosseum's floor powered to raise scenery and animal cages up into the arena?",
+      "answer": "Men pushing a winch round in a circle",
+      "distractors": [
+        "A water wheel",
+        "A steam engine",
+        "Horses on a treadmill"
+      ],
+      "fact": "Under the Colosseum's floor were capstans - cross-shaped winches that teams of men pushed round as they walked in a circle - which lifted cages and scenery up through trapdoors into the arena. Researcher Heinz-Jürgen Beste of the German Archaeological Institute worked out that there were 60 of them.",
+      "sources": [
+        {
+          "title": "Secrets of the Colosseum - Smithsonian Magazine",
+          "url": "https://www.smithsonianmag.com/history/secrets-of-the-colosseum-75827047/",
+          "quote": "At the peak of its operation, he concluded, the hypogeum contained 60 capstans, each two stories tall and turned by four men per level. Forty of these capstans lifted animal cages throughout the arena, while the remaining 20 were used to raise scenery sitting on hinged platforms measuring 12 by 15 feet."
+        },
+        {
+          "title": "Elevator - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Elevator",
+          "quote": "The Roman Colosseum, completed in 80 AD, had roughly 25 elevators that were used for raising animals up to the floor."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "1,500 Years Later, Killer Animal Elevator Returns to Colosseum | HISTORY",
+          "source_url": "https://www.history.com/articles/1500-years-later-killer-animal-elevator-returns-to-colosseum"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Secrets of the Colosseum - Smithsonian Magazine",
+          "source_url": "https://www.smithsonianmag.com/history/secrets-of-the-colosseum-75827047/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-history-home-insurance-building-1885",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "Chicago's Home Insurance Building, often called the world's first skyscraper, was finished in 1885 with how many storeys?",
+      "answer": "10",
+      "distractors": [
+        "5",
+        "20",
+        "40"
+      ],
+      "fact": "The Home Insurance Building in Chicago, completed in 1885, was 10 storeys (138 feet) tall. Much of its weight was carried by a metal frame skeleton - iron columns and beams, with some steel - rather than by thick stone walls alone. Safe elevators plus metal frames are what let buildings grow this tall.",
+      "sources": [
+        {
+          "title": "Home Insurance Building | Chicago Architecture Center",
+          "url": "https://www.architecture.org/online-resources/buildings-of-chicago/home-insurance-building",
+          "quote": "Completed in 1885 on LaSalle Street between Adams and Monroe, this 10-story structure employed innovative engineering techniques"
+        },
+        {
+          "title": "The Technological Breakthrough in Our Midst That Allowed Buildings To Grow Tall - Village Preservation",
+          "url": "https://villagepreservation.org/2021/03/23/the-technological-breakthrough-in-our-midst-that-allowed-buildings-to-grow-tall/",
+          "quote": "The Technological Breakthrough in Our Midst That Allowed Buildings To Grow Tall"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "World's First Skyscraper Is Built | History | Research Starters | EBSCOhost",
+          "source_url": "https://www.ebsco.com/research-starters/history/worlds-first-skyscraper-built"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Home Insurance Building | Chicago Architecture Center",
+          "source_url": "https://www.architecture.org/online-resources/buildings-of-chicago/home-insurance-building"
+        }
+      ]
+    },
+    {
+      "id": "elevator-engineering-counterweight-ratio",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "An elevator's counterweight is as heavy as the empty car plus about what share of the biggest load the car is allowed to carry?",
+      "answer": "About 40 to 50 percent",
+      "distractors": [
+        "About 5 percent",
+        "Exactly 100 percent",
+        "About 200 percent"
+      ],
+      "fact": "Manufacturer TK Elevator explains that the counterweight is set to the empty cab's weight plus 40 to 50% of the rated load, so the motor only has to lift the difference. The counterweight travels up when the cab goes down and down when the cab goes up.",
+      "sources": [
+        {
+          "title": "Counterweights - TK Elevator Classroom On Demand",
+          "url": "https://www.tkelevator.com/us-en/tools/classroom-on-demand/counterweights.html",
+          "quote": "The weight of an elevator cab (structural load) plus part of the passenger load (40 to 50% of its rated load) determines the weight of the counterweights."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Elevator Counterweight | How It Works - Elevator.tr",
+          "source_url": "https://elevator.tr/en/glossary/counterweight"
+        },
+        {
+          "lens": "refute",
+          "source_title": "How do elevators and lifts work? - Explain that Stuff",
+          "source_url": "https://www.explainthatstuff.com/how-elevators-work.html"
+        }
+      ]
+    },
+    {
+      "id": "elevator-engineering-hydraulic-piston",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "What pushes a hydraulic elevator car upward?",
+      "answer": "A piston pushed by pumped fluid",
+      "distractors": [
+        "A giant electric magnet",
+        "A big spring in the pit",
+        "Fans blowing air underneath"
+      ],
+      "fact": "In a hydraulic elevator a pump forces fluid into a cylinder, and the pressure pushes a piston that lifts the car. TK Elevator says hydraulic elevators are used for buildings with under 60 feet of travel, while taller buildings use traction elevators, where ropes or belts and a counterweight move the cab.",
+      "sources": [
+        {
+          "title": "Traction Elevators Vs. Hydraulic Elevators - TK Elevator",
+          "url": "https://www.tkelevator.com/us-en/company/insights/traction-versus-hydraulic-elevators.html",
+          "quote": "they use an electronic pump to push hydraulic fluid into a cylinder, using pressure. This pressure pushes a piston and causes the elevator to rise."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Hydraulic vs. Traction Elevators for New Construction - Kaiser Elevator",
+          "source_url": "https://kaiserelevator.com/hydraulic-vs-traction-elevators-for-new-construction-cost-speed-travel-and-power-requirements/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Hydraulic Elevators: Here's How & Where They Work - Stanley Elevator",
+          "source_url": "https://www.stanleyelevator.com/blog/hydraulic-elevators/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-engineering-minimum-three-ropes",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "Under California's elevator rules, what is the fewest steel hoisting ropes a traction elevator is allowed to hang from?",
+      "answer": "3 ropes",
+      "distractors": [
+        "1 rope",
+        "6 ropes",
+        "12 ropes"
+      ],
+      "fact": "California's elevator safety rules (Title 8, section 3042) say a traction elevator must have at least three hoisting ropes, and together the ropes must be at least 7.6 times stronger than the loaded car needs, rising to nearly 12 times for the fastest elevators. The ropes are twisted steel cables that link the car to the counterweight over the drive sheave.",
+      "sources": [
+        {
+          "title": "Cal. Code Regs. Tit. 8, § 1604.25 - Hoisting and Counterweight Ropes, and Rope Connections (Cornell LII)",
+          "url": "https://www.law.cornell.edu/regulations/california/8-CCR-1604.25",
+          "quote": "The minimum number of hoisting ropes used shall be three for traction hoists and two for drum type hoists."
+        },
+        {
+          "title": "Ropes (Hoists) - TK Elevator Classroom On Demand",
+          "url": "https://www.tkelevator.com/us-en/tools/classroom-on-demand/ropes-or-hoists.html",
+          "quote": "These ropes are made from twisted fibers, often steel, to create a durable cord or cable which links the elevator cab sling to the counterweight and over the drive sheave."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Cal. Code Regs. Title 8, Section 3042. Hoisting Ropes and Their Connections (California DIR)",
+          "source_url": "https://www.dir.ca.gov/title8/3042.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "California Code of Regulations, Title 8, Section 3042. Hoisting Ropes and Their Connections (Elevator Safety Orders)",
+          "source_url": "https://www.dir.ca.gov/title8/3042.html"
+        }
+      ]
+    },
+    {
+      "id": "elevator-engineering-buffers-in-the-pit",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "Where are the cushioning buffers of a rope-driven elevator installed?",
+      "answer": "In the pit at the bottom of the shaft",
+      "distractors": [
+        "On top of the car's roof",
+        "Inside the machine room",
+        "Behind the floor buttons"
+      ],
+      "fact": "California's elevator rules say the buffers must sit in the pit under both the car and the counterweight. Spring buffers are fine for slower elevators, but when the rated speed is over 200 feet per minute the rules call for oil buffers (or something that works just as well).",
+      "sources": [
+        {
+          "title": "California Code of Regulations, Title 8, §3031. Car and Counterweight Buffers and Bumpers",
+          "url": "https://www.dir.ca.gov/title8/3031.html",
+          "quote": "Buffers or bumpers shall be installed under the cars and counterweights of all cable-driven power elevators."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Cal. Code Regs. Tit. 8, § 3031 - Car and Counterweight Buffers and Bumpers | LII / Legal Information Institute",
+          "source_url": "https://www.law.cornell.edu/regulations/california/8-CCR-3031"
+        },
+        {
+          "lens": "refute",
+          "source_title": "California Code of Regulations, Title 8, §3031. Car and Counterweight Buffers and Bumpers",
+          "source_url": "https://www.dir.ca.gov/title8/3031.html"
+        }
+      ]
+    },
+    {
+      "id": "elevator-engineering-kone-monospace-1996",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "In what year did KONE launch MonoSpace, its elevator that needed no separate machine room?",
+      "answer": "1996",
+      "distractors": [
+        "1956",
+        "1976",
+        "2016"
+      ],
+      "fact": "In 1996 KONE launched MonoSpace, which KONE calls the world's first machine-room-less elevator. Its flat, disc-shaped EcoDisc motor is thin enough to sit inside the hoistway, so the bulky machine no longer needed its own room at the top or bottom of the building. (Otis had tested a linear-motor elevator with no machine room in Tokyo in 1990, but MonoSpace was the one that caught on.)",
+      "sources": [
+        {
+          "title": "Making room for more since 1996 - KONE Corporation",
+          "url": "https://www.kone.com/en/news-and-insights/stories/making-room-for-more-since-1996.aspx",
+          "quote": "What was needed for MonoSpace elevator was the disc-shaped EcoDisc, a motorized traction system that is flat enough to be located inside the hoistway."
+        },
+        {
+          "title": "Machine Room - TK Elevator Classroom On Demand",
+          "url": "https://www.tkelevator.com/us-en/tools/classroom-on-demand/machine-room.html",
+          "quote": "Machine rooms for traction elevators are usually accessed on a rooftop, penthouse, or through a mechanical equipment room whereas machine rooms for hydraulic elevators are nearly always on the ground floor or in the basement."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "KONE Monospace - KW-Aufzugstechnik GmbH",
+          "source_url": "https://www.kw-aufzugstechnik.com/en/2020/04/09/kone-monospace/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "History - KONE Corporation",
+          "source_url": "https://www.kone.com/global/en/company/history.html"
+        }
+      ]
+    },
+    {
+      "id": "elevator-engineering-regenerative-drive",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "What does an elevator's regenerative drive do with the electricity made when the car slows down?",
+      "answer": "Feeds it back into the building's power supply",
+      "distractors": [
+        "Turns it into heat in resistors",
+        "Stores it inside the counterweight",
+        "Sends it up the guide rails as light"
+      ],
+      "fact": "A traction elevator generates electricity when a lightly loaded car goes up, a heavy car goes down, or the car brakes. A regenerative drive sends that power back into the building's electrical grid instead of wasting it as heat in resistors; Otis says its ReGen drive cuts energy use by up to 75% compared with non-regenerative drives.",
+      "sources": [
+        {
+          "title": "ReGen Drives: The smart choice - Otis Elevator (brochure)",
+          "url": "https://www.otis.com/documents/256045/6552829/Regen_Drive_UK.pdf/f470aba1-af7d-b4b3-ecc1-547c2984fbf1?t=1591127484167",
+          "quote": "ReGen drives feed this energy back into the building's internal electrical grid where it can be used by other loads or users connected to the same network."
+        },
+        {
+          "title": "Elevator history timeline - Otis Elevator",
+          "url": "https://www.otis.com/en/us/our-company/history",
+          "quote": "Otis adds its ReGen drive...as standard in all Gen2 elevators...enables energy savings."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Otis Regen Repair | Inverter Drive Repair",
+          "source_url": "https://inverterdriverepair.com/equipment/otis-regen/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "ReGen Drives: The smart choice - Otis Elevator (brochure, 2007)",
+          "source_url": "https://www.otis.com/documents/256045/6552829/Regen_Drive_UK.pdf/f470aba1-af7d-b4b3-ecc1-547c2984fbf1?t=1591127484167"
+        }
+      ]
+    },
+    {
+      "id": "elevator-engineering-infrared-light-curtain",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "What do many elevator doors use to spot someone standing in the doorway and open again without touching them?",
+      "answer": "Invisible infrared light beams",
+      "distractors": [
+        "A face-recognising camera",
+        "A weighing scale in the floor",
+        "A microphone listening for footsteps"
+      ],
+      "fact": "Modern elevator doors shine many infrared light beams across the opening; if a person or bag breaks a beam, the doors stop and reopen. US accessibility rules say this reopening device must work without needing physical contact.",
+      "sources": [
+        {
+          "title": "Mitsubishi Electric Elevators: Creating New Safety Benchmarks in India's Elevator Industry",
+          "url": "https://in.mitsubishielectric.com/en/feature/partneringindia/insights/creating-new-safety-benchmarks-in-indias-elevator-Industry.html",
+          "quote": "The sensor utilizes multiple infrared light beams to prevent the passengers and their belongings from being caught between the doors."
+        },
+        {
+          "title": "2010 ADA Standards, Section 407.3 Elevator Doors (corada)",
+          "url": "https://www.corada.com/documents/2010ADAStandards/407-3",
+          "quote": "The device shall not require physical contact to be activated, although contact is permitted to occur before the door reverses."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Elevator Door Protection Devices - ATIS",
+          "source_url": "https://atis.com/posts/elevator-door-detector-light-curtains-and-related-door-closing-injuries"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Elevator Door Protection Devices - ATIS",
+          "source_url": "https://atis.com/posts/elevator-door-detector-light-curtains-and-related-door-closing-injuries"
+        }
+      ]
+    },
+    {
+      "id": "elevator-engineering-door-close-button",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "In most US elevators, why can't pressing the 'door close' button make the doors shut right away?",
+      "answer": "A law says the doors must stay open for a few seconds so everyone has time to get in",
+      "distractors": [
+        "The button only switches on the ceiling light",
+        "The doors are too heavy to move any faster",
+        "The button only works on the top floor"
+      ],
+      "fact": "Because of the 1990 Americans with Disabilities Act, US elevator doors must stay fully open for at least 3 seconds after a button inside the car is pressed (and 5 seconds or more after a hallway call) so people using wheelchairs or crutches have time to board. The 'door close' button cannot cut that wait short. Elevator industry spokesperson Karen Penafiel says the button is not a fake: once the required wait is over, it can work.",
+      "sources": [
+        {
+          "title": "'Door Close' Buttons On Most Elevators Don't Actually Work - CBS Boston",
+          "url": "https://www.cbsnews.com/boston/news/door-close-elevator-button-dont-work-placebo",
+          "quote": "\"The riding public would not be able to make those doors close any faster,\" Penafiel told The Times."
+        },
+        {
+          "title": "Does the elevator 'close door' button really work? - ABC7 San Francisco",
+          "url": "https://abc7news.com/elevator-buttons-does-the-close-door-button-work/3187917/",
+          "quote": "Penafiel says the buttons' function changed in 1990 when the Americans with Disability Act instituted rules giving those with mobility issues more time to get onto the elevator."
+        },
+        {
+          "title": "2010 ADA Standards, Section 407.3.5 Door Delay (corada)",
+          "url": "https://www.corada.com/documents/2010ADAStandards/407-3",
+          "quote": "Elevator doors shall remain fully open in response to a car call for 3 seconds minimum."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "The 'Close Door' Buttons in Elevators Don't Actually Do Anything - ScienceAlert",
+          "source_url": "https://www.sciencealert.com/the-close-door-buttons-in-elevators-don-t-actually-do-anything"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Do Elevator 'Close Door' Buttons Work? - TruthOrFiction (rated 'Decontextualized')",
+          "source_url": "https://www.truthorfiction.com/do-elevator-close-door-buttons-work/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-engineering-lift-vs-elevator",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "What do people in Britain call the machine that Americans call an elevator?",
+      "answer": "A lift",
+      "distractors": [
+        "An escalator",
+        "A crane",
+        "A trolley"
+      ],
+      "fact": "Britons, Australians, Irish, New Zealanders and South Africans say 'lift', while Americans and Canadians say 'elevator'. 'Lift' comes from the Old Norse word 'lypta' (to raise) and 'elevator' from the Latin 'elevare' (to raise up).",
+      "sources": [
+        {
+          "title": "Lift or elevator? The history and origin | Stannah Lifts",
+          "url": "https://www.stannahlifts.co.uk/news/lift-or-elevator-the-history-and-origin",
+          "quote": "British, Australians, Irish, New Zealanders and South Africans use 'lift'"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Lift vs Elevator - Examples, Difference, Usages | Examples.com",
+          "source_url": "https://www.examples.com/english/lift-vs-elevator.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Lift - Etymology, Origin & Meaning | Etymonline",
+          "source_url": "https://www.etymonline.com/word/lift"
+        }
+      ]
+    },
+    {
+      "id": "elevator-engineering-inspection-certificate",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "In many US states, where must an elevator's inspection certificate be put up so riders can see it?",
+      "answer": "Inside the elevator car",
+      "distractors": [
+        "On the roof of the building",
+        "At the town library",
+        "At the fire station"
+      ],
+      "fact": "State laws such as Massachusetts' and Maine's say the inspector's certificate must be posted in (or right beside) the elevator car where riders can see it. Maine's law says every elevator must be inspected once a year.",
+      "sources": [
+        {
+          "title": "34 Pa. Code § 7.15. Inspection.",
+          "url": "https://www.pacodeandbulletin.gov/Display/pacode?file=/secure/pacode/data/034/chapter7/s7.15.html",
+          "quote": "Certificates shall be posted in the cars of elevators, and in conspicuous places in connection with escalators and hoists."
+        },
+        {
+          "title": "Massachusetts General Laws, Chapter 143, Section 65",
+          "url": "https://malegislature.gov/Laws/GeneralLaws/PartI/TitleXX/Chapter143/Section65",
+          "quote": "who shall post the certificate in a conspicuous place in or near the cab or car of such elevator."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Massachusetts General Laws Ch. 143, s. 65 | FindLaw",
+          "source_url": "https://codes.findlaw.com/ma/part-i-administration-of-the-government-ch-1-182/ma-gen-laws-ch-143-sect-65/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "34 Pa. Code § 405.6 - Certificate of operation | LII",
+          "source_url": "https://www.law.cornell.edu/regulations/pennsylvania/34-Pa-Code-SS-405-6"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-fastest-elevator-metres-per-second",
+      "category": "math",
+      "difficulty": 2,
+      "question": "Hitachi's lift in the Guangzhou CTF Finance Centre, the world's fastest in 2019, is rated at 1,260 metres per minute. How many metres per second is that?",
+      "answer": "21 m/s",
+      "distractors": [
+        "12.6 m/s",
+        "60 m/s",
+        "210 m/s"
+      ],
+      "fact": "1,260 divided by 60 is 21, so the lift climbs 21 metres every second. Guinness World Records certified it as the world's fastest elevator on 10 September 2019; it goes from the ground floor to the 95th floor, a 440 m trip, in about 42 seconds.",
+      "sources": [
+        {
+          "title": "Hitachi press release, 27 Sep 2019: Elevator delivered to Guangzhou CTF Finance Centre received a GUINNESS WORLD RECORDS title as the world's fastest",
+          "url": "https://www.hitachi.com/en/press/articles/2019/09/0927/",
+          "quote": "received a GUINNESS WORLD RECORDS title as the world's fastest elevator on September 10 ... 1,260 m/min ... connects the ground floor to the hotel lobby on the 95th floor in approx. 42sec, over a distance of 440 m"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "The Construction Index: Hitachi takes elevator speed record (30 Sep 2019)",
+          "source_url": "https://www.theconstructionindex.co.uk/news/view/hitachi-takes-elevator-speed-record"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Hitachi press release, 27 Sep 2019: Elevator delivered to Guangzhou CTF Finance Centre received a GUINNESS WORLD RECORDS title as the world's fastest",
+          "source_url": "https://www.hitachi.com/en/press/articles/2019/09/0927/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-tallest-lift-in-a-building",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "In 2016 Guinness certified the tallest lift inside any building, in the Shanghai Tower in China. About how far does that lift travel from bottom to top?",
+      "answer": "About 578 m",
+      "distractors": [
+        "About 250 m",
+        "About 828 m",
+        "About 1,200 m"
+      ],
+      "fact": "Guinness World Records lists the tallest lift in a building at 578.5 m: Mitsubishi Electric's NexWay emergency-use lifts in the 632 m Shanghai Tower, a record Guinness dates to 27 October 2015 and for which Mitsubishi collected its certificate in Tokyo on 8 December 2016. Mitsubishi's other Shanghai Tower lift was then the world's fastest at 1,230 m per minute.",
+      "sources": [
+        {
+          "title": "Guinness World Records: Tallest lift (elevator) in a building",
+          "url": "https://www.guinnessworldrecords.com/world-records/106868-tallest-elevator-in-a-building",
+          "quote": "The tallest lift (elevator) in a building is 578.5 m (1,898 ft 1 in) high, achieved by high-speed elevator NexWay, designed by Mitsubishi Electric Corporation (Japan) and installed at the Shanghai Tower Unit FR/FLH1 and 2 (China), on 27 October 2015."
+        },
+        {
+          "title": "Mitsubishi Electric press release, 9 Dec 2016: Three GUINNESS WORLD RECORDS titles for fastest and tallest elevators",
+          "url": "https://www.mitsubishielevator.com/uploads/files/pdf/2016-12-09_MELCO-Guinness.pdf",
+          "quote": "Tallest lift (elevator): in a building: two emergency-use units that travel 578.55 meters ... Fastest lift (elevator): one unit that travels at 1,230 meters per minute, or 73.8 kilometers per hour"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Electronic Specifier: Mitsubishi achieves three Guinness World Record titles (12 Dec 2016)",
+          "source_url": "https://www.electronicspecifier.com/news/analysis/mitsubishi-achieves-three-guinness-world-record-titles/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Mitsubishi Electric press release, 9 Dec 2016: Three GUINNESS WORLD RECORDS titles for fastest and tallest elevators",
+          "source_url": "https://www.mitsubishielevator.com/uploads/files/pdf/2016-12-09_MELCO-Guinness.pdf"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-burj-khalifa-lifts-to-the-moon",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "Otis says that by 2015 the two observation-deck lifts in the Burj Khalifa had travelled 384,400 km since the tower opened in 2010. That is the same as the distance from Earth to what?",
+      "answer": "The Moon",
+      "distractors": [
+        "The Sun",
+        "Mars",
+        "The International Space Station"
+      ],
+      "fact": "The Burj Khalifa in Dubai (opened 2010, 828 m tall) has double-deck Otis lifts to the observation deck that run at 10 metres per second and cover about 244 km every day between them. By May 2015 their total distance matched the 384,400 km average distance from Earth to the Moon.",
+      "sources": [
+        {
+          "title": "Otis SkyRise brochure (Jan 2017), Burj Khalifa case study",
+          "url": "https://www.otis.com/documents/256045/10848749/Skyrise-brochure--jan-2017-.pdf/07d77263-38b1-5d10-5f3b-e05957410f4b?t=1612419063693",
+          "quote": "having traveled a total of 384,400 kilometers since the building's opening in 2010 – equal to the distance between the Earth and the moon. Each day, the double-deck elevators travel 244 kilometers – at speeds of 10 meters per second"
+        },
+        {
+          "title": "Otis History timeline",
+          "url": "https://www.otis.com/en/uk/our-company/history",
+          "quote": "The Burj Khalifa by Emaar opens in Dubai, becoming the world's tallest building at 828 meters."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "The National: Burj Khalifa lifts have travelled distance to the moon (4 May 2015)",
+          "source_url": "https://www.thenationalnews.com/business/travel-and-tourism/burj-khalifa-lifts-have-travelled-distance-to-the-moon-1.126064"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Otis SkyRise brochure (Jan 2017), Burj Khalifa case study",
+          "source_url": "https://www.otis.com/documents/256045/10848749/Skyrise-brochure--jan-2017-.pdf/07d77263-38b1-5d10-5f3b-e05957410f4b?t=1612419063693"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-deepest-mine-mponeng",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "As of 2026, the deepest mine in the world is Mponeng in South Africa. About how far below the ground does it reach?",
+      "answer": "Nearly 4 km",
+      "distractors": [
+        "About 400 m",
+        "About 1 km",
+        "About 20 km"
+      ],
+      "fact": "Guinness recorded Mponeng, near Johannesburg, at about 4 km deep in 2012, and its owner Harmony still calls it the deepest mine in the world in 2026. Its lift cage travels down 2,283 m in one single trip, taking about three minutes.",
+      "sources": [
+        {
+          "title": "Guinness World Records: Deepest mine",
+          "url": "https://www.guinnessworldrecords.com/world-records/66169-deepest-mine",
+          "quote": "AngloGold Ashanti's Mponeng gold mine ... 4 kilometre(s) ... 3.9-km below the surface"
+        },
+        {
+          "title": "Harmony Gold: Mponeng Mine",
+          "url": "https://www.harmony.co.za/operations/south-africa/mponeng/",
+          "quote": "Mponeng is the deepest mine in the world."
+        },
+        {
+          "title": "Guinness World Records: Tallest elevator",
+          "url": "https://www.guinnessworldrecords.com/world-records/107648-tallest-elevator",
+          "quote": "The world's tallest elevator is at AngloGold Ashanti's Mponeng Gold Mine in South Africa, which in three minutes drops an astonishing 2,283 m (7,490 ft) in a single descent"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "MPI Recruitment: Mining by numbers - the mines that smashed all records (12 Feb 2021)",
+          "source_url": "https://www.mpirecruitment.au/news/mining-by-numbers-the-mines-that-smashed-all-records"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Harmony Gold: Mponeng Mine",
+          "source_url": "https://www.harmony.co.za/operations/south-africa/mponeng/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-multi-ropeless-sideways",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "In 2017 thyssenkrupp (now TK Elevator) showed off MULTI, the first rope-free elevator for tall buildings. Besides up and down, which way can its cabins also move?",
+      "answer": "Sideways",
+      "distractors": [
+        "Outside the building",
+        "In a spiral",
+        "Upside down"
+      ],
+      "fact": "MULTI uses linear motors, like a maglev train, instead of ropes, so several cabins can share one shaft and move both up-and-down and sideways. It took its first ride on 22 June 2017 in TK Elevator's 246 m test tower in Rottweil, Germany. As of 2024 it was still being tested there and had not yet been fitted in a real building.",
+      "sources": [
+        {
+          "title": "TK Elevator press release, 22 Jun 2017: inauguration of the world's first rope-less horizontal-vertical elevator system, MULTI",
+          "url": "https://www.tkelevator.com/global-en/newsroom/press-releases/thyssenkrupp-makes-the-future-a-reality-inauguration-of-the-worlds-first-rope-less-horizontal-vertical-elevator-system-multi-119755.html",
+          "quote": "the world's first rope-less and sideways-moving elevator system, MULTI"
+        },
+        {
+          "title": "TK Elevator: MULTI - A new era of mobility",
+          "url": "https://www.tkelevator.com/global-en/products/innovations/multi/",
+          "quote": "linear motor technology to move multiple cars in a single shaft both vertically and horizontally"
+        },
+        {
+          "title": "TK Elevator: The test tower (Rottweil)",
+          "url": "https://www.tkelevator.com/global-en/the-test-tower/",
+          "quote": "The 246-meter tall elevator-testing tower, opened in 2017"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Construction Management: Revolutionary maglev elevator makes debut in Germany",
+          "source_url": "https://www.constructionmanagement.co.uk/revolutionary-maglev-elevator-makes-debut-germany/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "TK Elevator press release, 22 June 2017 (plus Wikipedia 'Elevator' for hydraulic/screw/vacuum types, thebossmagazine.com for the 'diagonally' claim)",
+          "source_url": "https://www.tkelevator.com/global-en/newsroom/press-releases/thyssenkrupp-makes-the-future-a-reality-inauguration-of-the-worlds-first-rope-less-horizontal-vertical-elevator-system-multi-119755.html"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-gateway-arch-tram-seats",
+      "category": "math",
+      "difficulty": 1,
+      "question": "Each Gateway Arch tram in St. Louis is a train of 8 little capsules with 5 seats each. How many people can ride in one tram?",
+      "answer": "40",
+      "distractors": [
+        "13",
+        "30",
+        "50"
+      ],
+      "fact": "8 times 5 is 40. Dick Bowser designed the trams by combining an elevator with a Ferris wheel so the capsules stay upright as they follow the Arch's curve. The north tram opened in July 1967 and the south tram in May 1968. The ride to the top of the 630-foot (192 m) Arch takes 4 minutes up and 3 minutes down.",
+      "sources": [
+        {
+          "title": "National Park Service: Dick Bowser (Gateway Arch tram designer)",
+          "url": "https://www.nps.gov/jeff/planyourvisit/dick-bowser.htm",
+          "quote": "The eight small capsules, used in each of the two Arch trains, are similar to the barrels used in cement mixers ... 5 seats in each barrel ... a combination of the elevator principle and the Ferris wheel principle was developed into a train of capsules"
+        },
+        {
+          "title": "Gateway Arch FAQs",
+          "url": "https://www.gatewayarch.com/plan-your-visit/faqs/",
+          "quote": "It takes 4 minutes to go up to the top and 3 minutes to come down. ... 630 feet, which is 63 stories, 192 meters, or 7,560 inches tall"
+        },
+        {
+          "title": "National Park Service: A View From the Top",
+          "url": "https://www.nps.gov/thingstodo/a-view-from-the-top.htm",
+          "quote": "be transported 630 feet to the top of America's tallest monument"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Wikipedia: Gateway Arch (corroborated by nohomejustroam.com and roadsideamerica.com)",
+          "source_url": "https://en.wikipedia.org/wiki/Gateway_Arch"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Gateway Arch FAQs (plus NPS Tram System page)",
+          "source_url": "https://www.gatewayarch.com/plan-your-visit/faqs/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-kone-tytyri-underground-lab",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "KONE tests its skyscraper lifts in a shaft that goes 350 metres straight down. What kind of place in Finland is that shaft inside?",
+      "answer": "A limestone mine",
+      "distractors": [
+        "A TV tower",
+        "A hydroelectric dam",
+        "An old ship"
+      ],
+      "fact": "KONE's Tytyri high-rise laboratory in Lohja, Finland uses old shafts of a working limestone mine and tests lifts as deep as 350 m underground; it opened in the late 1990s and was expanded in 2017. Guinness lists it as the tallest elevator-testing facility, with 333 m of lift travel (as of 2012).",
+      "sources": [
+        {
+          "title": "KONE: The underground epicenter of elevator testing",
+          "url": "https://www.kone.com/en/news-and-insights/stories/testing-elevators-underground-and-remotely.aspx",
+          "quote": "the future of elevator technology is tested as deep as 350 meters underground ... in the late 1990s, KONE's innovative engineers decided to take over the disused shafts of an active limestone mine"
+        },
+        {
+          "title": "Guinness World Records: Tallest elevator-testing facility",
+          "url": "https://www.guinnessworldrecords.com/world-records/106878-tallest-elevator-testing-facility",
+          "quote": "The world's tallest lift-testing facility is the underground KONE Tytyri High Rise Laboratory, installed at a limestone mine at Lohja, Finland. It has a lift-travel distance of 333 m (1,090 ft) at a maximum speed of 17 m/s"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "The B1M: Inside The Lab That Tests Elevator Free-Falls",
+          "source_url": "https://www.theb1m.com/video/kone-elevator-test-lab-finland"
+        },
+        {
+          "lens": "refute",
+          "source_title": "KONE Corporation: History (plus Guinness World Records 'Tallest elevator-testing facility')",
+          "source_url": "https://www.kone.com/en/company/history/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-taipei-101-damper-mass",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "A giant steel ball hangs near the top of Taipei 101 to cut down how much the tower sways in the wind. How much does the ball weigh?",
+      "answer": "660 tonnes",
+      "distractors": [
+        "6 tonnes",
+        "66 tonnes",
+        "6,600 tonnes"
+      ],
+      "fact": "The 5.5 m wide, 660-tonne damper ball hangs from 92 steel cables between the 87th and 92nd floors of Taipei 101. It was the world's largest tuned mass damper when the tower opened on 31 December 2004, and Guinness still lists it that way, but Shanghai Tower in China now has a heavier one weighing about 1,000 tonnes.",
+      "sources": [
+        {
+          "title": "Guinness World Records: Largest tuned mass damper",
+          "url": "https://www.guinnessworldrecords.com/world-records/774616-largest-tuned-mass-damper",
+          "quote": "The pendulum has a 660-tonne (728 ton) weight and hangs from mountings built into the 92nd floor of the building."
+        },
+        {
+          "title": "TAIPEI 101 Observatory: Features (Wind Damper)",
+          "url": "https://www.taipei-101.com.tw/en/observatory/feature",
+          "quote": "Approximately 5.5 meters in diameter, the damper consists of 41 layers of 12.5 cm solid steel plating welded into a gold sphere mass, weighing 660 metric tons. The damper ball is suspended by 92 steel cables"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Zeeshan et al., NUST: The Analysis of Tuned Mass Dampers of Taipei 101 Tower (corroborated by thecivilengineer.org and amusingplanet.com)",
+          "source_url": "https://pdfs.semanticscholar.org/b329/d5a12649ab75345344f21c2deb4a6714cd84.pdf"
+        },
+        {
+          "lens": "refute",
+          "source_title": "CGTN: Typhoon Bavi sets 1,000-tonne tuned mass damper inside China's tallest skyscraper in motion (plus Guinness 'Largest tuned mass damper' and Taipei 101 observatory page)",
+          "source_url": "https://news.cgtn.com/news/2026-07-12/Typhoon-Bavi-sets-1-000-tonne-tuned-mass-damper-inside-China-s-tallest-skyscraper-in-motion-1OIwbsbp9Mk/p.html"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-eiffel-lifts-around-the-world",
+      "category": "math",
+      "difficulty": 2,
+      "question": "The Eiffel Tower's lifts together travel about 103,000 km every year, and Earth is about 40,000 km around. So the lifts travel about how many times around the world each year?",
+      "answer": "About 2.5 times",
+      "distractors": [
+        "About 0.5 times",
+        "About 10 times",
+        "About 25 times"
+      ],
+      "fact": "103,000 divided by 40,000 is a little over 2.5, which matches the tower's own figure of two and a half times around the world every year. Two of the tower's lifts were first installed in 1899 and, after several modernisations, still carry visitors today.",
+      "sources": [
+        {
+          "title": "Official Eiffel Tower website: The Eiffel Tower's Lifts",
+          "url": "https://www.toureiffel.paris/en/the-monument/lifts",
+          "quote": "Their annual journeys combined are equal to two and half times around the world or more than 103,000 kilometers. ... 'Fives-Lille' hydraulic elevators were installed in 1899"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Eiffel Tower Gets Lift from Hydraulics - Power & Motion Tech (5 Aug 2016)",
+          "source_url": "https://www.powermotiontech.com/hydraulics/hydraulic-pumps-motors/article/21885237/eiffel-tower-gets-lift-from-hydraulics"
+        },
+        {
+          "lens": "refute",
+          "source_title": "The Eiffel Tower's Lifts (official site)",
+          "source_url": "https://www.toureiffel.paris/en/the-monument/lifts"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-space-elevator-orbit-height",
+      "category": "elevator",
+      "difficulty": 3,
+      "question": "A 'space elevator' would be a cable running from the ground up to a station in geostationary orbit, the orbit where a satellite stays above the same spot on Earth. About how high up is that orbit?",
+      "answer": "About 36,000 km",
+      "distractors": [
+        "About 400 km",
+        "About 3,600 km",
+        "About 360,000 km"
+      ],
+      "fact": "Geostationary orbit is about 35,786 km up. A NASA report in 2000 said an Earth-to-orbit space elevator 'is not feasible today' because no material we can make yet is strong and light enough for such a long cable; carbon nanotubes, measured in the lab at about 100 times the strength of steel, are the hoped-for material.",
+      "sources": [
+        {
+          "title": "NASA NTRS: Space Elevators - Building a Permanent Bridge for Space Exploration and Economic Development (D. Smitherman, MSFC, AIAA 2000-5294)",
+          "url": "https://ntrs.nasa.gov/api/citations/20000105202/downloads/20000105202.pdf",
+          "quote": "A space elevator is a physical connection from the surface of the Earth to a geo-stationary orbit above the Earth approximately 35,786km in altitude. ... The Earth to GEO space elevator is not feasible today ... carbon nanotubes that has exhibited laboratory strengths 100 times stronger than steel"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "ESA - Types of orbits (GEO altitude); plus NASA/CP-2000-210429 'Space Elevators' via isec.org",
+          "source_url": "https://www.esa.int/Enabling_Support/Space_Transportation/Types_of_orbits"
+        },
+        {
+          "lens": "refute",
+          "source_title": "ESA: Types of orbits",
+          "source_url": "https://www.esa.int/Enabling_Support/Space_Transportation/Types_of_orbits"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-otis-people-per-day",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "Otis, which as of 2025 looked after the world's largest fleet of lifts and escalators, says its equipment carries about how many people every single day?",
+      "answer": "2.5 billion",
+      "distractors": [
+        "2.5 million",
+        "25 million",
+        "250 million"
+      ],
+      "fact": "Otis's 2025 fact sheet says the company moves 2.5 billion people every day and maintains about 2.5 million lifts and escalators worldwide, which it calls the industry's largest service portfolio.",
+      "sources": [
+        {
+          "title": "Otis Fact Sheet 2025",
+          "url": "https://www.otis.com/documents/d/otis-2/otis-factsheet-2025",
+          "quote": "We move 2.5 billion people every day and maintain about 2.5 million customer units worldwide – the industry's largest service portfolio."
+        },
+        {
+          "title": "About Otis | Who we are",
+          "url": "https://www.otis.com/en/us/our-company/about-us",
+          "quote": "We move 2.5 billion people a day and maintain more than ~2.5 million customer units worldwide"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Otis Reports Fourth Quarter and Full Year 2025 Results - PR Newswire (28 Jan 2026)",
+          "source_url": "https://www.prnewswire.com/news-releases/otis-reports-fourth-quarter-and-full-year-2025-results-302672551.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Kone agrees to buy TK Elevator for $34.4 billion (Yahoo Finance)",
+          "source_url": "https://finance.yahoo.com/markets/stocks/articles/kone-agrees-buy-tk-elevator-132708315.html"
+        }
+      ]
+    },
+    {
+      "id": "elevator-records-bailong-outdoor-elevator",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "The Bailong Elevator climbs the side of a cliff in Zhangjiajie, China. It opened in 2002, and Guinness World Records recognised it as the world's tallest outdoor elevator. How tall is it?",
+      "answer": "326 m",
+      "distractors": [
+        "96 m",
+        "196 m",
+        "526 m"
+      ],
+      "fact": "The glass-sided Bailong ('Hundred Dragons') Elevator is 326 m tall, with 171.4 m of it above ground on the face of a quartzite cliff in Zhangjiajie National Forest Park. Its three double-deck cars each carry dozens of people and reach the top in about a minute and a half.",
+      "sources": [
+        {
+          "title": "Guinness World Records: Tallest outdoor elevator",
+          "url": "https://www.guinnessworldrecords.com/world-records/106876-tallest-outdoor-elevator",
+          "quote": "the 326-m (1,070-ft) glass-sided Bailong Elevator ... the upper 171.4 m of which is above ground and built on the side of a quartzite cliff"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Zhangjiajie Bailong Elevator, World's Tallest Outdoor Elevator - ChinaTravel.com",
+          "source_url": "https://www.chinatravel.com/zhangjiajie/attraction/zhangjiajie-bailong-elevator"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Guinness World Records news (16 July 2015): cliff face elevator in China recognised as world's tallest outdoor lift",
+          "source_url": "https://www.guinnessworldrecords.com/news/2015/7/breathtaking-cliff-face-elevator-in-china-recognised-as-worlds-tallest-outdoor-l-387951"
+        }
+      ]
+    },
+    {
+      "id": "elevator-culture-ding-count",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "In US elevator accessibility rules, how many times does the arrival signal sound when the elevator is going down?",
+      "answer": "Two",
+      "distractors": [
+        "One",
+        "Three",
+        "Four"
+      ],
+      "fact": "The 2010 ADA Standards (section 407.2.2.3) say the signal at the elevator doors sounds once for up and twice for down - or a voice can announce the direction instead - so you can tell which way the elevator is heading just by listening.",
+      "sources": [
+        {
+          "title": "2010 ADA Standards, 407.2.2.3 Audible Signals (UpCodes)",
+          "url": "https://up.codes/s/audible-signals",
+          "quote": "Audible signals shall sound once for the up direction and twice for the down direction, or shall have verbal annunciators that indicate the direction of elevator car travel."
+        },
+        {
+          "title": "U.S. Access Board, ADA Guide Chapter 4: Elevators and Platform Lifts",
+          "url": "https://www.access-board.gov/ada/guides/chapter-4-elevators-and-platform-lifts/",
+          "quote": "Audible signals: one (up)/ two (down) or annunciator"
+        },
+        {
+          "title": "2010 ADA Standards, Section 407 Elevators (Corada)",
+          "url": "https://www.corada.com/documents/2010ADAStandards/407",
+          "quote": "once for the up direction and twice for the down direction"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "2010 ADA Standards for Accessible Design (ADA.gov, U.S. Department of Justice)",
+          "source_url": "https://www.ada.gov/law-and-regs/design-standards/2010-stds/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "U.S. Access Board, ADA Guide Chapter 4: Elevators and Platform Lifts",
+          "source_url": "https://www.access-board.gov/ada/guides/chapter-4-elevators-and-platform-lifts/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-culture-braille-left-of-button",
+      "category": "elevator",
+      "difficulty": 3,
+      "question": "By the US ADA rule, on which side of an elevator floor button does its braille label go?",
+      "answer": "Immediately to the left",
+      "distractors": [
+        "Immediately to the right",
+        "Directly above",
+        "Directly below"
+      ],
+      "fact": "The 2010 ADA Standards (407.4.7.1.2) say the raised numbers and braille go immediately to the left of the button they belong to, so a blind rider can feel the label and then press the button beside it. (An older panel with no room may put the label as close to the button as possible.)",
+      "sources": [
+        {
+          "title": "2010 ADA Standards, 407.4.7.1.2 Location (Corada)",
+          "url": "https://www.corada.com/documents/2010ADAStandards/407-4-7-1-2",
+          "quote": "Raised character and braille designations shall be placed immediately to the left of the control button to which the designations apply."
+        },
+        {
+          "title": "U.S. Access Board, ADA Guide Chapter 4: Elevators and Platform Lifts",
+          "url": "https://www.access-board.gov/ada/guides/chapter-4-elevators-and-platform-lifts/",
+          "quote": "Raised characters to immediate left of button, raised 1/32 inches min, sans serif"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "2010 ADA Standards for Accessible Design (ADA.gov, U.S. Department of Justice)",
+          "source_url": "https://www.ada.gov/law-and-regs/design-standards/2010-stds/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "U.S. Access Board, ADA Guide Chapter 4: Elevators and Platform Lifts",
+          "source_url": "https://www.access-board.gov/ada/guides/chapter-4-elevators-and-platform-lifts/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-culture-thirteenth-floor",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "Which floor number do many tall buildings in the USA leave off their elevator buttons because of an old superstition?",
+      "answer": "13",
+      "distractors": [
+        "7",
+        "9",
+        "20"
+      ],
+      "fact": "In 2002 the Otis Elevator Company estimated that 85% of buildings with 13 or more floors and Otis elevators had no floor called 13 - the buttons jump from 12 to 14 - and a 2024 count of New York apartment buildings found about the same share. Fear of the number 13 even has a name: triskaidekaphobia.",
+      "sources": [
+        {
+          "title": "Scripps News: Exploring hotel superstitions: The mystery of the missing 13th floor",
+          "url": "https://www.scrippsnews.com/life/exploring-hotel-superstitions-the-mystery-of-the-missing-13th-floor",
+          "quote": "According to Otis Elevator Company, up to 85% of their elevator panels today omit the number 13."
+        },
+        {
+          "title": "Merriam-Webster: triskaidekaphobia",
+          "url": "https://www.merriam-webster.com/dictionary/triskaidekaphobia",
+          "quote": ": fear of the number 13"
+        },
+        {
+          "title": "Wikipedia: Thirteenth floor (second source)",
+          "url": "https://en.wikipedia.org/wiki/Thirteenth_floor",
+          "quote": "In 2002, based on an internal review of records, Dilip Rangnekar of Otis Elevators estimated that, among buildings with thirteen or more floors and Otis brand elevators, 85% did not have a floor named the 13th floor."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Realty Times, 'Bottom Line Conjures Up Realty's Fear Of 13' by Broderick Perkins, 13 Sept 2002 (Wayback archive)",
+          "source_url": "https://web.archive.org/web/20130430013751/http://realtytimes.com/rtpages/20020913_13thfloor.htm"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Significance (Royal Statistical Society): Why do buildings skip the thirteenth floor?",
+          "source_url": "https://academic.oup.com/jrssig/article/21/2/16/7641894"
+        }
+      ]
+    },
+    {
+      "id": "elevator-culture-first-floor-uk-us",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "In Britain, which level of a building is called the 'first floor'?",
+      "answer": "The level one above the street",
+      "distractors": [
+        "The level at street level",
+        "The basement",
+        "The top level"
+      ],
+      "fact": "In British English the first floor is one level above the street (street level is called the ground floor), but in American English the first floor IS street level - so pressing '1' can take you to different places in London and New York.",
+      "sources": [
+        {
+          "title": "Cambridge Dictionary: the first floor",
+          "url": "https://dictionary.cambridge.org/dictionary/english/first-floor",
+          "quote": "UK: the level of a building that is one level above the street"
+        },
+        {
+          "title": "Cambridge Dictionary: the first floor (US sense)",
+          "url": "https://dictionary.cambridge.org/dictionary/english/first-floor",
+          "quote": "US: the level of a building that is at the same level as the street"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Collins English Dictionary / COBUILD: first floor",
+          "source_url": "https://www.collinsdictionary.com/dictionary/english/first-floor"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Wiktionary: first floor",
+          "source_url": "https://en.wiktionary.org/wiki/first_floor"
+        }
+      ]
+    },
+    {
+      "id": "elevator-culture-muzak-kodak",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "Muzak, the company whose name became a nickname for 'elevator music', got that name by mixing 'music' with the name of which company?",
+      "answer": "Kodak",
+      "distractors": [
+        "Ford",
+        "Coca-Cola",
+        "Disney"
+      ],
+      "fact": "The name Muzak dates from 1934. The company grew out of a 'wired radio' music service based on inventions by US Army general George Owen Squier, and the new name blends 'music' with the ending of the camera brand 'Kodak'. The name became so well known that people now call any gentle background music 'Muzak' or 'elevator music'.",
+      "sources": [
+        {
+          "title": "Encyclopedia.com: Muzak (St. James Encyclopedia of Popular Culture)",
+          "url": "https://www.encyclopedia.com/media/encyclopedias-almanacs-transcripts-and-maps/muzak",
+          "quote": "Squier's efforts to come up with a catchier name for his company, resulted in the term Muzak, a blend of the word 'music' with the final syllable from George Eastman's universally pronounceable synthetic trade name, Kodak."
+        },
+        {
+          "title": "HistoryNet: Meet the Tech Visionary Who Started the U.S. Air Force, Built Phone Networks, and Invented Muzak",
+          "url": "https://www.historynet.com/meet-the-tech-visionary-who-started-the-u-s-air-force-built-phone-networks-and-invented-muzak/",
+          "quote": "Over time, Muzak switched from the home consumer market to providing background music for hotels, restaurants, stores, and, most famously, elevators."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "The Army General Who Invented Muzak | HISTORY",
+          "source_url": "https://www.history.com/articles/muzak-invention-army-general"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Muzak — Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Muzak"
+        }
+      ]
+    },
+    {
+      "id": "elevator-culture-elevator-pitch",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "What is an 'elevator pitch'?",
+      "answer": "A super-short speech to sell an idea, short enough for an elevator ride",
+      "distractors": [
+        "The slope of an elevator's floor",
+        "The musical note of an elevator's ding",
+        "The price of a ride in an elevator"
+      ],
+      "fact": "An elevator pitch is a very short version of a sales talk or business plan - named from the idea that it should be short enough to say during an elevator ride.",
+      "sources": [
+        {
+          "title": "Collins English Dictionary: elevator pitch",
+          "url": "https://www.collinsdictionary.com/dictionary/english/elevator-pitch",
+          "quote": "from the idea that the pitch should be so short that it could be delivered during an elevator ride"
+        },
+        {
+          "title": "Dictionary.com: elevator pitch",
+          "url": "https://www.dictionary.com/browse/elevator-pitch",
+          "quote": "a brief talk or pitch intended to sell or win approval for something, as a product or business proposal."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Elevator pitches – University of Warwick (WIE staff skills festival)",
+          "source_url": "https://warwick.ac.uk/wie/training/staff/skillsfestival-staff/practicalskills/elevatorpitches/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "elevator pitch — Wiktionary",
+          "source_url": "https://en.wiktionary.org/wiki/elevator_pitch"
+        }
+      ]
+    },
+    {
+      "id": "elevator-culture-great-glass-elevator-knids",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "In Roald Dahl's book Charlie and the Great Glass Elevator, which creatures lurk inside the Space Hotel?",
+      "answer": "Vermicious Knids",
+      "distractors": [
+        "Oompa-Loompas",
+        "Whangdoodles",
+        "Gremlins"
+      ],
+      "fact": "Charlie and the Great Glass Elevator (1972) is the sequel to Charlie and the Chocolate Factory: the glass elevator goes into orbit, docks at the Space Hotel, and Charlie and Willy Wonka face the shape-changing Vermicious Knids.",
+      "sources": [
+        {
+          "title": "Penguin Books UK: Charlie and the Great Glass Elevator",
+          "url": "https://www.penguin.co.uk/books/58706/charlie-and-the-great-glass-elevator-by-roald-dahl/9780141365381",
+          "quote": "The American Space Hotel has also just launched. Lurking inside are the Vermicious Knids - the most brutal beasts in the universe!"
+        },
+        {
+          "title": "Penguin Random House: Charlie and the Great Glass Elevator",
+          "url": "https://www.penguinrandomhouse.com/books/319174/charlie-and-the-great-glass-elevator-by-roald-dahl/",
+          "quote": "The sequel to Charlie and the Chocolate Factory, join your favorite characters on an intergalactic joyride!"
+        },
+        {
+          "title": "Britannica: Roald Dahl",
+          "url": "https://www.britannica.com/biography/Roald-Dahl",
+          "quote": "His other works for young readers include Fantastic Mr. Fox (1970; film 2009), Charlie and the Great Glass Elevator (1972)"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Announcing CHARLIE AND THE GREAT GLASS ELEVATOR by Roald Dahl – Subterranean Press",
+          "source_url": "https://subterraneanpress.com/newsannouncing-charlie-and-the-great-glass-elevator-by-roald-dahl/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Charlie and the Great Glass Elevator — Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Charlie_and_the_Great_Glass_Elevator"
+        }
+      ]
+    },
+    {
+      "id": "elevator-culture-mirror-wheelchair",
+      "category": "elevator",
+      "difficulty": 3,
+      "question": "In Europe, the lift accessibility rules say a narrow lift must have a mirror inside. What is the mirror for?",
+      "answer": "So a wheelchair user can see behind them when backing out",
+      "distractors": [
+        "To make the lift look bigger",
+        "So riders can check their hair",
+        "To bounce light around and save electricity"
+      ],
+      "fact": "The European lift accessibility standard EN 81-70 requires a mirror in lift cars that are too narrow for a wheelchair to turn round. A passenger in a wheelchair has to reverse out, and the mirror lets them see what is behind them.",
+      "sources": [
+        {
+          "title": "iKONIC Lifts: Lift car requirements for EN 81-70:2021",
+          "url": "https://www.ikoniclifts.co.uk/blog/lift-car-requirements-for-en-81-702021/",
+          "quote": "Car types 1, 2 & 3 shall have a mirror to aid passengers in a wheel chair to see behind them."
+        },
+        {
+          "title": "Elevator World: Requirements of EN 81-70,71,72 in Elevator Cabins",
+          "url": "https://elevatorworld.com/article/requirements-of-en-81-707172-in-elevator-cabins/",
+          "quote": "Mirror is mandatory for car types 1, 2, and 3"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Standards & Regulations | Lift Source",
+          "source_url": "https://www.liftsource.com/standards-regulations/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Lift car requirements for EN 81-70:2021 — iKONIC Lifts",
+          "source_url": "https://www.ikoniclifts.co.uk/blog/lift-car-requirements-for-en-81-702021/"
+        }
+      ]
+    },
+    {
+      "id": "elevator-culture-etiquette-nearest-doors",
+      "category": "elevator",
+      "difficulty": 1,
+      "question": "According to Otis's elevator safety tips, who should move first when the elevator doors open?",
+      "answer": "The passengers nearest the doors",
+      "distractors": [
+        "The tallest passenger",
+        "The person who pressed the button",
+        "Whoever got to the elevator first"
+      ],
+      "fact": "Otis's and Schindler's rider tips both say: passengers nearest the doors move first, and people waiting should stand aside for exiting passengers before stepping in.",
+      "sources": [
+        {
+          "title": "Otis Elevator Company: Elevator Safety",
+          "url": "https://www.otis.com/en/us/tools-resources/elevator-safety",
+          "quote": "Enter and exit carefully. Passengers nearest the doors should move first."
+        },
+        {
+          "title": "Schindler U.S.: Tips for Riders",
+          "url": "https://schindler.com/us/internet/en/about-us/safety/tips-for-riders.html",
+          "quote": "Passengers nearest to the doors should move first when the car arrives."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Safety Topic: Elevator Safety - Columbia University Irving Medical Center Facilities Management",
+          "source_url": "https://www.facilities.cuimc.columbia.edu/node/2167"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Elevator Safety | Otis Elevator Company",
+          "source_url": "https://www.otis.com/en/us/tools-resources/elevator-safety"
+        }
+      ]
+    },
+    {
+      "id": "elevator-culture-otis-1854-rope",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "At an 1854 exhibition in New York, what was cut to prove that Elisha Otis's elevator safety brake worked?",
+      "answer": "The rope holding up his platform",
+      "distractors": [
+        "A ribbon across the entrance",
+        "A chain locking the doors",
+        "The cord of the stage lamp"
+      ],
+      "fact": "Otis's company history tells how in 1854, at New York's Crystal Palace exhibition, Elisha Otis stood on a platform lift high above the crowd and had the rope holding it cut with an axe. The platform dropped only a few inches before his safety brake caught it, and he called out: 'All safe, gentlemen, all safe.' In 1857 Otis put its first passenger elevator into a five-story New York department store.",
+      "sources": [
+        {
+          "title": "Otis Elevator Company: Otis History (Elevator history timeline)",
+          "url": "https://www.otis.com/en/us/our-company/history",
+          "quote": "Standing high above the crowd on a platform lift, Otis orders the retaining rope to be cut... 'All safe, gentlemen, all safe,' Otis assures them."
+        },
+        {
+          "title": "Otis Elevator Company: Otis History (1857 entry)",
+          "url": "https://www.otis.com/en/us/our-company/history",
+          "quote": "In 1857, Otis installs its first passenger elevator in New York City's E.V. Haughwout Building, a five-story department store."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Two Billion Passengers a Day: The Otis Story - American Business History Center",
+          "source_url": "https://americanbusinesshistory.org/two-billion-passengers-a-day-the-otis-story/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Elisha Graves Otis - ASME",
+          "source_url": "https://www.asme.org/topics-resources/content/elisha-graves-otis"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-zero-brahmagupta",
+      "category": "math",
+      "difficulty": 2,
+      "question": "In which century did the Indian mathematician Brahmagupta write down rules for doing sums with zero?",
+      "answer": "The 7th century",
+      "distractors": [
+        "The 2nd century",
+        "The 12th century",
+        "The 17th century"
+      ],
+      "fact": "In the 7th century the Indian mathematician Brahmagupta wrote down rules for arithmetic with zero, such as 'the sum of zero and zero is zero'. Much earlier, by around 300-400 BC, Babylonian scribes were putting two little wedge marks in the place where we would write a 0 - a placeholder, not yet a number in its own right.",
+      "sources": [
+        {
+          "title": "MacTutor History of Mathematics: A history of Zero",
+          "url": "https://mathshistory.st-andrews.ac.uk/HistTopics/Zero/",
+          "quote": "Brahmagupta attempted to give the rules for arithmetic involving zero and negative numbers in the seventh century."
+        },
+        {
+          "title": "MacTutor History of Mathematics: A history of Zero (Babylonians)",
+          "url": "https://mathshistory.st-andrews.ac.uk/HistTopics/Zero/",
+          "quote": "around 400 BC the Babylonians put two wedge symbols into the place where we would put zero to indicate which was meant."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "The Story of Mathematics: Indian Mathematics - Brahmagupta",
+          "source_url": "https://www.storyofmathematics.com/indian_brahmagupta.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "MacTutor History of Mathematics: A history of Zero",
+          "source_url": "https://mathshistory.st-andrews.ac.uk/HistTopics/Zero/"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-one-not-prime",
+      "category": "math",
+      "difficulty": 1,
+      "question": "Which of these numbers is NOT a prime number?",
+      "answer": "1",
+      "distractors": [
+        "2",
+        "3",
+        "5"
+      ],
+      "fact": "A prime number is a whole number bigger than 1 that can only be divided by 1 and itself, so 1 is not counted as prime. Leaving 1 out means every number can be built from primes in exactly one way.",
+      "sources": [
+        {
+          "title": "Wolfram MathWorld: Prime Number",
+          "url": "https://mathworld.wolfram.com/PrimeNumber.html",
+          "quote": "A prime number (or prime integer, often simply called a 'prime' for short) is a positive integer p>1 that has no positive integer divisors other than 1 and p itself."
+        },
+        {
+          "title": "Wolfram MathWorld: Prime Number (why 1 is excluded)",
+          "url": "https://mathworld.wolfram.com/PrimeNumber.html",
+          "quote": "A good reason not to call 1 a prime number is that if 1 were prime, then the statement of the fundamental theorem of arithmetic would have to be modified since 'in exactly one' way would be false because any n=n·1."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "PrimePages (t5k.org): Why is the number one not prime?",
+          "source_url": "https://t5k.org/notes/faq/one.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Wolfram MathWorld: Prime Number",
+          "source_url": "https://mathworld.wolfram.com/PrimeNumber.html"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-largest-known-prime-2026",
+      "category": "math",
+      "difficulty": 2,
+      "question": "As of 2026, about how many digits long is the largest known prime number?",
+      "answer": "About 41 million digits",
+      "distractors": [
+        "About 41 thousand digits",
+        "About 4 million digits",
+        "About 41 billion digits"
+      ],
+      "fact": "As of 2026 the largest known prime is 2^136,279,841 minus 1, which has 41,024,320 digits. It was found on 12 October 2024 by Luke Durant, who ran GIMPS prime-hunting software on thousands of graphics chips (GPUs) in cloud data centres across 17 countries.",
+      "sources": [
+        {
+          "title": "GIMPS (mersenne.org): List of Known Mersenne Prime Numbers",
+          "url": "https://www.mersenne.org/primes/",
+          "quote": "2^136279841-1  41024320  2024 Oct 12  GIMPS / Luke Durant  PRP / Gpuowl on NVIDIA A100"
+        },
+        {
+          "title": "GIMPS press release: M136279841",
+          "url": "https://www.mersenne.org/primes/?press=M136279841",
+          "quote": "The Great Internet Mersenne Prime Search (GIMPS) has discovered the largest known prime number, 2^136,279,841-1, having 41,024,320 decimal digits."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Smithsonian Magazine: Amateur Mathematician Discovers the Largest Known Prime Number, With More Than 41 Million Digits",
+          "source_url": "https://www.smithsonianmag.com/smart-news/amateur-mathematician-discovers-the-largest-known-prime-number-with-more-than-41-million-digits-180985321/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "GIMPS press release: Mersenne Prime Discovery - 2^136279841-1 is Prime!",
+          "source_url": "https://www.mersenne.org/primes/?press=M136279841"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-pi-memorised-record",
+      "category": "math",
+      "difficulty": 2,
+      "question": "How many decimal places of pi did Rajveer Meena recite from memory in 2015 to set the Guinness World Record?",
+      "answer": "70,000",
+      "distractors": [
+        "7,000",
+        "35,000",
+        "700,000"
+      ],
+      "fact": "As of 2026 the Guinness World Record for most decimal places of pi memorised is 70,000, set by Rajveer Meena of India on 21 March 2015. He recited them wearing a blindfold, and it took nearly 10 hours.",
+      "sources": [
+        {
+          "title": "Guinness World Records: Most Pi places memorised",
+          "url": "https://www.guinnessworldrecords.com/world-records/most-pi-places-memorised",
+          "quote": "Rajveer Meena (India) ... 70,000 ... 21 March 2015"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "DeshGujarat: Youth memorises 70000 Pi digits, sets Guinness record",
+          "source_url": "https://deshgujarat.com/2015/10/05/youth-memorises-70000-pi-digits-sets-guinness-record/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Guinness World Records: Most decimal places of Pi memorized",
+          "source_url": "https://www.guinnessworldrecords.com/world-records/most-pi-places-memorised"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-pi-day",
+      "category": "math",
+      "difficulty": 1,
+      "question": "On which date is Pi Day celebrated every year?",
+      "answer": "14 March",
+      "distractors": [
+        "14 February",
+        "14 April",
+        "31 March"
+      ],
+      "fact": "Pi Day is 14 March because, written the American way, that is 3/14, the first digits of pi (3.14159...). Physicist Larry Shaw started it at the Exploratorium science museum in San Francisco in 1988, with the first party at 1:59 p.m., the next three digits of pi.",
+      "sources": [
+        {
+          "title": "Reed Magazine: In Memoriam, Larry Shaw 1961",
+          "url": "https://www.reed.edu/reed-magazine/in-memoriam/obituaries/2018/larry-shaw-1961.html",
+          "quote": "In 1988, Larry was working as a technical curator for the Exploratorium, a San Francisco museum, when he came up with the idea of honoring the influential constant with an annual party. ... The Exploratorium celebrated its first Pi Day on March 14 at 1:59."
+        },
+        {
+          "title": "piday.org",
+          "url": "https://www.piday.org/",
+          "quote": "Pi Day is celebrated on March 14th (3/14) around the world."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "ABC7 San Francisco: Pi Day 2025: What to know about the March 14 holiday",
+          "source_url": "https://abc7news.com/post/pi-day-2025-what-know-march-14-holiday-celebrate-maths-beloved-irrational-number/11650529/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Pi Day - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Pi_Day"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-googol",
+      "category": "math",
+      "difficulty": 1,
+      "question": "How many zeros come after the 1 in a googol?",
+      "answer": "100",
+      "distractors": [
+        "10",
+        "1,000",
+        "1,000,000"
+      ],
+      "fact": "A googol is a 1 followed by 100 zeros (10 to the power 100). The name was invented by mathematician Edward Kasner's nine-year-old nephew, Milton Sirotta, when he was asked to think up a name for a very big number.",
+      "sources": [
+        {
+          "title": "Wolfram MathWorld: Googol",
+          "url": "https://mathworld.wolfram.com/Googol.html",
+          "quote": "A googol is a large number equal to 10^100 (i.e., a 1 with 100 zeros following it). The term was coined in 1938 by 9-year-old Milton Sirotta, nephew of Edward Kasner."
+        },
+        {
+          "title": "MacTutor History of Mathematics: Edward Kasner",
+          "url": "https://mathshistory.st-andrews.ac.uk/Biographies/Kasner/",
+          "quote": "The name 'googol' was invented by a child (Dr Kasner's nine-year-old nephew) who was asked to think up a name for a very big number, namely, 1 with a hundred zeros after it."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "John D. Cook: Googol and googolplex",
+          "source_url": "https://www.johndcook.com/blog/2014/11/18/googol-and-googolplex/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Googol - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Googol"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-perfect-28",
+      "category": "math",
+      "difficulty": 2,
+      "question": "6 is a perfect number because 1 + 2 + 3 = 6. What is the next perfect number after 6?",
+      "answer": "28",
+      "distractors": [
+        "12",
+        "24",
+        "36"
+      ],
+      "fact": "A perfect number equals the sum of its divisors, not counting itself. 28 = 1 + 2 + 4 + 7 + 14. The first four perfect numbers are 6, 28, 496 and 8,128.",
+      "sources": [
+        {
+          "title": "Wolfram MathWorld: Perfect Number",
+          "url": "https://mathworld.wolfram.com/PerfectNumber.html",
+          "quote": "Perfect numbers are positive integers n such that n=s(n), where s(n) is the restricted divisor function (i.e., the sum of proper divisors of n). ... the first few perfect numbers are 6, 28, 496, 8128, ... (OEIS A000396)."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "SS > factoids > perfect number (University of York)",
+          "source_url": "https://www-users.york.ac.uk/~ss44/cyc/p/perfect.htm"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Wolfram MathWorld: Perfect Number",
+          "source_url": "https://mathworld.wolfram.com/PerfectNumber.html"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-palindrome",
+      "category": "math",
+      "difficulty": 1,
+      "question": "A palindromic number reads the same forwards and backwards. Which of these is a palindromic number?",
+      "answer": "12321",
+      "distractors": [
+        "12345",
+        "12312",
+        "13221"
+      ],
+      "fact": "A palindromic number is the same when written forwards or backwards, like 121 or 12321. Every one-digit number counts, and the first two-digit ones are 11, 22, 33 and so on up to 99.",
+      "sources": [
+        {
+          "title": "Wolfram MathWorld: Palindromic Number",
+          "url": "https://mathworld.wolfram.com/PalindromicNumber.html",
+          "quote": "A palindromic number is a number (in some base b) that is the same when written forwards or backwards. The first few palindromic numbers are therefore are 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 22, 33, 44, 55, 66, 77, 88, 99, 101, 111, 121, ..."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Number Palindromes (Ron Knott, University of Surrey)",
+          "source_url": "https://r-knott.surrey.ac.uk/IntegerReps/palindromes.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Wolfram MathWorld: Palindromic Number",
+          "source_url": "https://mathworld.wolfram.com/PalindromicNumber.html"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-roman-no-zero",
+      "category": "math",
+      "difficulty": 1,
+      "question": "Which number has no symbol of its own in Roman numerals?",
+      "answer": "0",
+      "distractors": [
+        "1",
+        "5",
+        "10"
+      ],
+      "fact": "Roman numerals use the letters I, V, X, L, C, D and M (for 1, 5, 10, 50, 100, 500 and 1000) but have no symbol for zero and no place value, which made sums hard. More than 2,000 years ago the Babylonians were the first to use a mark for an 'empty place' in a number - the very beginning of zero.",
+      "sources": [
+        {
+          "title": "NRICH (University of Cambridge): A Story About Absolutely Nothing",
+          "url": "https://nrich.maths.org/articles/story-about-absolutely-nothing",
+          "quote": "The Romans only had a limited number of symbols I, V, X, C, L, D, M ... They had two problems - firstly they did not have zero and secondly they did not have a system which allowed for 'place value'"
+        },
+        {
+          "title": "Wikipedia: Roman numerals (second source)",
+          "url": "https://en.wikipedia.org/wiki/Roman_numerals",
+          "quote": "the system as used by the Romans lacked a numeral for the number zero itself."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Scientific American: What is the origin of zero?",
+          "source_url": "https://www.scientificamerican.com/article/what-is-the-origin-of-zer/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "MacTutor History of Mathematics: A history of Zero",
+          "source_url": "https://mathshistory.st-andrews.ac.uk/HistTopics/Zero/"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-seconds-in-a-day",
+      "category": "math",
+      "difficulty": 1,
+      "question": "How many seconds are there in one day?",
+      "answer": "86,400",
+      "distractors": [
+        "3,600",
+        "1,440",
+        "864,000"
+      ],
+      "fact": "One day is 24 hours x 60 minutes x 60 seconds = 86,400 seconds. Multiply by 365 days and a normal year has 31,536,000 seconds.",
+      "sources": [
+        {
+          "title": "NIST Special Publication 811, Chapter 5: Units Outside the SI (Table 6)",
+          "url": "https://www.nist.gov/pml/special-publication-811/nist-guide-si-chapter-5-units-outside-si",
+          "quote": "1 min = 60 s; 1 h = 60 min = 3600 s; 1 d = 24 h = 86 400 s"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "BIPM: The International System of Units (SI), 9th edition, Table 8 Non-SI units",
+          "source_url": "https://www.bipm.org/documents/20126/41483022/SI-Brochure-9-EN.pdf"
+        },
+        {
+          "lens": "refute",
+          "source_title": "NIST Special Publication 811, Chapter 5: Units Outside the SI (Table 6)",
+          "source_url": "https://www.nist.gov/pml/special-publication-811/nist-guide-si-chapter-5-units-outside-si"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-chessboard-doubling",
+      "category": "math",
+      "difficulty": 3,
+      "question": "In the old wheat-and-chessboard puzzle, 1 grain goes on square 1, 2 on square 2, 4 on square 3, doubling every square. Roughly how many grains end up on all 64 squares?",
+      "answer": "About 18 quintillion",
+      "distractors": [
+        "About 18 million",
+        "About 18 billion",
+        "About 18 trillion"
+      ],
+      "fact": "Doubling 63 times and adding it all up gives 2^64 minus 1 = 18,446,744,073,709,551,615 grains, about 18 quintillion. Doubling makes numbers grow astonishingly fast.",
+      "sources": [
+        {
+          "title": "Wolfram MathWorld: Wheat and Chessboard Problem",
+          "url": "https://mathworld.wolfram.com/WheatandChessboardProblem.html",
+          "quote": "Let one grain of wheat be placed on the first square of a chessboard, two on the second, four on the third, eight on the fourth, etc. ... Plugging in n=8×8=64 then gives 2^(64)-1=18446744073709551615."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Wikiversity: Math Adventures/Wheat and the Chessboard",
+          "source_url": "https://en.wikiversity.org/wiki/Math_Adventures/Wheat_and_the_Chessboard"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Wikipedia: Names of large numbers",
+          "source_url": "https://en.wikipedia.org/wiki/Names_of_large_numbers"
+        }
+      ]
+    },
+    {
+      "id": "math-numbers-two-to-the-ten",
+      "category": "math",
+      "difficulty": 2,
+      "question": "If you start at 1 and double it 10 times, what number do you reach?",
+      "answer": "1,024",
+      "distractors": [
+        "20",
+        "512",
+        "2,048"
+      ],
+      "fact": "Doubling 1 ten times gives 2^10 = 1,024. Because 1,024 is so close to 1,000, computer people often use 'kilo' to mean 1,024 instead of 1,000. To keep the two apart, in 1998 an international standards group (the IEC) gave 1,024 its own name: 1,024 bits is a 'kibibit'.",
+      "sources": [
+        {
+          "title": "NIST Reference on Constants, Units, and Uncertainty: Prefixes for binary multiples",
+          "url": "https://physics.nist.gov/cuu/Units/binary.html",
+          "quote": "one kibibit: 1 Kibit = 2^10 bit = 1024 bit; one kilobit: 1 kbit = 10^3 bit = 1000 bit ... computer professionals noticed that 2^10 was very nearly equal to 1000 and started using the SI prefix 'kilo' to mean 1024."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "BIPM: The International System of Units (SI), 9th edition, section 3 SI prefixes",
+          "source_url": "https://www.bipm.org/documents/20126/41483022/SI-Brochure-9-EN.pdf"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Wikipedia: Binary prefix",
+          "source_url": "https://en.wikipedia.org/wiki/Binary_prefix"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-manhole-round",
+      "category": "math",
+      "difficulty": 1,
+      "question": "What is the classic reason manhole covers are made round rather than square?",
+      "answer": "A round cover cannot fall through its own hole",
+      "distractors": [
+        "Round covers keep rain out better",
+        "Square covers would rust faster",
+        "Round covers are easier to see at night"
+      ],
+      "fact": "A circle is the same width whichever way you turn it, so a round cover can never slip through its own round hole. A square cover tipped on its diagonal could drop through, because a square's diagonal is about 1.414 times as long as its side. Round covers have other perks too: they can be rolled along, and they never need turning to fit.",
+      "sources": [
+        {
+          "title": "Round Manhole Cover - P2SL Mistake-Proofing, UC Berkeley",
+          "url": "https://p2sl-mistakeproofing.berkeley.edu/product/round-manhole-cover",
+          "quote": "A round cover cannot fall through a circular opening of at least the same diameter, no matter how it is positioned."
+        },
+        {
+          "title": "The Surprisingly Technical Reason That Manhole Covers Are Round - Enviro Design Products",
+          "url": "https://www.envirodesignproducts.com/blogs/news/the-surprisingly-technical-reason-that-manhole-covers-are-round",
+          "quote": "if you have a square cover, the diagonal distance across the length of the square is 1.414 times the length of the sides ... if you were to drop a square cover onto its opening at a diagonal angle, it could easily fall through."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Why Are Most Manhole Covers Circular And Not Triangular, Square Or Rectangular? - ScienceABC",
+          "source_url": "https://www.scienceabc.com/eyeopeners/why-manhole-covers-circular-not-triangular-square-rectangular"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Manhole cover - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Manhole_cover"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-360-degrees",
+      "category": "math",
+      "difficulty": 2,
+      "question": "Which ancient people counted in sixties, and are usually credited with giving us the 360-degree circle?",
+      "answer": "The Babylonians",
+      "distractors": [
+        "The Romans",
+        "The Vikings",
+        "The Aztecs"
+      ],
+      "fact": "The Babylonians used a positional base-60 number system, and our 360-degree circle harks back to them. Nobody knows for certain why 360 was chosen: it is 6 times 60, and it is also close to the number of days in a year, so the Sun seems to move about one degree along its path each day.",
+      "sources": [
+        {
+          "title": "Babylonian numerals - MacTutor History of Mathematics, University of St Andrews",
+          "url": "https://mathshistory.st-andrews.ac.uk/HistTopics/Babylonian_numerals/",
+          "quote": "the Babylonian system was a positional base 60 system"
+        },
+        {
+          "title": "Degree - Wolfram MathWorld",
+          "url": "https://mathworld.wolfram.com/Degree.html",
+          "quote": "The most common meaning is the unit of angle measure defined such that an entire rotation is 360 degrees. This unit harks back to the Babylonians, who used a base 60 number system."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Babylonian 360 Degrees - David Jeffery, UNLV Physics",
+          "source_url": "https://www.physics.unlv.edu/~jeffery/astro/babylon/babylonian_360_degrees.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Degree (angle) - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Degree_(angle)"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-honeycomb-hexagon",
+      "category": "math",
+      "difficulty": 2,
+      "question": "Which shape of room divides a flat surface into equal-sized rooms using the least total wall?",
+      "answer": "Regular hexagon",
+      "distractors": [
+        "Square",
+        "Equilateral triangle",
+        "Regular octagon"
+      ],
+      "fact": "Maths has a rule called the honeycomb conjecture: if you divide a flat surface into rooms that are all the same size, no pattern uses less wall than a grid of regular hexagons. Thomas Hales proved it in 1999. Whether bees build hexagons for this reason is a separate question about bees, not maths.",
+      "sources": [
+        {
+          "title": "Honeycomb Conjecture - Wolfram MathWorld",
+          "url": "https://mathworld.wolfram.com/HoneycombConjecture.html",
+          "quote": "Any partition of the plane into regions of equal area has perimeter at least that of the regular hexagonal grid (i.e., the honeycomb). ... The conjecture was finally proven by Hales (1999, 2001)."
+        },
+        {
+          "title": "The Honeycomb Conjecture - Thomas C. Hales, arXiv (1999)",
+          "url": "https://arxiv.org/abs/math/9906042",
+          "quote": "The classical honeycomb conjecture asserts that any partition of the plane into regions of equal area has perimeter at least that of the regular hexagonal honeycomb tiling."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "The Honeycomb Conjecture - T. C. Hales, Discrete & Computational Geometry 25, 1-22 (2001)",
+          "source_url": "https://link.springer.com/article/10.1007/s004540010071"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Honeycomb conjecture - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Honeycomb_conjecture"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-binary-digits",
+      "category": "math",
+      "difficulty": 1,
+      "question": "How many different digits does a computer's binary counting system use?",
+      "answer": "2",
+      "distractors": [
+        "10",
+        "8",
+        "16"
+      ],
+      "fact": "Binary is the base-2 way of counting using only the digits 0 and 1. Computers use it because every number can be stored as a string of electrical ons and offs. The German thinker Gottfried Leibniz had worked out binary arithmetic by 1679.",
+      "sources": [
+        {
+          "title": "Binary - Wolfram MathWorld",
+          "url": "https://mathworld.wolfram.com/Binary.html",
+          "quote": "The base 2 method of counting in which only the digits 0 and 1 are used. ... This base is used in computers, since all numbers can be simply represented as a string of electrically pulsed ons and offs."
+        },
+        {
+          "title": "Gottfried Wilhelm von Leibniz - MacTutor History of Mathematics, University of St Andrews",
+          "url": "https://mathshistory.st-andrews.ac.uk/Biographies/Leibniz/",
+          "quote": "Another of Leibniz's great achievements in mathematics was his development of the binary system of arithmetic. He perfected his system by 1679"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Leibniz's Binary Algebra and its Role in the Expression and Classification of Numbers - Mattia Brancato, Philosophia Scientiae (2021)",
+          "source_url": "https://journals.openedition.org/philosophiascientiae/3045"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Binary number - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Binary_number"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-fibonacci-next",
+      "category": "math",
+      "difficulty": 1,
+      "question": "In the Fibonacci sequence 1, 1, 2, 3, 5, 8, 13, what number comes next?",
+      "answer": "21",
+      "distractors": [
+        "18",
+        "26",
+        "34"
+      ],
+      "fact": "Each Fibonacci number is the sum of the two before it, so after 8 and 13 comes 8 + 13 = 21. The sequence appears in Fibonacci's book Liber Abaci (1202) as the answer to a puzzle about how many pairs of rabbits you would have each month.",
+      "sources": [
+        {
+          "title": "Fibonacci Number - Wolfram MathWorld",
+          "url": "https://mathworld.wolfram.com/FibonacciNumber.html",
+          "quote": "The Fibonacci numbers for n=1, 2, ... are 1, 1, 2, 3, 5, 8, 13, 21, ..."
+        },
+        {
+          "title": "Fibonacci - MacTutor History of Mathematics, University of St Andrews",
+          "url": "https://mathshistory.st-andrews.ac.uk/Biographies/Fibonacci/",
+          "quote": "The resulting sequence is 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, ... (Fibonacci omitted the first term in Liber abaci)."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Fibonacci Numbers and Nature - Ron Knott, University of Surrey",
+          "source_url": "https://r-knott.surrey.ac.uk/Fibonacci/fibnat.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Fibonacci sequence - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Fibonacci_sequence"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-mobius-sides",
+      "category": "math",
+      "difficulty": 1,
+      "question": "How many sides does a Möbius strip have?",
+      "answer": "1",
+      "distractors": [
+        "2",
+        "3",
+        "4"
+      ],
+      "fact": "A Möbius strip is made by giving a paper band a half twist before joining its ends. The result has only one side and one edge. Two mathematicians, August Möbius and Johann Listing, each found it on their own in 1858. Listing wrote about it first, but the strip is named after Möbius.",
+      "sources": [
+        {
+          "title": "Möbius Strip - Wolfram MathWorld",
+          "url": "https://mathworld.wolfram.com/MoebiusStrip.html",
+          "quote": "The Möbius strip, also called the twisted cylinder (Henle 1994, p. 110), is a one-sided nonorientable surface obtained by cutting a closed band into a single strip, giving one of the two ends thus produced a half twist, and then reattaching the two ends ... The strip bearing his name was invented by Möbius in 1858, although it was independently discovered by Listing, who published it, while Möbius did not"
+        },
+        {
+          "title": "August Ferdinand Möbius - MacTutor History of Mathematics, University of St Andrews",
+          "url": "https://mathshistory.st-andrews.ac.uk/Biographies/Mobius/",
+          "quote": "A Möbius strip is a two-dimensional surface with only one side."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "August Ferdinand Möbius - Complete Dictionary of Scientific Biography (Encyclopedia.com)",
+          "source_url": "https://www.encyclopedia.com/people/science-and-technology/mathematics-biographies/august-ferdinand-mobius"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Möbius strip - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/M%C3%B6bius_strip"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-snowflake-symmetry",
+      "category": "math",
+      "difficulty": 1,
+      "question": "A classic symmetrical snowflake has how many arms or sides?",
+      "answer": "6",
+      "distractors": [
+        "4",
+        "5",
+        "8"
+      ],
+      "fact": "A classic snow crystal has six-fold symmetry, with six sides or six arms. That symmetry comes from the way water molecules are arranged in the ice crystal lattice, which is hexagonal.",
+      "sources": [
+        {
+          "title": "Snow Crystal Science - SnowCrystals.com (Kenneth Libbrecht, Caltech)",
+          "url": "https://www.snowcrystals.com/science/science.html",
+          "quote": "The six-fold symmetry you see in a snow crystal arises from the arrangement of water molecules in the ice crystal lattice."
+        },
+        {
+          "title": "The Beauty and Science of Snowflakes - Smithsonian Science Education Center",
+          "url": "https://ssec.si.edu/stemvisions-blog/beauty-and-science-snowflakes",
+          "quote": "The 'classic' snowflake is a six-sided crystal, but variations in humidity and temperature can alter its shape."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Snowflakes - Met Office",
+          "source_url": "https://weather.metoffice.gov.uk/learn-about/weather/types-of-weather/snow/snowflake"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Snowflake - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Snowflake"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-counterweight-subtraction",
+      "category": "elevator",
+      "difficulty": 3,
+      "question": "An empty elevator car weighs 1000 kg and its counterweight weighs 1500 kg. Then 300 kg of people get in. Now how much heavier is the counterweight than the car with the people inside?",
+      "answer": "200 kg",
+      "distractors": [
+        "500 kg",
+        "800 kg",
+        "1200 kg"
+      ],
+      "fact": "An elevator counterweight is usually set to the weight of the empty car plus 40 to 50% of the load the elevator is rated to carry. It moves the opposite way to the car, so the motor only has to lift the difference in weight. Here the car with people weighs 1000 + 300 = 1300 kg, and 1500 - 1300 = 200 kg.",
+      "sources": [
+        {
+          "title": "Counterweights - TK Elevator Classroom On Demand",
+          "url": "https://www.tkelevator.com/us-en/tools/classroom-on-demand/counterweights.html",
+          "quote": "The weight of an elevator cab (structural load) plus part of the passenger load (40 to 50% of its rated load) determines the weight of the counterweights. ... The weights travel up and down in the opposite direction from the elevator cab."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "How do elevators and lifts work? - Explain that Stuff",
+          "source_url": "https://www.explainthatstuff.com/how-elevators-work.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Elevator - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Elevator"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-floors-per-second",
+      "category": "elevator",
+      "difficulty": 2,
+      "question": "The Burj Khalifa's fastest elevators climb 10 metres every second; if each floor were 4 metres tall, how many floors would they pass each second?",
+      "answer": "2.5 floors",
+      "distractors": [
+        "1.5 floors",
+        "4 floors",
+        "6 floors"
+      ],
+      "fact": "Otis's double-deck elevators in the Burj Khalifa run at up to 10 metres per second (as of 2024) and reach the observation deck on floors 124 and 125 in about 60 seconds. If each floor were 4 metres tall, 10 divided by 4 would give 2.5 floors every second.",
+      "sources": [
+        {
+          "title": "Otis Wins Modernization Project and 10-Year Service Contract Extension for Burj Khalifa - Otis Worldwide press release (PR Newswire, 2024)",
+          "url": "https://www.prnewswire.com/news-releases/otis-wins-modernization-project-and-10-year-service-contract-extension-for-burj-khalifa-302081275.html",
+          "quote": "Two double-deck elevators travel at speeds of up to 10 meters per second, taking passengers from the ground floor to the observation deck on the 124th and 125th floors in just 60 seconds."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Otis Wins Modernization Project and 10-Year Service Contract Extension for Burj Khalifa - Otis Investor Relations (6 March 2024)",
+          "source_url": "https://www.otisinvestors.com/news/news-details/2024/Otis-Wins-Modernization-Project-and-10-Year-Service-Contract-Extension-for-Burj-Khalifa/default.aspx"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Burj Khalifa - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Burj_Khalifa"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-nines-fingers",
+      "category": "math",
+      "difficulty": 2,
+      "question": "To do 9 times 4 on your hands you hold up ten fingers and fold down the 4th finger from the left; fingers to its left are tens and fingers to its right are ones, so what answer do you get?",
+      "answer": "36",
+      "distractors": [
+        "27",
+        "45",
+        "63"
+      ],
+      "fact": "With the 4th finger folded down, three fingers stand to its left (the tens) and six to its right (the ones), giving 36, which is 9 times 4. The trick works for 9 times 1 up to 9 times 10, one for each finger.",
+      "sources": [
+        {
+          "title": "Multiplication Tricks - UVU Math Lab, Utah Valley University",
+          "url": "https://www.uvu.edu/mathlab/docs/fundamental_mathematics/multiplicationandivisiontricks.pdf",
+          "quote": "Hand Method: 1. Hold up ten fingers. 2. Count over from the left the number of fingers equal to the multiplier. 3. Hold that finger down. 4. The number of fingers to the left of the multiplier is the tens place of the solution. 5. The number of fingers to the right is in the ones place of the solution."
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Top tips and tricks for learning the 9 times table - Math, Kids and Chaos",
+          "source_url": "https://www.mathkidsandchaos.com/9-times-table-tips/"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Multiplication Tricks - UVU Math Lab, Utah Valley University",
+          "source_url": "https://www.uvu.edu/mathlab/docs/fundamental_mathematics/multiplicationandivisiontricks.pdf"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-equals-sign-1557",
+      "category": "math",
+      "difficulty": 2,
+      "question": "In what year did Robert Recorde first print the equals sign, =, in a maths book?",
+      "answer": "1557",
+      "distractors": [
+        "1453",
+        "1687",
+        "1801"
+      ],
+      "fact": "Robert Recorde introduced the = sign in his 1557 book The Whetstone of Witte. He chose a pair of parallel lines 'bicause noe .2. thynges, can be moare equalle' (because no two things can be more equal).",
+      "sources": [
+        {
+          "title": "Robert Recorde - MacTutor History of Mathematics, University of St Andrews",
+          "url": "https://mathshistory.st-andrews.ac.uk/Biographies/Recorde/",
+          "quote": "The Whetstone of Witte published in 1557 ... bicause noe 2 thynges can be moare equalle"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "Robert Recorde invents the equals sign - The Universe of Discourse (plover.com); also BBC News, 'Tenby man who invented the equals sign remembered in exhibit', 16 Sept 2015",
+          "source_url": "https://blog.plover.com/math/recorde.html"
+        },
+        {
+          "lens": "refute",
+          "source_title": "Equals sign - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Equals_sign"
+        }
+      ]
+    },
+    {
+      "id": "math-everyday-a4-fold-a5",
+      "category": "math",
+      "difficulty": 2,
+      "question": "If you fold a sheet of A4 paper in half so its two short edges meet, what paper size is the folded sheet?",
+      "answer": "A5",
+      "distractors": [
+        "A3",
+        "A6",
+        "A2"
+      ],
+      "fact": "Every sheet in the A series is the same shape: its long side is about 1.4 times its short side (the square root of 2). Because of that, halving a sheet's longer side gives two smaller sheets of exactly the same shape. A4 is 210 by 297 mm, and half of it is A5, 148 by 210 mm.",
+      "sources": [
+        {
+          "title": "International standard paper sizes - Markus Kuhn, University of Cambridge Computer Laboratory",
+          "url": "https://www.cl.cam.ac.uk/~mgk25/iso-paper.html",
+          "quote": "In the ISO paper size system, the height-to-width ratio of all pages is the square root of two (1.4142 : 1). ... cut one parallel to its shorter side into two equal pieces, then the resulting page will have again the same width/height ratio. ... A4 210 × 297"
+        }
+      ],
+      "verification": [
+        {
+          "lens": "confirm",
+          "source_title": "A Paper Sizes - A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10 - papersizes.org",
+          "source_url": "https://www.papersizes.org/a-paper-sizes.htm"
+        },
+        {
+          "lens": "refute",
+          "source_title": "International standard paper sizes - Markus Kuhn, University of Cambridge Computer Laboratory",
+          "source_url": "https://www.cl.cam.ac.uk/~mgk25/iso-paper.html"
+        }
+      ]
+    }
+  ]
+}
