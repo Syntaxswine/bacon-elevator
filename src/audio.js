@@ -56,9 +56,25 @@ export function createAudio() {
     src.start(t0); src.stop(t0 + dur)
   }
 
+  // ONE STRIKE UP, TWO DOWN, IN EVERY CHIME SET. That is the 2010 ADA Standards 407.2.2.3 count and
+  // it is in the fact bank, so it may not vary with a part the child chose. A chime part replaces
+  // the VOICE at triggers that already exist; it never adds a sound, never moves one, and never
+  // changes how many there are. `ding2` used to play the plain 880 Hz twice whatever was fitted, so
+  // a child who had earned the two-tone chime heard it going up and not coming down.
+  function strike(at = 0) {
+    if (chime === 'two-tone') { tone(1318.5, 0.12, { gain: 0.8, at }); tone(880, 0.16, { gain: 0.8, at: at + 0.14 }) }
+    // A gong is a bell: a plunger strikes brass, and brass rings with partials that are not whole
+    // multiples of the fundamental, which is what makes it a bell and not a tone.
+    else if (chime === 'chime-gong') {
+      tone(523.25, 0.42, { type: 'triangle', gain: 0.55, attack: 0.002, at })
+      tone(523.25 * 2.76, 0.30, { type: 'sine', gain: 0.22, attack: 0.002, at })
+      tone(523.25 * 5.4, 0.18, { type: 'sine', gain: 0.1, attack: 0.002, at })
+    } else tone(880, 0.12, { gain: 0.9, at })
+  }
+
   const sounds = {
-    ding() { if (chime === 'two-tone') { tone(1318.5, 0.12, { gain: 0.8 }); tone(880, 0.16, { gain: 0.8, at: 0.14 }) } else tone(880, 0.12, { gain: 0.9 }) },
-    ding2() { tone(880, 0.12, { gain: 0.9 }); tone(880, 0.12, { gain: 0.9, at: 0.18 }) },
+    ding() { strike(0) },
+    ding2() { strike(0); strike(chime === 'two-tone' ? 0.34 : chime === 'chime-gong' ? 0.30 : 0.18) },
     doorHum() { tone(140, 0.45, { type: 'triangle', gain: 0.12, attack: 0.05 }) },
     click() { tone(1200, 0.02, { type: 'square', gain: 0.15, attack: 0.002 }) },
     bacon() { tone(523.25, 0.12, { gain: 0.6 }); tone(659.25, 0.16, { gain: 0.6, at: 0.12 }) },

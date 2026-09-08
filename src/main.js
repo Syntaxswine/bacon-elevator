@@ -12,6 +12,8 @@ import { explain } from './explain.js'
 import { createShaft } from './render/shaft.js'
 import { createPanel, createDisplay } from './render/panel.js'
 import * as screens from './render/screens.js'
+import { loadParts, PARTS } from './parts.js'
+import { loadClimb } from './climb.js'
 import { createAudio } from './audio.js'
 
 const params = new URLSearchParams(location.search)
@@ -37,9 +39,9 @@ export const RESET_ASSETS = [
   './', './index.html', './404.html', './manifest.webmanifest', './favicon.ico',
   './css/app.css',
   './src/version.js', './src/main.js', './src/rng.js', './src/levels.js', './src/math.js', './src/explain.js',
-  './src/elevator.js', './src/timeline.js', './src/trivia.js', './src/state.js', './src/save.js', './src/storage.js', './src/audio.js',
+  './src/elevator.js', './src/timeline.js', './src/trivia.js', './src/gate.js', './src/parts.js', './src/climb.js', './src/state.js', './src/save.js', './src/storage.js', './src/audio.js',
   './src/render/shaft.js', './src/render/panel.js', './src/render/screens.js',
-  './data/trivia.json',
+  './data/trivia.json', './data/parts.json', './data/climb.json',
   './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/apple-touch-icon.png', './assets/favicon-32.png',
   './assets/icon-maskable-192.png', './assets/icon-maskable-512.png',
 ]
@@ -105,6 +107,7 @@ app.innerHTML = `
   <section class="screen roof" data-name="roof"></section>
   <section class="screen factbook" data-name="factbook"></section>
   <section class="screen workshop" data-name="workshop"></section>
+  <section class="screen logbook" data-name="logbook"></section>
   <section class="screen grownups" data-name="grownups"></section>
 `
 const sections = Object.fromEntries([...app.querySelectorAll('.screen')].map((s) => [s.dataset.name, s]))
@@ -115,7 +118,7 @@ const display = createDisplay(document.getElementById('question'), document.getE
 const hintBox = document.getElementById('hint')
 const sheetBox = document.getElementById('sheet')
 const carEl = document.getElementById('car')
-const ui = { resetArmedAt: 0, gearAt: 0, codeMsg: '', resetMsg: '', transient: null, factVisible: false, factTimer: 0, prevPhase: null, lastMotion: '', storageFailed: false, adopted: '', inertTimer: 0, build: '' }
+const ui = { partCard: null, resetArmedAt: 0, gearAt: 0, codeMsg: '', resetMsg: '', transient: null, factVisible: false, factTimer: 0, prevPhase: null, lastMotion: '', storageFailed: false, adopted: '', inertTimer: 0, build: '' }
 
 // ---- drive log (only under ?drive=1) ----------------------------------------------------
 // events: timeline step names and the car's motion transitions, in the order they happened;
@@ -324,7 +327,8 @@ function render() {
   else if (s === 'rules') sections.rules.innerHTML = screens.rules(state)
   else if (s === 'roof') sections.roof.innerHTML = screens.roof(state)
   else if (s === 'factbook') sections.factbook.innerHTML = screens.factbook(state)
-  else if (s === 'workshop') sections.workshop.innerHTML = screens.workshop(state)
+  else if (s === 'workshop') sections.workshop.innerHTML = screens.workshop(state, { partCard: ui.partCard })
+  else if (s === 'logbook') sections.logbook.innerHTML = screens.logbook(state)
   else if (s === 'grownups') sections.grownups.innerHTML = screens.grownups(state, { version: VERSION, build: ui.build, codeMsg: ui.codeMsg, resetMsg: ui.resetMsg, resetArmed: ui.resetArmedAt > 0, ...notices })
   // the ride screen is persistent: update in place
   const r = state.ride
@@ -495,6 +499,7 @@ app.addEventListener('click', (e) => {
   }
   if (d.nav !== undefined) {
     ui.scrollReset = true
+    ui.partCard = null
     if (d.nav === 'ride') return dispatch({ type: 'ride-start' })
     if (d.nav === 'lobby') return dispatch({ type: 'to-lobby' })
     return dispatch({ type: 'nav', screen: d.nav })
@@ -508,6 +513,11 @@ app.addEventListener('click', (e) => {
     return dispatch({ type: 'set-setting', key: 'custom.ops', value: ops })
   }
   if (d.equipSlot !== undefined) return dispatch({ type: 'equip', slot: d.equipSlot, part: d.equipPart })
+  // The part card is a READING surface over the Workshop, not a state change: it equips nothing,
+  // unlocks nothing and is reachable from a locked row too. It lives in `ui`, so it is gone the
+  // moment the screen changes and never reaches the save.
+  if (d.partCard !== undefined) { ui.partCard = d.partCard; render(); return }
+  if (d.partClose !== undefined) { ui.partCard = null; render(); return }
   if (d.sound !== undefined) {
     const on = !state.settings.sound
     audio.enable(on) // inside the gesture
@@ -688,6 +698,9 @@ if (DRIVE) {
   window.__bacon = {
     state: () => state,
     version: VERSION,
+    // The ladder, read-only, so a drive scenario can walk every part without re-stating the list in
+    // a second place (an instrument that re-implements what it measures cannot catch it drifting).
+    parts: PARTS.map((p) => ({ id: p.id, slot: p.slot, at: p.at, name: p.name })),
     get timescale() { return timescale() },
     get durations() { return scale(DURATIONS, speedScale()) },
     audioCreated: () => audio.created,
@@ -700,6 +713,13 @@ if (DRIVE) {
 if (DRIVE && params.get('chip') === '1') chipForced = true
 const factsLoading = fetch('./data/trivia.json').then((r) => r.json()).then((json) => loadFacts(json).facts)
   .catch((err) => { console.warn('trivia bank did not load; passengers stay home', err); return [] })
+// The part cards and The Climb, through the same gate and the same catch path: a bank that does not
+// load costs a sentence to read, never a part, a threshold or a floor already ridden. The LADDERS
+// are code (src/parts.js, PLAQUES), so nothing a child has earned can depend on a fetch.
+const partsLoading = fetch('./data/parts.json').then((r) => r.json()).then((json) => loadParts(json).cards)
+  .catch((err) => { console.warn('part cards did not load; the parts still work', err); return [] })
+const climbLoading = fetch('./data/climb.json').then((r) => r.json()).then((json) => loadClimb(json).rungs)
+  .catch((err) => { console.warn('the Climb did not load', err); return [] })
 async function boot() {
   if (state.ride && state.ride.inFlight) {
     // A tab killed mid-ride: settle the timeline before anything renders. Arriving at a passenger
@@ -717,5 +737,7 @@ async function boot() {
   try { resumeRide = sessionStorage.getItem(RESUME_KEY) === '1'; sessionStorage.removeItem(RESUME_KEY) } catch { /* private mode */ }
   if (resumeRide && state.ride) dispatch({ type: 'ride-start' })
   factsLoading.then((facts) => dispatch({ type: 'load-facts', facts }))
+  partsLoading.then((cards) => dispatch({ type: 'load-parts', cards }))
+  climbLoading.then((rungs) => dispatch({ type: 'load-climb', rungs }))
 }
 boot()

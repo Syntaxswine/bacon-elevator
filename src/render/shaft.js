@@ -58,6 +58,13 @@ export function createShaft(container, opts = {}) {
   world.appendChild(el('line', { x1: 119, y1: 0, x2: 119, y2: sillOf(-1) + 20, stroke: '#8A8578', 'stroke-width': 3 }))
   world.appendChild(el('line', { x1: 241, y1: 0, x2: 241, y2: sillOf(-1) + 20, stroke: '#8A8578', 'stroke-width': 3 }))
   world.appendChild(el('line', { x1: 267, y1: 0, x2: 267, y2: sillOf(-1) + 20, stroke: '#8A8578', 'stroke-width': 2, 'stroke-dasharray': '6 6' }))
+  // THE CAR GUIDE RAILS. Two steel rails run the height of the shaft and the car is held on them;
+  // the guides slot (sliding shoes, or roller guides) is the part that grips these. They were not
+  // drawn before, so the shoes would have been four blocks gripping nothing.
+  for (const rx of [CAR_X - 3, CAR_X + CAR_W + 3]) {
+    world.appendChild(el('line', { x1: rx, y1: TOP + 70, x2: rx, y2: sillOf(-1) + 30, stroke: '#B4AEA2', 'stroke-width': 2 }))
+    for (let f = 0; f <= 10; f++) world.appendChild(el('rect', { x: rx - 3, y: sillOf(f) - 34, width: 6, height: 3, fill: '#B4AEA2' }))
+  }
   // machine room
   world.appendChild(el('rect', { x: 110, y: TOP, width: 140, height: 70, fill: '#CFC9BA', stroke: '#6B6B6B', 'stroke-width': 3 }))
   world.appendChild(el('rect', { x: 205, y: -52, width: 36, height: 34, rx: 4, fill: '#8A8578', stroke: '#6B6B6B', 'stroke-width': 3 }))
@@ -185,8 +192,12 @@ export function createShaft(container, opts = {}) {
   const car = el('g', { id: 'car', 'data-motion': 'idle' })
   const carInner = el('g')
   car.appendChild(carInner)
-  carInner.appendChild(el('rect', { x: CAR_X, y: -CAR_H, width: CAR_W, height: CAR_H, rx: 4, fill: '#E9E4D8', stroke: '#6B6B6B', 'stroke-width': 3 }))
-  carInner.appendChild(el('rect', { x: OPEN_X, y: -CAR_H + OPEN_Y, width: OPEN_W, height: OPEN_H, fill: '#F8F5EE', stroke: '#6B6B6B', 'stroke-width': 2 }))
+  const carBody = el('rect', { x: CAR_X, y: -CAR_H, width: CAR_W, height: CAR_H, rx: 4, fill: '#E9E4D8', stroke: '#6B6B6B', 'stroke-width': 3 })
+  carInner.appendChild(carBody)
+  const cabDecor = el('g', { class: 'cab-decor' })
+  carInner.appendChild(cabDecor)
+  const carOpening = el('rect', { x: OPEN_X, y: -CAR_H + OPEN_Y, width: OPEN_W, height: OPEN_H, fill: '#F8F5EE', stroke: '#6B6B6B', 'stroke-width': 2 })
+  carInner.appendChild(carOpening)
   const rider = el('g', { class: 'rider', visibility: 'hidden' })
   rider.appendChild(el('circle', { cx: 192, cy: -CAR_H + OPEN_Y + 14, r: 8, fill: '#8A8578' }))
   rider.appendChild(el('path', { d: `M180 ${-CAR_H + OPEN_Y + OPEN_H} v-22 a12 12 0 0 1 24 0 v22 z`, fill: '#8A8578' }))
@@ -198,39 +209,232 @@ export function createShaft(container, opts = {}) {
   carInner.appendChild(carStrip)
   const clip = el('clipPath', { id: 'door-clip' }, [el('rect', { x: OPEN_X, y: -CAR_H + OPEN_Y, width: OPEN_W, height: OPEN_H })])
   carInner.appendChild(clip)
-  const doors = el('g', { id: 'doors', 'data-state': 'open', 'clip-path': 'url(#door-clip)' })
-  // A PART THE CHILD SPENDS TWO BUILDINGS EARNING MUST CHANGE WHAT THE LIFT LOOKS LIKE.
-  // Both parts used to draw the same shut door - two equal leaves meeting on the centreline - so the
-  // 18-bacon telescopic doors were visible only during the 500 ms slide (r3-elevator-feel-06). A real
-  // two-speed side-opening door has a wide slow leaf and a narrow fast one meeting well off centre,
-  // which is recognisable standing still. Two leaf pairs are drawn and one is shown: scaling a single
+  const doors = el('g', { id: 'doors', 'data-state': 'open', 'data-doors': 'doors-centre', 'clip-path': 'url(#door-clip)' })
+  // A PART THE CHILD SPENDS A WHOLE BUILDING EARNING MUST CHANGE WHAT THE LIFT LOOKS LIKE.
+  // Round 3 found the 18-bacon telescopic doors visible only during the 500 ms slide, because both
+  // parts drew the same shut door (r3-elevator-feel-06). Five door sets ship now, and every one of
+  // them is recognisable STANDING STILL as well as moving. They are DRAWN, never scaled: scaling one
   // pair would scale its stroke and its handle mark with it.
-  const SLOW = OPEN_W * 2 / 3, FAST = OPEN_W / 3
-  const doorL = el('g'), doorR = el('g')
+  //
+  // Each set is a list of {node, travel}: `travel` is how far in world units that leaf moves when
+  // the door goes from shut to fully open, signed. setDoors multiplies by the open fraction and
+  // writes one transform per leaf, so a two-speed set really does run one leaf at twice the other's
+  // speed rather than pretending with two containers.
+  const DOOR_Y = -CAR_H + OPEN_Y
+  const HALF = OPEN_W / 2, SLOW = OPEN_W * 2 / 3, FAST = OPEN_W / 3, QTR = OPEN_W / 4
   const leaf = (x, w, handleX) => el('g', {}, [
-    el('rect', { x, y: -CAR_H + OPEN_Y, width: w, height: OPEN_H, fill: '#D9D4C7', stroke: '#6B6B6B', 'stroke-width': 2 }),
-    el('line', { x1: handleX, y1: -CAR_H + OPEN_Y + 18, x2: handleX, y2: -CAR_H + OPEN_Y + 32, stroke: '#6B6B6B', 'stroke-width': 3, 'stroke-linecap': 'round' }),
+    el('rect', { x, y: DOOR_Y, width: w, height: OPEN_H, fill: '#D9D4C7', stroke: '#6B6B6B', 'stroke-width': 2 }),
+    el('line', { x1: handleX, y1: DOOR_Y + 18, x2: handleX, y2: DOOR_Y + 32, stroke: '#6B6B6B', 'stroke-width': 3, 'stroke-linecap': 'round' }),
   ])
-  const centreLeaf = [leaf(OPEN_X, OPEN_W / 2, OPEN_X + OPEN_W / 2 - 6), leaf(OPEN_X + OPEN_W / 2, OPEN_W / 2, OPEN_X + OPEN_W / 2 + 6)]
-  const teleLeaf = [leaf(OPEN_X, SLOW, OPEN_X + SLOW - 6), leaf(OPEN_X + SLOW, FAST, OPEN_X + SLOW + 6)]
-  doorL.appendChild(centreLeaf[0]); doorL.appendChild(teleLeaf[0])
-  doorR.appendChild(centreLeaf[1]); doorR.appendChild(teleLeaf[1])
-  function setLeaves(kind) {
-    const tele = kind === 'doors-telescopic'
-    centreLeaf.forEach((g) => g.setAttribute('visibility', tele ? 'hidden' : 'visible'))
-    teleLeaf.forEach((g) => g.setAttribute('visibility', tele ? 'visible' : 'hidden'))
+  // The collapsible gate is five scissor cells and a leading bar. Each cell moves further than the
+  // one before it, so the lattice really concertinas into the pocket instead of sliding as a slab.
+  const GATE_N = 5, GATE_W = OPEN_W / GATE_N, GATE_FOLD = 0.88
+  const gateCell = (i) => {
+    const x = OPEN_X + i * GATE_W
+    return el('g', {}, [
+      el('line', { x1: x, y1: DOOR_Y + 2, x2: x + GATE_W, y2: DOOR_Y + OPEN_H - 2, stroke: '#8A8578', 'stroke-width': 2.5, 'stroke-linecap': 'round' }),
+      el('line', { x1: x + GATE_W, y1: DOOR_Y + 2, x2: x, y2: DOOR_Y + OPEN_H - 2, stroke: '#8A8578', 'stroke-width': 2.5, 'stroke-linecap': 'round' }),
+      el('line', { x1: x, y1: DOOR_Y, x2: x, y2: DOOR_Y + OPEN_H, stroke: '#6B6B6B', 'stroke-width': 2 }),
+    ])
   }
-  setLeaves('doors-centre')
-  doors.appendChild(doorL); doors.appendChild(doorR)
+  const gateBar = el('g', {}, [
+    el('rect', { x: OPEN_X + OPEN_W - 5, y: DOOR_Y, width: 5, height: OPEN_H, fill: '#8A8578', stroke: '#6B6B6B', 'stroke-width': 2 }),
+  ])
+  const gateCells = Array.from({ length: GATE_N }, (_, i) => gateCell(i))
+
+  const DOOR_SETS = {
+    'doors-centre': [
+      { node: leaf(OPEN_X, HALF, OPEN_X + HALF - 6), travel: -HALF },
+      { node: leaf(OPEN_X + HALF, HALF, OPEN_X + HALF + 6), travel: HALF },
+    ],
+    'doors-telescopic': [
+      { node: leaf(OPEN_X, SLOW, OPEN_X + SLOW - 6), travel: -SLOW },
+      { node: leaf(OPEN_X + SLOW, FAST, OPEN_X + SLOW + 6), travel: -OPEN_W },
+    ],
+    'doors-single': [
+      { node: leaf(OPEN_X, OPEN_W, OPEN_X + OPEN_W - 6), travel: -OPEN_W },
+    ],
+    // GATE_FOLD < 1 leaves the folded cells a few units apart, so the stack reads as a bunched
+    // lattice rather than five identical Xs drawn on top of one another. The leading bar stops just
+    // clear of the fold, which is where a real gate's handle ends up.
+    'doors-gate': [
+      ...gateCells.map((node, i) => ({ node, travel: -i * GATE_W * GATE_FOLD })),
+      { node: gateBar, travel: -(OPEN_W - GATE_W - (GATE_N - 1) * GATE_W * (1 - GATE_FOLD)) },
+    ],
+    'doors-four': [
+      { node: leaf(OPEN_X, QTR, OPEN_X + QTR - 5), travel: -QTR },
+      { node: leaf(OPEN_X + QTR, QTR, OPEN_X + HALF - 6), travel: -HALF },
+      { node: leaf(OPEN_X + HALF, QTR, OPEN_X + HALF + 6), travel: HALF },
+      { node: leaf(OPEN_X + HALF + QTR, QTR, OPEN_X + HALF + QTR + 5), travel: QTR },
+    ],
+  }
+  // Where the door leading edge (or edges) sit when shut, and how far each one travels. The door
+  // edge device lives on that edge, whichever door set is fitted.
+  const DOOR_EDGES = {
+    'doors-centre': [{ x: OPEN_X + HALF, travel: -HALF }, { x: OPEN_X + HALF, travel: HALF }],
+    'doors-telescopic': [{ x: OPEN_X + OPEN_W, travel: -OPEN_W }],
+    'doors-single': [{ x: OPEN_X + OPEN_W, travel: -OPEN_W }],
+    'doors-gate': [{ x: OPEN_X + OPEN_W, travel: -OPEN_W }],
+    'doors-four': [{ x: OPEN_X + HALF, travel: -HALF }, { x: OPEN_X + HALF, travel: HALF }],
+  }
+  const doorSets = {}
+  for (const id of Object.keys(DOOR_SETS)) {
+    const g = el('g', { visibility: id === 'doors-centre' ? 'visible' : 'hidden' })
+    for (const l of DOOR_SETS[id]) g.appendChild(l.node)
+    doors.appendChild(g)
+    doorSets[id] = { group: g, leaves: DOOR_SETS[id] }
+  }
+
+  // ---- the door edge device ----------------------------------------------------------------
+  // Two marks that ride the leading edges, plus (for the light curtain) the beams themselves, which
+  // really do cross the whole opening whatever the doors are doing. Inside the door clip, so a mark
+  // can never spill onto the car wall.
+  const edgeGroup = el('g', { id: 'door-edge', 'data-edge': 'edge-safety' })
+  const edgeMarks = [0, 1].map(() => {
+    const g = el('g', { visibility: 'hidden' })
+    g.appendChild(el('rect', { class: 'bar', x: -2, y: DOOR_Y + 2, width: 4, height: OPEN_H - 4, rx: 2, fill: '#8A8578', stroke: '#55534E', 'stroke-width': 1.5 }))
+    g.appendChild(el('circle', { class: 'lens', cx: 0, cy: DOOR_Y + 10, r: 2.2, fill: '#C05A2E', visibility: 'hidden' }))
+    g.appendChild(el('circle', { class: 'lens', cx: 0, cy: DOOR_Y + OPEN_H - 10, r: 2.2, fill: '#C05A2E', visibility: 'hidden' }))
+    edgeGroup.appendChild(g)
+    return g
+  })
+  const beams = el('g', { class: 'beams', visibility: 'hidden' })
+  for (let row = 0; row < 3; row++) {
+    const by = DOOR_Y + 12 + row * 14
+    for (let i = 0; i < 9; i++) beams.appendChild(el('circle', { cx: OPEN_X + 5 + i * 8.75, cy: by, r: 1.1, fill: '#E8B04A', opacity: 0.85 }))
+  }
+  edgeGroup.appendChild(beams)
+  doors.appendChild(edgeGroup)
+
+  let doorKind = 'doors-centre'
+  let edgeKind = 'edge-safety'
+  function setLeaves(kind) {
+    const id = doorSets[kind] ? kind : 'doors-centre'
+    doorKind = id
+    for (const k of Object.keys(doorSets)) doorSets[k].group.setAttribute('visibility', k === id ? 'visible' : 'hidden')
+    doors.setAttribute('data-doors', id)
+    const edges = DOOR_EDGES[id]
+    edgeMarks.forEach((g, i) => g.setAttribute('visibility', i < edges.length ? 'visible' : 'hidden'))
+    setDoors(lastDoorPos)
+  }
+  function setEdge(kind) {
+    edgeKind = kind === 'edge-curtain' ? 'edge-curtain' : 'edge-safety'
+    edgeGroup.setAttribute('data-edge', edgeKind)
+    const curtain = edgeKind === 'edge-curtain'
+    for (const g of edgeMarks) {
+      g.querySelector('.bar').setAttribute('fill', curtain ? '#4A4741' : '#8A8578')
+      const lenses = g.querySelectorAll('.lens')
+      for (let i = 0; i < lenses.length; i++) lenses[i].setAttribute('visibility', curtain ? 'visible' : 'hidden')
+    }
+    setDoors(lastDoorPos)
+  }
   carInner.appendChild(doors)
   // indicator bezel
   const indicator = el('g', { id: 'indicator', 'data-floor': 'G', 'data-arrow': 'none' })
-  indicator.appendChild(el('rect', { x: 135, y: -CAR_H + 6, width: 90, height: 22, rx: 3, fill: '#2B2B2B' }))
+  const indBezel = el('rect', { x: 135, y: -CAR_H + 6, width: 90, height: 22, rx: 3, fill: '#2B2B2B' })
+  indicator.appendChild(indBezel)
   const indDigits = el('g')
   const indText = text(172, -CAR_H + 23, 'G', { 'font-size': 18, fill: '#E8B04A', 'font-family': 'ui-monospace, Menlo, Consolas, monospace' })
   const indArrow = text(212, -CAR_H + 22, '', { 'font-size': 13, fill: '#E8B04A' })
   indicator.appendChild(indDigits); indicator.appendChild(indText); indicator.appendChild(indArrow)
   carInner.appendChild(indicator)
+
+  // ---- the car operating panel (the buttons a rider presses INSIDE the car) -----------------
+  // The 2010 ADA Standards put the raised number and its braille immediately to the LEFT of the
+  // button it belongs to, every time, in every building — which is the whole point of the rule and
+  // the reason this part is worth earning. Drawn on the car wall beside the doorway, where a real
+  // COP is.
+  const cop = el('g', { id: 'cop', 'data-panel': 'panel-plain' })
+  carInner.appendChild(cop)
+  function setCop(kind) {
+    const braille = kind === 'panel-braille'
+    cop.setAttribute('data-panel', braille ? 'panel-braille' : 'panel-plain')
+    while (cop.firstChild) cop.removeChild(cop.firstChild)
+    const x0 = OPEN_X + OPEN_W + 2, top = -CAR_H + 26
+    cop.appendChild(el('rect', { x: x0, y: top, width: 12, height: 44, rx: 2, fill: '#CFC9BA', stroke: '#6B6B6B', 'stroke-width': 1.5 }))
+    const bx = braille ? x0 + 8.5 : x0 + 6
+    for (let i = 0; i < 4; i++) {
+      const cy = top + 8 + i * 10
+      cop.appendChild(el('circle', { cx: bx, cy, r: 2.4, fill: '#F8F5EE', stroke: '#6B6B6B', 'stroke-width': 1 }))
+      if (braille) {
+        // one braille cell, two columns of three dots, to the LEFT of its button
+        for (let c = 0; c < 2; c++) for (let r = 0; r < 3; r++) {
+          if ((i + c + r) % 3 === 0) continue // a cell is a pattern, not a full grid
+          cop.appendChild(el('circle', { cx: x0 + 1.8 + c * 2.2, cy: cy - 2.4 + r * 2.4, r: 0.75, fill: '#55534E' }))
+        }
+      }
+    }
+  }
+  setCop('panel-plain')
+
+  // ---- guide shoes / roller guides ----------------------------------------------------------
+  // The car does not hang free: it is held by the rails drawn down both sides of the shaft. Four
+  // corners, one shoe each, so the part reads whether the car is moving or standing.
+  const guides = el('g', { id: 'guides', 'data-guides': 'guides-shoe' })
+  carInner.appendChild(guides)
+  function setGuides(kind) {
+    const roller = kind === 'guides-roller'
+    guides.setAttribute('data-guides', roller ? 'guides-roller' : 'guides-shoe')
+    while (guides.firstChild) guides.removeChild(guides.firstChild)
+    for (const side of [-1, 1]) {
+      const x = side < 0 ? CAR_X : CAR_X + CAR_W
+      for (const y of [-CAR_H + 12, -14]) {
+        if (roller) {
+          for (let i = 0; i < 3; i++) {
+            const a = (i * 2 * Math.PI) / 3
+            guides.appendChild(el('circle', { cx: x + side * (3.5 + Math.cos(a) * 1.6), cy: y + Math.sin(a) * 4.5, r: 2.2, fill: '#7A7568', stroke: '#55534E', 'stroke-width': 1 }))
+          }
+        } else {
+          guides.appendChild(el('rect', { x: side < 0 ? x - 7 : x, y: y - 5, width: 7, height: 10, rx: 1.5, fill: '#7A7568', stroke: '#55534E', 'stroke-width': 1.5 }))
+        }
+      }
+    }
+  }
+  setGuides('guides-shoe')
+
+  // ---- the car finish -------------------------------------------------------------------------
+  // Five real cab finishes. Each one is a fill, a lining colour and a decoration; nothing here is a
+  // texture image and nothing animates. The glass car is the one that changes the DRAWING rather
+  // than the palette: its walls go translucent and its lining goes away, so the shaft, the rails and
+  // the passing landing slabs show straight through the car the way a scenic car shows the atrium.
+  const CABS = {
+    'cab-steel': { body: '#E9E4D8', line: '#6B6B6B', inner: '#F8F5EE', opacity: 1 },
+    'cab-stainless': { body: '#CDD2D3', line: '#6E7476', inner: '#E4E8E9', opacity: 1 },
+    'cab-veneer': { body: '#B98A5A', line: '#6B4A2A', inner: '#D9B489', opacity: 1 },
+    'cab-brass': { body: '#C9A227', line: '#8A6A12', inner: '#E6C766', opacity: 1 },
+    'cab-glass': { body: '#CFE0E6', line: '#5A7A86', inner: 'none', opacity: 0.34 },
+  }
+  function setCab(kind) {
+    const c = CABS[kind] ? kind : 'cab-steel'
+    const k = CABS[c]
+    car.setAttribute('data-cab', c)
+    carBody.setAttribute('fill', k.body)
+    carBody.setAttribute('stroke', k.line)
+    carBody.setAttribute('fill-opacity', String(k.opacity))
+    carOpening.setAttribute('fill', k.inner)
+    carOpening.setAttribute('stroke', k.line)
+    while (cabDecor.firstChild) cabDecor.removeChild(cabDecor.firstChild)
+    const L = CAR_X + 4, R = CAR_X + CAR_W - 4, T = -CAR_H + 4, B = -4
+    if (c === 'cab-stainless') {
+      // the brush lines of a No. 4 satin finish: fine, parallel, all one way
+      for (let x = L + 3; x < R; x += 4) cabDecor.appendChild(el('line', { x1: x, y1: T, x2: x, y2: B, stroke: '#B9C0C2', 'stroke-width': 0.8 }))
+    } else if (c === 'cab-veneer') {
+      // stiles and rails, and the stainless handrail across the back wall
+      for (const x of [CAR_X + 20, CAR_X + 55, CAR_X + 90]) cabDecor.appendChild(el('line', { x1: x, y1: T, x2: x, y2: B, stroke: '#6B4A2A', 'stroke-width': 1.6 }))
+      cabDecor.appendChild(el('line', { x1: L, y1: -CAR_H + 24, x2: R, y2: -CAR_H + 24, stroke: '#6B4A2A', 'stroke-width': 1.6 }))
+      cabDecor.appendChild(el('rect', { x: CAR_X + 8, y: -30, width: CAR_W - 16, height: 4, rx: 2, fill: '#CDD2D3', stroke: '#6E7476', 'stroke-width': 1.2 }))
+    } else if (c === 'cab-brass') {
+      for (const x of [CAR_X + 22, CAR_X + 88]) cabDecor.appendChild(el('line', { x1: x, y1: T, x2: x, y2: B, stroke: '#8A6A12', 'stroke-width': 1.6 }))
+      cabDecor.appendChild(el('rect', { x: L, y: -CAR_H + 8, width: R - L, height: 5, fill: '#F0DC9A', opacity: 0.8 }))
+    } else if (c === 'cab-glass') {
+      // the glazing bars of a scenic car, and the corner posts that hold the panes
+      for (const x of [CAR_X + 28, CAR_X + 82]) cabDecor.appendChild(el('line', { x1: x, y1: T, x2: x, y2: B, stroke: '#5A7A86', 'stroke-width': 1.4 }))
+      cabDecor.appendChild(el('rect', { x: CAR_X, y: -CAR_H, width: 5, height: CAR_H, fill: '#5A7A86', opacity: 0.6 }))
+      cabDecor.appendChild(el('rect', { x: CAR_X + CAR_W - 5, y: -CAR_H, width: 5, height: CAR_H, fill: '#5A7A86', opacity: 0.6 }))
+    }
+  }
+  setCab('cab-steel')
+
   svg.appendChild(car)
 
   // bacon in flight
@@ -244,7 +448,11 @@ export function createShaft(container, opts = {}) {
   let reduced = false
   let vb = { w: W, h: 240 }
   let idle = { floor: 0, doorsOpen: 1, arrow: 'none', floorLabel: 'G' }
-  let equipped = { doors: 'doors-centre', indicator: 'segment' }
+  // EVERY SLOT STARTS AS null SO THE FIRST setState PAINTS ALL OF THEM. Holding the shipped
+  // defaults here instead means a save whose parts happen to be the defaults never calls a single
+  // paint function, and the pieces that are only drawn by one (the door-edge marks, the car
+  // buttons) never appear at all.
+  let equipped = { doors: null, indicator: 'segment', cab: null, edge: null, guides: null, panel: null }
   let anim = null
   let lit = null // lantern floor
   let called = null // the landing whose hall call is registered
@@ -273,17 +481,25 @@ export function createShaft(container, opts = {}) {
     draw(anim ? anim.lastElapsed : null)
   }
 
+  // THE FLOOR ORDER, for the indicators that show a POSITION rather than a character: the dial
+  // sweeps it and the numeral row lights one of it. P, G, 1-9, R is twelve stops.
+  const IND_ORDER = ['P', 'G', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'R']
+
   function setIndicator(fl, arrow) {
     const key = fl + '|' + arrow + '|' + equipped.indicator
     if (key === lastIndicator) return
     lastIndicator = key
     indicator.setAttribute('data-floor', fl)
     indicator.setAttribute('data-arrow', arrow)
-    if (equipped.indicator === 'dotmatrix') {
+    indicator.setAttribute('data-ind', equipped.indicator)
+    while (indDigits.firstChild) indDigits.removeChild(indDigits.firstChild)
+    const kind = equipped.indicator
+    const glyph = arrow === 'up' ? '▲' : arrow === 'down' ? '▼' : ''
+    if (kind === 'dotmatrix') {
       indText.textContent = ''
       indArrow.textContent = ''
-      while (indDigits.firstChild) indDigits.removeChild(indDigits.firstChild)
-      const chars = [fl, arrow === 'up' ? '▲' : arrow === 'down' ? '▼' : null].filter(Boolean)
+      indBezel.setAttribute('fill', '#2B2B2B')
+      const chars = [fl, glyph || null].filter(Boolean)
       let x0 = 160 - (chars.length - 1) * 12
       for (const ch of chars) {
         const rows = DOTS[ch] || DOTS['0']
@@ -292,10 +508,57 @@ export function createShaft(container, opts = {}) {
         })
         x0 += 24
       }
+    } else if (kind === 'ind-dial') {
+      // A semicircular brass dial with a pointer, the way a lift said where the car was before
+      // digital counters. The needle never moves faster than the car does: it is drawn from the
+      // floor the indicator has been given, which is the same value every other indicator draws.
+      indText.textContent = ''
+      indArrow.textContent = ''
+      indBezel.setAttribute('fill', '#4A3A18')
+      const cx = 180, cy = -CAR_H + 24, R = 17
+      indDigits.appendChild(el('path', { d: `M${cx - R} ${cy} A${R} ${R} 0 0 1 ${cx + R} ${cy}`, fill: 'none', stroke: '#E8B04A', 'stroke-width': 1.4 }))
+      for (let i = 0; i < IND_ORDER.length; i++) {
+        const a = Math.PI - (i / (IND_ORDER.length - 1)) * Math.PI
+        indDigits.appendChild(el('line', {
+          x1: cx + Math.cos(a) * (R - 3), y1: cy - Math.sin(a) * (R - 3),
+          x2: cx + Math.cos(a) * R, y2: cy - Math.sin(a) * R,
+          stroke: '#E8B04A', 'stroke-width': 1.2,
+        }))
+      }
+      const idx = Math.max(0, IND_ORDER.indexOf(fl))
+      const a = Math.PI - (idx / (IND_ORDER.length - 1)) * Math.PI
+      indDigits.appendChild(el('line', { x1: cx, y1: cy, x2: cx + Math.cos(a) * (R - 2), y2: cy - Math.sin(a) * (R - 2), stroke: '#F4E3B8', 'stroke-width': 2.4, 'stroke-linecap': 'round' }))
+      indDigits.appendChild(el('circle', { cx, cy, r: 2.2, fill: '#E8B04A' }))
+      if (glyph) indDigits.appendChild(text(212, -CAR_H + 22, glyph, { 'font-size': 11, fill: '#E8B04A' }))
+    } else if (kind === 'ind-numerals') {
+      // A row of floor numbers with one lit: the older car position indicator, a row of illuminating
+      // numbers rather than a screen.
+      indText.textContent = ''
+      indArrow.textContent = ''
+      indBezel.setAttribute('fill', '#2B2B2B')
+      IND_ORDER.forEach((ch, i) => {
+        const lit = ch === fl
+        indDigits.appendChild(text(140 + i * 6.6, -CAR_H + 21, ch, { 'font-size': lit ? 9 : 7.5, fill: lit ? '#E8B04A' : '#A29C8E', 'font-family': 'ui-monospace, Menlo, Consolas, monospace' }))
+      })
+      if (glyph) indDigits.appendChild(text(219, -CAR_H + 21, glyph, { 'font-size': 9, fill: '#E8B04A' }))
+    } else if (kind === 'ind-nixie') {
+      // Glow tubes: a numeral shaped in wire inside a glass envelope, surrounded by an orange glow.
+      // The arrow is its own tube, as it was on the RFT Z562M3.
+      indText.textContent = ''
+      indArrow.textContent = ''
+      indBezel.setAttribute('fill', '#1C1A16')
+      const tube = (cx, ch) => {
+        indDigits.appendChild(el('rect', { x: cx - 11, y: -CAR_H + 8, width: 22, height: 18, rx: 8, fill: '#3A342A', stroke: '#8A8578', 'stroke-width': 1 }))
+        for (let i = -2; i <= 2; i++) indDigits.appendChild(el('line', { x1: cx + i * 4, y1: -CAR_H + 9, x2: cx + i * 4, y2: -CAR_H + 25, stroke: '#6B6B6B', 'stroke-width': 0.5, opacity: 0.7 }))
+        indDigits.appendChild(text(cx, -CAR_H + 23, ch, { 'font-size': 17, fill: '#FF8A2A', opacity: 0.35, 'font-family': 'ui-monospace, Menlo, Consolas, monospace' }))
+        indDigits.appendChild(text(cx, -CAR_H + 22, ch, { 'font-size': 14, fill: '#FFB25A', 'font-family': 'ui-monospace, Menlo, Consolas, monospace' }))
+      }
+      if (glyph) { tube(166, fl); tube(198, glyph) } else tube(180, fl)
     } else {
-      while (indDigits.firstChild) indDigits.removeChild(indDigits.firstChild)
+      // Seven-segment: amber bars in a dark bezel. The shipped default.
+      indBezel.setAttribute('fill', '#2B2B2B')
       indText.textContent = fl
-      indArrow.textContent = arrow === 'up' ? '▲' : arrow === 'down' ? '▼' : ''
+      indArrow.textContent = glyph
     }
   }
 
@@ -335,15 +598,12 @@ export function createShaft(container, opts = {}) {
   function setDoors(open) {
     const o = clamp(open, 0, 1)
     lastDoorPos = o
-    if (equipped.doors === 'doors-telescopic') {
-      // Both leaves slide left; the narrow one travels the full opening while the wide one travels
-      // its own width, so it is visibly the faster of the two and they stack in the pocket.
-      doorL.setAttribute('transform', `translate(${-SLOW * o} 0)`)
-      doorR.setAttribute('transform', `translate(${-OPEN_W * o} 0)`)
-    } else {
-      doorL.setAttribute('transform', `translate(${-OPEN_W / 2 * o} 0)`)
-      doorR.setAttribute('transform', `translate(${OPEN_W / 2 * o} 0)`)
-    }
+    const set = doorSets[doorKind] || doorSets['doors-centre']
+    for (const l of set.leaves) l.node.setAttribute('transform', `translate(${l.travel * o} 0)`)
+    const edges = DOOR_EDGES[doorKind] || DOOR_EDGES['doors-centre']
+    edgeMarks.forEach((g, i) => { const e = edges[i]; if (e) g.setAttribute('transform', `translate(${e.x + e.travel * o} 0)`) })
+    // The beams cross the doorway; they are only worth drawing while there is a doorway to cross.
+    beams.setAttribute('visibility', edgeKind === 'edge-curtain' && o < 0.98 ? 'visible' : 'hidden')
   }
 
   function placeCar(pos, squash = 1, lift = 0, opacity = 1) {
@@ -461,8 +721,15 @@ export function createShaft(container, opts = {}) {
     setReduced(v) { reduced = !!v },
     // Idle render from state.
     setState(state) {
-      if (equipped.doors !== state.equipped.doors) setLeaves(state.equipped.doors)
-      equipped = { doors: state.equipped.doors, indicator: state.equipped.indicator }
+      // The paint functions are diffed one slot at a time: equipping a car finish must not re-leaf
+      // the doors mid-frame, and none of them may run on a frame where nothing changed.
+      const eq = state.equipped || {}
+      if (equipped.doors !== eq.doors) setLeaves(eq.doors)
+      if (equipped.cab !== eq.cab) setCab(eq.cab)
+      if (equipped.edge !== eq.edge) setEdge(eq.edge)
+      if (equipped.guides !== eq.guides) setGuides(eq.guides)
+      if (equipped.panel !== eq.panel) setCop(eq.panel)
+      equipped = { doors: eq.doors, indicator: eq.indicator, cab: eq.cab, edge: eq.edge, guides: eq.guides, panel: eq.panel }
       const r = state.ride
       const cleared = r ? r.cleared : []
       const done = r ? r.passengersDone : []

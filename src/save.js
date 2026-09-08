@@ -1,13 +1,19 @@
 // Save serialisation. Pure: tolerates garbage, migrates v0, and makes the BE1- share code.
 import { initialState, SETTINGS_DEFAULTS, normaliseRide } from './state.js'
 import { validProblem } from './math.js'
+import { SLOT_IDS, slotPartIds, defaultPart, PART_IDS } from './parts.js'
 
 export const SAVE_KEY = 'bacon-elevator.save.v1'
 
 // `writes` is the record's own monotone write counter: main.js refuses to overwrite a record whose
 // counter has moved past the one this tab last wrote, which is what stops a second tab holding an
 // older snapshot from zeroing the lunchbox the moment it is backgrounded.
-const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'struggleRun', 'plaques']
+// `records` joins the list; the LOGBOOK's tickets deliberately do not. A ticket is derived from
+// `buildings`, which is already here — an array of one entry per building would grow the BE1- code
+// a grown-up is told they may have to copy BY HAND without bound, which is the bug round 2 fixed
+// once already (facts.seen, measured at 1 727 characters over twelve buildings). Four integers do
+// not grow. test/save.test.js holds encodeCode under 9 000 characters at a large reachable state.
+const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'struggleRun', 'plaques', 'records']
 
 export function serialize(state) {
   const out = {}
@@ -58,6 +64,8 @@ export function migrate(obj) {
     secondTry: bool(st.secondTry, SETTINGS_DEFAULTS.secondTry),
     passengers: oneOf(st.passengers, ['often', 'sometimes', 'never'], 'sometimes'),
     links: bool(st.links, false),
+    bookKind: oneOf(st.bookKind, ['all', 'elevator', 'math'], 'all'),
+    bookOrder: oneOf(st.bookOrder, ['newest', 'order'], 'newest'),
     custom: {
       ops: (isObj(st.custom) && Array.isArray(st.custom.ops) ? st.custom.ops.filter((o) => ['add', 'sub', 'mul', 'div', 'missAdd', 'up', 'down'].includes(o)) : null) || SETTINGS_DEFAULTS.custom.ops.slice(),
       min: isObj(st.custom) ? Math.max(0, int(st.custom.min, 0)) : 0,
@@ -75,15 +83,28 @@ export function migrate(obj) {
   s.facts = { seen, right: strArr(f.right), retry: Array.isArray(f.retry) ? f.retry.filter((r) => isObj(r) && typeof r.id === 'string' && Number.isInteger(r.at)) : [] }
   s.unlocks = strArr(obj.unlocks)
   const eq = isObj(obj.equipped) ? obj.equipped : {}
-  s.equipped = {
-    doors: oneOf(eq.doors, ['doors-centre', 'doors-telescopic'], 'doors-centre'),
-    indicator: oneOf(eq.indicator, ['segment', 'dotmatrix'], 'segment'),
-    chime: oneOf(eq.chime, ['single', 'two-tone'], 'single'),
-  }
-  for (const slot of Object.keys(s.equipped)) {
+  // THE THREE HARD-CODED SLOTS BECAME A LOOP over the ladder's own slot list. A save written before
+  // the content round holds doors/indicator/chime and no cab, edge, guides or panel: it keeps every
+  // choice it made and gains the four new slots at their defaults. An unknown id, or one the save
+  // has not earned, still falls back to the slot's default — the unlock check below is the one that
+  // stops a hand-edited code equipping a part the child has not reached.
+  s.equipped = {}
+  for (const slot of SLOT_IDS) s.equipped[slot] = oneOf(eq[slot], slotPartIds(slot), defaultPart(slot))
+  s.unlocks = s.unlocks.filter((id) => PART_IDS.includes(id))
+  for (const slot of SLOT_IDS) {
     const part = s.equipped[slot]
     if (part !== base.equipped[slot] && !s.unlocks.includes(part)) s.equipped[slot] = base.equipped[slot]
   }
+  // The Logbook's four counters. Clamped, never defaulted upward: a garbage record reads as a child
+  // who has ridden nothing, which is recoverable by riding. `longest` can never exceed `floors`.
+  const rec = isObj(obj.records) ? obj.records : {}
+  s.records = {
+    floors: clampInt(rec.floors, 0, MAX_COUNT, 0),
+    rides: clampInt(rec.rides, 0, MAX_COUNT, 0),
+    longest: clampInt(rec.longest, 0, 11, 0),
+    passengers: clampInt(rec.passengers, 0, MAX_COUNT, 0),
+  }
+  s.records.longest = Math.min(s.records.longest, s.records.floors)
   const h = isObj(obj.history) ? obj.history : {}
   s.history = {
     ring: strArr(h.ring).slice(-20),

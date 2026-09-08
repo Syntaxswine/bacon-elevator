@@ -1090,8 +1090,35 @@ scenarios.push(
       }
       await tap(page, '[data-nav="picker"]'); await waitScreen(page, 'picker'); await check('picker')
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
-      await tap(page, '[data-nav="workshop"]'); await waitScreen(page, 'workshop'); await check('workshop')
+      await tap(page, '[data-nav="workshop"]'); await waitScreen(page, 'workshop'); await check('workshop', { wayOut: true })
+      // THE FULLY UNLOCKED WORKSHOP IS THE LONGEST PAGE IN THE GAME: 24 part rows, each with a
+      // radio and its own ⓘ, plus the part card over the top of them. It is measured with every
+      // part earned, because that is the state a child who plays reaches and the state where a
+      // 56 px row and a 56 px card button have the least room to be wrong.
+      await page.evaluate(() => {
+        const raw = localStorage.getItem('bacon-elevator.save.v1')
+        const obj = raw ? JSON.parse(raw) : { v: 1 }
+        obj.lunchbox = 6000
+        obj.unlocks = window.__bacon.parts.map((p) => p.id)
+        obj.records = { floors: 900, rides: 640, longest: 10, passengers: 120 }
+        obj.writes = 1000000
+        localStorage.setItem('bacon-elevator.save.v1', JSON.stringify(obj))
+      })
+      await ctx.goto(Q)
+      await waitFor(page, () => window.__bacon && window.__bacon.state().pool.length > 0, 'the fact pool')
+      await tap(page, '[data-nav="workshop"]'); await waitScreen(page, 'workshop'); await check('workshop-full', { wayOut: true })
+      await tap(page, '[data-part-card="cab-glass"]')
+      await waitFor(page, () => !!document.querySelector('.part-sheet'), 'the part card')
+      await check('part-card')
+      await tap(page, '[data-part-close]')
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
+      await tap(page, '[data-nav="logbook"]'); await waitScreen(page, 'logbook'); await check('logbook', { wayOut: true })
+      // PUT THE SAVE BACK. The seeded 6 000-bacon record is for the two pages that need a full
+      // ladder; carried into the ride it makes the top bar's lunchbox four digits wide, which
+      // squeezes the level-name chip until it ellipsises — a failure of the fixture, not of the
+      // layout, and one this instrument correctly refused to let through.
+      await ctx.goto(Q + '&reset=1')
+      await waitFor(page, () => window.__bacon && window.__bacon.state().pool.length > 0, 'the fact pool')
       await tap(page, '[data-nav="factbook"]'); await waitScreen(page, 'factbook'); await check('factbook')
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
       await tap(page, '[data-gear]'); await tap(page, '[data-gear]'); await waitScreen(page, 'grownups'); await check('grownups', { wayOut: true })
@@ -1420,27 +1447,32 @@ scenarios.push({
     // LOOKS LIKE. Both parts drew the same SHUT door — two equal leaves meeting on the centreline —
     // so the 18-bacon telescopic doors were visible only during the 500 ms slide. A real two-speed
     // side-opening door has a wide slow leaf and a narrow fast one meeting well off centre.
+    // Five door sets ship now, not two, and the content round put them in one group each with the
+    // fitted one visible. The question is the same one r3-elevator-feel-06 asked: EXACTLY ONE set is
+    // drawn, and no two sets draw the same shut door — so a part the child earned is recognisable
+    // standing still and not only during the 500 ms slide.
     const leaves = await page.evaluate(() => {
-      const eq = window.__bacon.state().equipped.doors
-      const out = { equipped: eq, pairs: [] }
-      for (const g of document.querySelectorAll('#doors > g')) {
-        for (const leaf of g.children) {
-          const r = leaf.querySelector('rect')
-          out.pairs.push({ shown: leaf.getAttribute('visibility') !== 'hidden', x: +r.getAttribute('x'), w: +r.getAttribute('width') })
-        }
+      const doors = document.getElementById('doors')
+      const out = { equipped: window.__bacon.state().equipped.doors, fitted: doors.getAttribute('data-doors'), sets: [] }
+      for (const g of doors.querySelectorAll(':scope > g')) {
+        if (g.id === 'door-edge') continue
+        const widths = []
+        for (const node of g.querySelectorAll('rect')) widths.push(+node.getAttribute('width'))
+        out.sets.push({ shown: g.getAttribute('visibility') !== 'hidden', widths: widths.sort((a, b) => a - b) })
       }
       return out
     })
-    expect(leaves.pairs.length === 4, `the shaft draws ${leaves.pairs.length} door leaves, not two pairs`)
-    const shown = leaves.pairs.filter((l) => l.shown), hidden = leaves.pairs.filter((l) => !l.shown)
-    expect(shown.length === 2 && hidden.length === 2, `${shown.length} leaves are visible: exactly one pair may be`)
-    const widths = (ls) => ls.map((l) => l.w).sort((a, b) => a - b)
-    expect(JSON.stringify(widths(shown)) !== JSON.stringify(widths(hidden)),
-      `both door parts draw the same shut door: ${JSON.stringify(widths(shown))}`)
+    expect(leaves.sets.length >= 5, `the shaft draws ${leaves.sets.length} door sets, not the five that ship`)
+    expect(leaves.fitted === leaves.equipped, `the drawing says ${leaves.fitted} and the save says ${leaves.equipped}`)
+    const shownSets = leaves.sets.filter((g) => g.shown)
+    expect(shownSets.length === 1, `${shownSets.length} door sets are visible: exactly one may be`)
+    const sigs = leaves.sets.map((g) => JSON.stringify(g.widths))
+    expect(new Set(sigs).size === sigs.length, `two door parts draw the same shut door: ${sigs.join(' ')}`)
+    const shown = shownSets[0].widths
     const centre = leaves.equipped === 'doors-centre'
-    expect(centre === (widths(shown)[0] === widths(shown)[1]),
-      `${leaves.equipped} is drawn with ${centre ? 'unequal' : 'equal'} leaves: ${JSON.stringify(widths(shown))}`)
-    return `${samples.length} frames sampled at timescale 1: ◁▷ lit only inside the ${lit.length}-frame reopen window; GO inside the door close still rides shut (${doorsMoving.tx.join(' ')}); ${leaves.equipped} leaves ${widths(shown).join('/')} vs the other part's ${widths(hidden).join('/')}`
+    expect(centre === (shown.length === 2 && shown[0] === shown[1]),
+      `${leaves.equipped} is drawn with ${centre ? 'unequal' : 'equal'} leaves: ${JSON.stringify(shown)}`)
+    return `${samples.length} frames sampled at timescale 1: ◁▷ lit only inside the ${lit.length}-frame reopen window; GO inside the door close still rides shut (${doorsMoving.tx.join(' ')}); ${leaves.sets.length} door sets drawn, ${leaves.equipped} fitted at ${shown.join('/')}, all ${sigs.length} shut shapes different`
   },
 })
 
@@ -1740,5 +1772,230 @@ scenarios.push({
     await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
     expect(await page.$('#update-chip') === null, 'the chip came back after it was put away')
     return `dead key answers; hall call lights ${litCalls.filter((f) => f === '#E8B04A').length}; keyboard typed and sent; fact card ${sheet.sh}/${sheet.h} with a cue; chip "${chipText}" dismissible`
+  },
+})
+
+// ============================================================================================
+// THE CONTENT ROUND (2026-09-08). Round 3 measured the wall: "all three Workshop parts are owned by
+// building 7 … every building yields exactly 16 bacon … roughly 20-25 minutes before the elevator
+// stops rewarding an elevator-loving child." The fix is ADDITIVE and INERT — 24 parts across seven
+// slots, a card for each, a Logbook, and The Climb, which never ends. These three scenarios reach
+// all of it through real taps and photograph it.
+
+// A save with the lunchbox and the floors of a child who has played a long time. Injected, because
+// riding 24 buildings through the DOM is 216 sums; every threshold it crosses is crossed by the
+// same `arrive()` the drive exercises for real in `parts-drip`.
+async function seedSave(page, patch) {
+  await page.evaluate((patch) => {
+    const raw = localStorage.getItem('bacon-elevator.save.v1')
+    const obj = raw ? JSON.parse(raw) : { v: 1 }
+    // `writes` far ahead of anything this tab has written, or the page's own save() on pagehide
+    // overwrites the seed on the way out and the reload reads a lunchbox of 0. That guard is
+    // r3-code-hostile-02's, and it is doing its job here: an idle tab ADOPTS the newer record.
+    localStorage.setItem('bacon-elevator.save.v1', JSON.stringify({ ...obj, ...patch, writes: 1000000 }))
+  }, patch)
+}
+
+scenarios.push({
+  name: 'workshop',
+  async run(ctx) {
+    const { page, shot } = ctx
+    await load(ctx)
+    // a long-played save: every part earned, 900 floors ridden (past Burj Khalifa x5)
+    const ids = await page.evaluate(() => window.__bacon.parts.map((p) => p.id))
+    await seedSave(page, { lunchbox: 4000, buildings: 60, unlocks: ids, plaques: ['200', '400', '800', '1500', '3000'], records: { floors: 900, rides: 640, longest: 8, passengers: 120 } })
+    await load(ctx, '')
+    await tap(page, '[data-nav="workshop"]'); await waitScreen(page, 'workshop')
+
+    const ws = await page.evaluate(() => {
+      const groups = [...document.querySelectorAll('.workshop [role="radiogroup"]')]
+      const rows = [...document.querySelectorAll('.workshop .part-row')]
+      return {
+        slots: groups.length,
+        rows: rows.length,
+        // NO MYSTERY BOXES: every row prints its own name and every locked one its exact distance.
+        nameless: rows.filter((r) => !r.querySelector('.pname').textContent.trim()).length,
+        artless: rows.filter((r) => !r.querySelector('svg.part-art')).length,
+        cardless: rows.filter((r) => !r.querySelector('[data-part-card]')).length,
+        next: (document.getElementById('workshop-next') || {}).textContent || '',
+        checked: [...document.querySelectorAll('.workshop [role="radio"][aria-checked="true"]')].map((b) => b.dataset.equipPart),
+      }
+    })
+    expect(ws.slots === 7, `${ws.slots} Workshop slots, not seven`)
+    expect(ws.rows === 24, `${ws.rows} part rows, not 24`)
+    expect(ws.nameless === 0 && ws.artless === 0 && ws.cardless === 0, `rows without a name/drawing/card: ${ws.nameless}/${ws.artless}/${ws.cardless}`)
+    expect(ws.checked.length === 7, `${ws.checked.length} parts are fitted, not one per slot`)
+    await shot('workshop-all')
+
+    // A NEWLY UNLOCKED PART IS NEVER AUTO-EQUIPPED. Everything is unlocked here and the fitted set
+    // is still the seven defaults, because the child has not tapped one.
+    const defaults = await page.evaluate(() => window.__bacon.parts.filter((p) => p.at === 0).map((p) => p.id))
+    for (const id of ws.checked) expect(defaults.includes(id), `${id} was fitted without a tap`)
+
+    // Fit one part in every slot through real taps, and check the DRAWING followed each time.
+    const fitted = []
+    for (const [slot, part, sel, attrName, want] of [
+      ['doors', 'doors-gate', '#doors', 'data-doors', 'doors-gate'],
+      ['indicator', 'ind-nixie', '#indicator', 'data-ind', 'ind-nixie'],
+      ['cab', 'cab-glass', '#car', 'data-cab', 'cab-glass'],
+      ['edge', 'edge-curtain', '#door-edge', 'data-edge', 'edge-curtain'],
+      ['guides', 'guides-roller', '#guides', 'data-guides', 'guides-roller'],
+      ['panel', 'panel-braille', '#cop', 'data-panel', 'panel-braille'],
+    ]) {
+      await tap(page, `[data-equip-slot="${slot}"][data-equip-part="${part}"]`)
+      await page.waitForFunction((slot, part) => window.__bacon.state().equipped[slot] === part, { timeout: 4000, polling: 30 }, slot, part)
+      const got = await attr(page, sel, attrName)
+      expect(got === want, `${part} is fitted but ${sel}[${attrName}] reads ${got}`)
+      fitted.push(part)
+    }
+    // the chime is heard, not drawn: it may only reach the audio layer
+    await tap(page, '[data-equip-slot="chime"][data-equip-part="chime-gong"]')
+    await waitFor(page, () => window.__bacon.state().equipped.chime === 'chime-gong', 'the gong fitted')
+
+    // THE PART CARD: one true sentence and a Source line, no anchor with links off.
+    await tap(page, '[data-part-card="ind-nixie"]')
+    await waitFor(page, () => !!document.querySelector('.part-sheet'), 'the part card')
+    const card = await page.evaluate(() => {
+      const sh = document.querySelector('.part-sheet')
+      return { title: sh.querySelector('.q').textContent, real: sh.querySelector('.factline').textContent, srcs: [...sh.querySelectorAll('.src')].map((e) => e.textContent), anchors: sh.querySelectorAll('a').length, art: !!sh.querySelector('svg.part-art.big') }
+    })
+    expect(/Nixie/.test(card.title), `the card is titled "${card.title}"`)
+    expect(card.real.length > 40, `the card carries no sentence: "${card.real}"`)
+    expect(card.srcs.length >= 1 && card.srcs.every((t) => /^Source: /.test(t)), `the card cites nothing: ${JSON.stringify(card.srcs)}`)
+    expect(card.anchors === 0, 'the part card links out with source links off')
+    expect(card.art, 'the part card shows no drawing')
+    await shot('part-card')
+    await tap(page, '[data-part-close]')
+    await waitFor(page, () => !document.querySelector('.part-sheet'), 'the card to close')
+
+    // Ride a floor with the whole lot fitted: the drawing must survive a real ride.
+    await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
+    await startRide(page)
+    await rideOne(page)
+    await shot('workshop-fitted-ride')
+    const after = await page.evaluate(() => ({
+      doors: document.getElementById('doors').getAttribute('data-doors'),
+      cab: document.getElementById('car').getAttribute('data-cab'),
+      ind: document.getElementById('indicator').getAttribute('data-ind'),
+      beams: document.querySelectorAll('#door-edge .beams circle').length,
+      rollers: document.querySelectorAll('#guides circle').length,
+      braille: document.querySelectorAll('#cop circle').length,
+    }))
+    expect(after.doors === 'doors-gate' && after.cab === 'cab-glass' && after.ind === 'ind-nixie', `the ride reset the drawing: ${JSON.stringify(after)}`)
+    expect(after.beams === 27, `the light curtain draws ${after.beams} beams`)
+    expect(after.rollers === 12, `roller guides draw ${after.rollers} wheels, not three per corner`)
+    expect(after.braille > 4, `the braille panel draws only ${after.braille} dots`)
+    return `7 slots, 24 rows, all named and drawn and carded; ${fitted.join(', ')} fitted by tap and drawn; nothing auto-equipped; card "${card.title}" with ${card.srcs.length} source and no anchor`
+  },
+})
+
+scenarios.push({
+  name: 'logbook',
+  async run(ctx) {
+    const { page, shot } = ctx
+    await load(ctx)
+    // Ride one whole building for real, so the ticket, the floors and the records are EARNED.
+    await startRide(page)
+    for (let i = 0; i < 24; i++) {
+      const st = await slim(page)
+      if (st.phase === 'roof') break
+      if (st.phase === 'trivia') { await answerTrivia(page, true); continue }
+      await rideOne(page)
+    }
+    const atRoof = await slim(page)
+    expect(atRoof.phase === 'roof', 'the building did not finish')
+    // THE ROOF CARD NAMES BOTH LADDERS: bacon, and floors ridden.
+    const roofText = await text(page, '.roof')
+    expect(/New in the Workshop/.test(roofText), `nothing arrived at the first roof: ${roofText.slice(0, 300)}`)
+    expect(/Next part at 28 bacon/.test(roofText), `the roof names no next part: ${roofText.slice(0, 300)}`)
+    expect(/The Climb: /.test(roofText), 'the roof card carries no Climb line')
+    expect(/Haughwout/.test(roofText), `the first Climb rung is not reached after ten floors: ${roofText.slice(0, 400)}`)
+    expect(!/fall|Fall/.test(roofText), 'the roof card counts falls at the child')
+    await shot('roof-climb')
+
+    await tap(page, '[data-nav="lobby"]')
+    await waitScreen(page, 'lobby')
+    const goals = await page.evaluate(() => [...document.querySelectorAll('.lobby [data-goal]')].map((e) => e.textContent))
+    expect(goals.length === 2, `the lobby prints ${goals.length} forward lines, not two`)
+    expect(goals.every((t) => /\d+ (more|more floors)/.test(t)), `a forward line with no distance: ${JSON.stringify(goals)}`)
+
+    await tap(page, '[data-nav="logbook"]'); await waitScreen(page, 'logbook')
+    const lb = await page.evaluate(() => ({
+      tickets: [...document.querySelectorAll('[data-ticket]')].map((e) => e.getAttribute('data-ticket')),
+      records: Object.fromEntries([...document.querySelectorAll('#records .rec')].map((e) => [e.dataset.record, e.querySelector('.val').textContent])),
+      climb: [...document.querySelectorAll('[data-climb]')].map((e) => ({ id: e.dataset.climb, reached: e.dataset.reached })),
+      text: document.querySelector('.logbook .page').textContent,
+    }))
+    expect(lb.tickets.length === 1 && lb.tickets[0] === '1', `tickets: ${JSON.stringify(lb.tickets)}`)
+    expect(Object.keys(lb.records).length === 9, `${Object.keys(lb.records).length} record rows, not nine`)
+    expect(lb.records.buildings === '1', `buildings reads ${lb.records.buildings}`)
+    expect(+lb.records.floors >= 10, `floors reads ${lb.records.floors} after a whole building`)
+    expect(lb.climb.length === 10, `${lb.climb.length} Climb rungs, not ten`)
+    expect(lb.climb[0].reached === 'true' && lb.climb[9].reached === 'false', 'the Climb is not in floor order, or nothing was reached')
+    // NO FAILURE TALLY ON A SCREEN THE CHILD CAN REACH.
+    for (const word of ['Fall', 'fall', 'accuracy', 'wrong', '%']) expect(!lb.text.includes(word), `the Logbook shows "${word}"`)
+    await shot('logbook')
+
+    // …and the Fact Book's completion board counts what is left.
+    await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
+    await tap(page, '[data-nav="factbook"]'); await waitScreen(page, 'factbook')
+    const fb0 = await page.evaluate(() => ({ count: document.getElementById('factcount').textContent, ghosts: document.querySelectorAll('[data-fact-ghost]').length, items: document.querySelectorAll('[data-fact]').length }))
+    expect(/of \d+ facts collected/.test(fb0.count), `the Fact Book has no count: "${fb0.count}"`)
+    expect(fb0.ghosts > 0, 'the Fact Book shows nothing still to collect')
+    await tap(page, '[data-setting="bookKind"][data-value="elevator"]')
+    await waitFor(page, () => window.__bacon.state().settings.bookKind === 'elevator', 'the elevator filter')
+    const fb1 = await page.evaluate(() => ({ count: document.getElementById('factcount').textContent, ghosts: document.querySelectorAll('[data-fact-ghost]').length }))
+    expect(fb1.count === fb0.count, `the filter changed the COUNT: "${fb0.count}" -> "${fb1.count}"`)
+    expect(fb1.ghosts < fb0.ghosts, 'the elevator filter did not narrow the board')
+    await shot('factbook-board')
+    return `ticket No. 0001 after one building; ${lb.records.floors} floors; ${lb.climb.filter((c) => c.reached === 'true').length}/10 Climb rungs; ${fb0.ghosts} ghosts, ${fb1.ghosts} with the elevator filter; no falls anywhere the child looks`
+  },
+})
+
+// THE LOAD-BEARING ONE. A part may change what the lift LOOKS like and nothing else: not a sum, not
+// a timing, not a phase, not the fall. Ten questions on the shipped defaults and ten with every
+// slot at its top part, at the same seed — same sums, same wall clock.
+scenarios.push({
+  name: 'parts-inert-drive',
+  async run(ctx) {
+    const { page } = ctx
+    const run = async (top) => {
+      await ctx.goto('?drive=1&seed=7&reset=1')
+      await waitFor(page, () => window.__bacon && window.__bacon.state().pool.length > 0, 'the fact pool')
+      if (top) {
+        const ids = await page.evaluate(() => window.__bacon.parts.map((p) => p.id))
+        const eq = await page.evaluate(() => {
+          const out = {}
+          for (const p of window.__bacon.parts) out[p.slot] = p.id  // the LAST part in each slot
+          return out
+        })
+        await seedSave(page, { lunchbox: 4000, unlocks: ids, equipped: eq })
+        await ctx.goto('?drive=1&seed=7')
+        await waitFor(page, () => window.__bacon && window.__bacon.state().pool.length > 0, 'the fact pool')
+      }
+      await startRide(page)
+      const sums = []
+      let t0 = 0, total = 0
+      for (let guard = 0; guard < 24 && sums.length < 7; guard++) {
+        const st = await slim(page)
+        if (st.phase === 'roof') break
+        if (st.phase === 'trivia') { await answerTrivia(page, true); continue }
+        t0 = Date.now()
+        const p = await enter(page)
+        await waitPhaseIn(page, ['floor', 'trivia', 'roof'])
+        total += Date.now() - t0
+        sums.push(p.text + ' = ' + p.answer)
+      }
+      const st = await slim(page)
+      return { sums, total, tray: st.ride ? st.ride.tray : 0, phase: st.phase }
+    }
+    const plain = await run(false)
+    const loaded = await run(true)
+    expect(JSON.stringify(plain.sums) === JSON.stringify(loaded.sums), `the parts changed the maths:\n  ${plain.sums.join(' | ')}\n  ${loaded.sums.join(' | ')}`)
+    expect(plain.tray === loaded.tray, `tray ${plain.tray} vs ${loaded.tray}`)
+    const drift = Math.abs(plain.total - loaded.total)
+    // At timescale 1 seven rides are ~19 s; the tolerance is the scheduler, not the parts.
+    expect(drift < 700, `seven rides took ${plain.total} ms on the defaults and ${loaded.total} ms fully fitted (${drift} ms apart)`)
+    return `${plain.sums.length} identical sums; tray ${plain.tray} both times; ${plain.total} ms vs ${loaded.total} ms (${drift} ms apart)`
   },
 })

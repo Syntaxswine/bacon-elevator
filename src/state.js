@@ -6,27 +6,33 @@ import { LEVELS, LEVEL_ORDER, levelById, customLevel } from './levels.js'
 import { makeProblem, afterAnswer, checkAnswer, adaptStep, initialCtx, parseTyped, signKeyLive, typedCap, validProblem } from './math.js'
 import { initialCar, sequence, step as carStep, FLOORS } from './elevator.js'
 import { isPassengerFloor, pickFact, makeChoices, TRIVIA_LIMITS } from './trivia.js'
+import { PARTS, defaultEquipped, newlyUnlocked, partById } from './parts.js'
 
 export const SETTINGS_DEFAULTS = Object.freeze({
   sound: false, volume: 50, speed: 'normal', motion: 'auto', bigText: false, secondTry: true,
     // Custom ships min 2: DESIGN §4 puts operands 0 and 1 at Corner Shop only, and min 0 put one of
   // them in 26 % of the default Custom level's draws. 0 stays reachable through the stepper — a
   // grown-up's explicit choice is not a silent rule break.
-  passengers: 'sometimes', links: false, custom: { ops: ['add', 'sub'], min: 2, max: 20, negatives: false },
+  passengers: 'sometimes', links: false,
+  // The Fact Book's two view controls. They are settings so the choice survives a reload, and they
+  // are the child's own: neither one changes a single fact, a count or a distance.
+  bookKind: 'all', bookOrder: 'newest',
+  custom: { ops: ['add', 'sub'], min: 2, max: 20, negatives: false },
 })
 
-export const PARTS = Object.freeze([
-  { id: 'doors-centre', slot: 'doors', name: 'Centre-opening doors', at: 0 },
-  { id: 'doors-telescopic', slot: 'doors', name: 'Telescopic side-opening doors', at: 18 },
-  { id: 'segment', slot: 'indicator', name: 'Segment indicator', at: 0 },
-  { id: 'dotmatrix', slot: 'indicator', name: 'Dot-matrix indicator', at: 50 },
-  { id: 'single', slot: 'chime', name: 'Single chime', at: 0 },
-  { id: 'two-tone', slot: 'chime', name: 'Two-tone chime', at: 100 },
-])
-export const PLAQUES = Object.freeze([200, 400, 800, 1500])
+// THE PARTS LADDER MOVED TO src/parts.js. It was six entries here; it is 24 across seven slots
+// there, with a card bank beside it (data/parts.json) that the Workshop reads. Re-exported under
+// the old name so nothing that imported it from here breaks — and so there is still exactly one
+// list. See src/parts.js for why the thresholds sit where they do.
+export { PARTS, SLOTS, SLOT_IDS } from './parts.js'
+
+// Two rungs added in the content round (3000, 5000). A plaque is additive and permanent, and the
+// roof card falls through PARTS -> PLAQUES -> The Climb, so a longer plaque ladder is a longer
+// stretch of the game with a bacon goal as well as a floors goal.
+export const PLAQUES = Object.freeze([200, 400, 800, 1500, 3000, 5000])
 export const ROOF_BONUS = 3
 export const PHASES = ['lobby', 'floor', 'keypad', 'moving', 'falling', 'pit', 'repair', 'trivia', 'fact', 'roof', 'descending']
-export const SCREENS = ['lobby', 'picker', 'rules', 'ride', 'roof', 'factbook', 'workshop', 'grownups']
+export const SCREENS = ['lobby', 'picker', 'rules', 'ride', 'roof', 'factbook', 'workshop', 'logbook', 'grownups']
 // Timeline name → the phase the game is parked in while it plays. `ride.inFlight = {name, to}` is
 // saved the moment a timeline starts, so a save taken mid-ride can be settled by hydrate().
 export const IN_FLIGHT = Object.freeze({ ride: 'moving', express: 'moving', fall: 'falling', descend: 'descending' })
@@ -42,6 +48,22 @@ export const STABLE = new Set(['floor', 'keypad', 'repair', 'trivia', 'fact', 'r
 // f !== target, so the only live button is inert. Every entry into a ride — a parsed save, a share
 // code, a resume, a settled timeline — comes through here.
 export function nextTarget(floor) { return Math.min(10, Math.max(1, floor + 1)) }
+
+// THE ONLY WRITER OF `records`. Monotone by construction: every field is an addition or a max, so
+// nothing the child can see here is able to go down. It is called from arrive() and from the
+// victory descent and nowhere else, and it is pure of everything else in the state — no part, no
+// level, no setting, no problem is read here, and nothing here is read by the sum generator.
+// test/parts-inert.test.js asserts both halves of that.
+export function tally(records, delta) {
+  const r = records && typeof records === 'object' ? records : { floors: 0, rides: 0, longest: 0, passengers: 0 }
+  const hop = Number.isFinite(delta.floors) && delta.floors > 0 ? Math.trunc(delta.floors) : 0
+  return {
+    floors: (r.floors || 0) + hop,
+    rides: (r.rides || 0) + (delta.rides || 0),
+    longest: Math.max(r.longest || 0, hop),
+    passengers: (r.passengers || 0) + (delta.passengers || 0),
+  }
+}
 
 const clamp = (x, lo, hi, d) => (typeof x === 'number' && Number.isFinite(x) ? Math.max(lo, Math.min(hi, Math.trunc(x))) : d)
 const typedStr = (x) => (typeof x === 'string' && /^-?\d{0,6}$/.test(x) ? x : '')
@@ -104,7 +126,13 @@ export function initialState(salt) {
     settings: { ...SETTINGS_DEFAULTS, custom: { ...SETTINGS_DEFAULTS.custom, ops: SETTINGS_DEFAULTS.custom.ops.slice() } },
     facts: { seen: [], right: [], retry: [] },
     unlocks: [],
-    equipped: { doors: 'doors-centre', indicator: 'segment', chime: 'single' },
+    equipped: defaultEquipped(),
+    // THE LOGBOOK'S NUMBERS. Every one of them only ever rises, none of them is a streak, and none
+    // of them is a failure tally: falls, accuracy and the missed sums stay on the Grown-ups page.
+    // `floors` is what The Climb measures — floors the CAR travelled under power (the one-floor
+    // rides, the express hoist out of the pit, the victory descent). A free fall is not a ride: it
+    // is neither counted nor punished. Written in exactly two places, both through tally().
+    records: { floors: 0, rides: 0, longest: 0, passengers: 0 },
     history: { ring: [], count: 0, answered: 0, correct: 0, falls: 0, byKind: {}, skills: {}, comeback: [] },
     ride: null,
     rulesSeen: false,
@@ -127,6 +155,8 @@ export function initialState(salt) {
     hint: false,
     roof: null,
     pool: [],
+    partsPool: [],   // data/parts.json, the part cards (not persisted: it is content, not progress)
+    climb: [],       // data/climb.json, the ten rungs
     seedOverride: null,
     message: '',
     stepNote: '',
@@ -275,12 +305,15 @@ function arrive(state, rng) {
   const collected = floor >= 1 && floor <= 9 && !r.cleared.includes(floor)
   const cleared = collected ? r.cleared.concat(floor).sort((x, y) => x - y) : r.cleared
   const tray = r.tray + (collected ? 1 : 0)
+  // The car arrived under power, from r.floor to r.target. An express out of the pit is one ride of
+  // several floors; that is what makes `longest` worth printing.
+  state = { ...state, records: tally(state.records, { floors: Math.abs(floor - r.floor), rides: 1 }) }
   let s = { ...state, car: { ...initialCar(), floor }, ride: { ...r, floor, cleared, tray, retrying: false, typed: '', typedWrong: '', problem: null, fallFloor: 0, inFlight: null }, hint: false, message: '' }
   const effects = []
   if (floor === FLOORS.ROOF) {
     const gained = s.ride.tray - s.ride.banked
     const lunchbox = state.lunchbox + gained + ROOF_BONUS
-    const unlocked = PARTS.filter((p) => p.at > 0 && p.at <= lunchbox && !state.unlocks.includes(p.id)).map((p) => p.id)
+    const unlocked = newlyUnlocked(lunchbox, state.unlocks)
     // PLAQUES ARE STORED AS STRINGS and PLAQUES holds numbers, so `includes(p)` was never true and
     // every roof re-awarded every plaque already on the wall: the roof card announced "A plaque for
     // 200 bacon hangs in the Lobby" on every single building after the 200th rasher, the Lobby drew
@@ -315,6 +348,7 @@ function arrive(state, rng) {
   if (isPassengerFloor(floor, state.settings.passengers) && !r.passengersDone.includes(floor) && state.pool.length) {
     const trivia = askPassenger(s, rng)
     if (trivia) {
+      s = { ...s, records: tally(s.records, { passengers: 1 }) }
       s = stable({ ...s, trivia }, 'trivia', { ride: { lastKind: trivia.fact.kind, lastRetry: !!trivia.fact.fromRetry } })
       effects.push(SAVE)
       return { state: withDraws(s, rng), effects }
@@ -344,6 +378,13 @@ export function reduce(state, action, rng) {
       // lives in trivia.js's loader; this is the same question asked at the action, where a second
       // caller (a test, a future importer) can reach it.
       return same({ ...state, pool: (Array.isArray(action.facts) ? action.facts : []).filter(usableFact) })
+    case 'load-parts':
+      // The part CARDS (one true sentence and its sources per part). The ladder itself is code in
+      // src/parts.js and is never data: a threshold a file could move is a threshold that could
+      // move backwards. A bank that fails to load costs the child a sentence to read, nothing else.
+      return same({ ...state, partsPool: Array.isArray(action.cards) ? action.cards : [] })
+    case 'load-climb':
+      return same({ ...state, climb: Array.isArray(action.rungs) ? action.rungs : [] })
     case 'set-seed':
       return same({ ...state, seedOverride: Number.isInteger(action.seed) ? action.seed : null })
 
@@ -571,7 +612,9 @@ export function reduce(state, action, rng) {
         return { state: s, effects: [SAVE] }
       }
       if (p.name === 'descend') {
-        const s = { ...state, car: p.car, ride: null, trivia: null, roof: null, phase: 'lobby', screen: 'lobby', pending: null }
+        // The victory descent is a ride the car really made, R to G under power, so The Climb counts
+        // it. It is the one hop that is not an arrive().
+        const s = { ...state, records: tally(state.records, { floors: Math.abs((r ? r.floor : 10) - p.car.floor), rides: 1 }), car: p.car, ride: null, trivia: null, roof: null, phase: 'lobby', screen: 'lobby', pending: null }
         return { state: s, effects: [SCREEN('lobby'), SAVE] }
       }
       return same({ ...state, pending: null })
@@ -676,6 +719,8 @@ export function reduce(state, action, rng) {
         else if (key === 'speed') st.speed = value === 'fast' ? 'fast' : 'normal'
         else if (key === 'motion') st.motion = ['auto', 'full', 'reduced'].includes(value) ? value : 'auto'
         else if (key === 'passengers') st.passengers = ['often', 'sometimes', 'never'].includes(value) ? value : 'sometimes'
+        else if (key === 'bookKind') st.bookKind = ['all', 'elevator', 'math'].includes(value) ? value : 'all'
+        else if (key === 'bookOrder') st.bookOrder = ['newest', 'order'].includes(value) ? value : 'newest'
         else st[key] = !!value
         s = { ...s, settings: st }
       } else return same(state)
@@ -683,8 +728,8 @@ export function reduce(state, action, rng) {
     }
 
     case 'equip': {
-      const part = PARTS.find((p) => p.id === action.part && p.slot === action.slot)
-      if (!part) return same(state)
+      const part = partById(action.part)
+      if (!part || part.slot !== action.slot) return same(state)
       if (part.at > 0 && !state.unlocks.includes(part.id)) return same(state)
       return { state: { ...state, equipped: { ...state.equipped, [action.slot]: part.id } }, effects: [SOUND('click'), SAVE] }
     }

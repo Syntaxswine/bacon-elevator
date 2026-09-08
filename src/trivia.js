@@ -1,25 +1,14 @@
 // The trivia loader and picker. Pure. The gate is the one in docs/DESIGN.md amendment 1:
 // both verification lenses, one http(s) source, three unique distractors none equal to the
 // answer, and none of the forbidden words anywhere in the item.
+//
+// THE WORD LISTS AND THE CITATION CHECK NOW LIVE IN src/gate.js, imported here and by parts.js and
+// climb.js. They used to be module-private constants in this file, so the two banks added in the
+// content round would have had to re-implement the comparison — which is how a gate stops being one
+// gate (r3-trivia-truth-01 was the first copy going stale). Nothing about what this gate REFUSES
+// changed with the move; test/trivia.test.js and test/round3.test.js run the same assertions.
+import { forbiddenWord, sourcesReason, domainOf as domainOfUrl } from './gate.js'
 
-const FORBIDDEN = /\b(death|dead|die|died|killed|injur\w*|crash\w*|trapped|accident\w*)\b/i
-// r3-trivia-truth-01: the gate scanned question/answer/distractors/fact and stopped there, but
-// `sources[].title` is rendered verbatim on the fact card (screens.js factSheet) and as the link
-// text in the Fact Book. The Pi Day item shipped `Reed Magazine: In Memoriam, Larry Shaw 1961`
-// pointing at `/obituaries/`, so the one gate written to keep death off the child's reward screen
-// was reading past the only line that carried it. The citation lens is WIDER than the child-text
-// lens — a memorial page announces itself in words FORBIDDEN never had — and it reads the url too,
-// where the give-away usually lives. It deliberately does NOT carry `grave`: Elisha GRAVES Otis is
-// in the bank's source titles, and a gate that fires on a middle name polices a spelling, not a
-// hazard.
-const CITATION_FORBIDDEN = /\b(death|dead|die|died|killed|injur\w*|crash\w*|trapped|accident\w*|memoriam|memorial|obituar\w*|funeral|posthumous\w*)\b/i
-
-// The letters that label the three trivia choices. ONE definition: the panel prints them as badges
-// beside each option, the display band names the answer by letter, and the fact card names it by
-// letter AND text. While the letter lived in panel.js alone the fact card could not reach it, so the
-// band said `The answer is C.` and the card, 900 ms later, said `The answer is A lift.` — two
-// sentences with the same stem and different referents, in a game built for a literal reader
-// (r3-autism-fit-01).
 export const CHOICE_LETTERS = Object.freeze(['A', 'B', 'C'])
 export const letterFor = (i) => CHOICE_LETTERS[i] || ''
 
@@ -65,12 +54,11 @@ function gate(it) {
   const lenses = new Set(it.verification.map((v) => v && v.lens))
   if (!lenses.has('confirm') || !lenses.has('refute')) return 'verification needs both a confirm and a refute lens'
   const text = [it.question, String(it.answer), ...ds, it.fact].join(' ')
-  const m = text.match(FORBIDDEN)
-  if (m) return `forbidden word: ${m[0]}`
+  const m = forbiddenWord(text)
+  if (m) return `forbidden word: ${m}`
   // Everything the child can SEE or FOLLOW, not only the sentences the game wrote itself.
-  const cited = it.sources.flatMap((x) => [String((x && x.title) || ''), String((x && x.url) || ''), String((x && x.quote) || '')]).join(' ')
-  const c = cited.match(CITATION_FORBIDDEN)
-  if (c) return `forbidden word in a source: ${c[0]}`
+  const bad = sourcesReason(it.sources)
+  if (bad) return bad
   return null
 }
 
@@ -162,7 +150,6 @@ export function pickFact(facts, seen = [], lastKind = null, rng, retry = [], lim
   return ties[Math.floor(rng() * ties.length)]
 }
 
-export function domainOf(url) {
-  const m = /^https?:\/\/([^/?#]+)/i.exec(url || '')
-  return m ? m[1].replace(/^www\./, '') : ''
-}
+// One definition, in gate.js: the fact card, the Fact Book, the part card and the Climb all print
+// `Source: <title> (<domain>)`.
+export const domainOf = domainOfUrl

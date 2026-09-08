@@ -701,3 +701,108 @@ reviewers' own: `.roof [data-next]: 0 px of 72 on screen at rest, in a 276 px vi
 - **Two items are still checked twice against the same document**, unchanged from round 2 — but the
   `rule` string now says so.
 - **`settings.secondTry` is still `true` at every level** — round 1's open question, unchanged.
+
+## Content round — the elevator stops rewarding an elevator-loving child (2026-09-08)
+
+Not a hostile-review round: a single defect, measured by two independent reviewers in round 3 and
+ruled on by the lead. Both reviewers reached the same wall from different directions.
+
+> All three Workshop parts are owned by building 7, the last level offer lands at building 8, and
+> from building 9 the roof card carries no new line at all. Every building yields exactly 16 bacon,
+> and Megatall is the same G-1-9-R shaft with the same one-floor hop as Corner Shop. Roughly 20-25
+> minutes before the elevator stops rewarding an elevator-loving child.
+
+> A child stops at the roof of the second Corner Shop, around question 20, if nobody shows them the
+> level chip: nine identical 2.7-second rides whose only variable is the sum.
+
+Round 3 fixed the measurable half of this (r3-elevator-feel-02: the roof card falling through from
+PARTS to the plaque ladder) and skipped the other half with a note — *"make the buildings differ AS
+ELEVATORS is a v2 feature against amendment 12's own decision; the lead should decide."* This is
+that decision, and what shipped under it. The full ruling is DESIGN amendment 14.
+
+**Instruments before → after:** `npm test` 192 → **213 passing**; `npm run drive` 85 → **100 passing**
+(20 scenarios × 5 phones, plus the second `layout` pass at the device heights);
+`npm run drive:update` **15/15**. Three new drive scenarios (`workshop`, `logbook`,
+`parts-inert-drive`) reach the new content through real taps, and `layout` now measures the fully
+unlocked Workshop — the longest page in the game — the part card and the Logbook on all five
+profiles and at the device heights.
+
+### The ruling, in four lines
+
+1. **Predictability is about the RULES, not about sameness.** The loop, the timings, the failure
+   behaviour, the copy and the controls are identical everywhere. Nothing is random, timed or
+   surprising, and nothing is ever taken away.
+2. **Amendment 12 stands.** A level is a maths band, not a height. The maths is never coupled to the
+   building's shape.
+3. **Variety is therefore additive and inert:** what the lift LOOKS like, what the child can earn
+   and choose, what the Fact Book and the Workshop hold, and what the roof says. The elevator
+   special interest is content — real mechanisms, real parts, real vocabulary, all true and sourced.
+4. **THE GAME OWNS THE SHAFT; THE CHILD OWNS THE CAR.** Now canon. Nothing equipped is ever
+   replaced, swapped, auto-equipped or re-locked by anything the game decides.
+
+### What shipped
+
+| what | why it is the fix |
+|---|---|
+| **24 parts across seven slots** (`src/parts.js`), 17 of them earned at 12, 28, 44, 60, 76, 92, 108, 124, 140, 156, 172, 188, 204, 236, 284, 332, 380 bacon | The measured problem was three parts, all owned by building 7. That is now a part at the roof of every building from 1 to 12, then 13, 15, 18, 21 and 24 — and the thresholds sit on the 16-bacon grid at offset −4 so each one lands at a ROOF, in front of the card that names it. The three shipped ids keep their spelling and their thresholds only ever move DOWN, so no save loses anything. |
+| **Every part is a drawing** — five door sets, five indicators, five car finishes, two door-edge devices, two guide types, two car-button panels, all inline SVG in `render/shaft.js` | r3-elevator-feel-06's lesson generalised: a part the child spends a whole building earning must change what the lift looks like STANDING STILL, not only during the 500 ms slide. The doors are a list of `{node, travel}` per set, so a two-speed door really runs one leaf at twice the other's speed, a collapsible gate really concertinas into its pocket, and a scenic car really shows the shaft through its walls. Guide rails are drawn down the hoistway, because the guides had nothing to grip. |
+| **One new sound: the brass arrival gong** | A chime part replaces the ding's VOICE at triggers that already exist — same peak, same length budget, no new cue and no new moment. Sound is off by default, and a child who turns it on must not discover that a setting changed the world. `ding2` now plays the fitted chime twice instead of the plain 880 Hz, so the ADA count (one up, two down) holds in every set rather than only in the default one. |
+| **A part card behind every ⓘ** (`data/parts.json`) | The Workshop becomes the second Fact Book: one true sentence about what the thing is on a real lift, with the sources it was checked against, for all 24. Every quote was fetched from the url beside it. |
+| **`src/gate.js`** — the citation gate extracted and imported by `trivia.js`, `parts.js` and `climb.js` | Three banks now put sourced sentences in front of the child. r3-trivia-truth-01 was the fact bank's gate reading past the one line that carried a memorial; a second copy of that gate is a second thing to forget. None of the three re-states the comparison. `grave` stays out of the citation list (Elisha Graves Otis). |
+| **The Climb** (`src/climb.js`, `data/climb.json`) — ten real buildings by floor count, then Burj Khalifas without end | The parts ladder ends and so does the plaque ladder. This is the only line that provably cannot: `climbGoal` may never return null and `remaining` may never be ≤ 0, asserted at every floor count from 0 to 20 000. Floors count only under POWER — the one-floor rides, the express out of the pit, the victory descent. A free fall is not a ride and is neither counted nor punished. |
+| **The Logbook** — a numbered ticket per building, nine monotone records, and The Climb | A collector sorts, counts, re-reads and shows. **Falls, accuracy and percentages appear on no screen the child can reach**; they are on Grown-ups Progress only. A number a child can see must never be able to go down. The tickets are DERIVED from `buildings`, because an array of one entry per building would grow the hand-copied `BE1-` code without bound — which is the bug round 2 already fixed once, in `facts.seen`. |
+| **The Fact Book's completion board** — `23 of 67 facts collected`, a ghost tile per unheard fact, and persisted All/Elevator/Numbers and Newest/In-order chips | For a child who counts things, an empty slot beside a full one is the strongest engine in the game. Neither control changes a fact, a count or a distance. |
+| **`PLAQUES` gains 3000 and 5000**, and both forward lines print on the lobby, the roof and the Workshop | The lead's rule: the child must always see what the next thing is and how far away it is. Two ladders, and `test/content-round.test.js` asserts at least one of them names a next thing with a distance at every lunchbox 0-6000 and every floor count 0-20000. |
+
+### The two instruments this round exists to leave behind
+
+**`test/parts-inert.test.js` — a part may not be felt by the reducer.** For each of the 24 parts it
+runs the same 300-action script at seed 42 (every fifth question answered wrong, so the fall, the
+Repair card and the express recovery are all inside it) and compares a behavioural TRACE — phase,
+screen, problem key, tray, lunchbox and every effect, in order — byte for byte against the shipped
+defaults, then deep-equals the final state minus `equipped`, `unlocks` and `records`. A final-state
+comparison alone cannot see an effect that fired in a different order, and effect order is what the
+renderer and the audio play off. It then asserts statically that `equipped` is read in `state.js` in
+exactly one branch (`case 'equip'`), that `records` is only ever written through `tally()`, and that
+`math.js`, `levels.js`, `explain.js`, `elevator.js` and `trivia.js` do not know either field exists
+— because a behavioural test at one seed cannot prove the absence of a read, and the source can.
+`parts-inert-drive` asks the same question in a real browser: seven identical sums and the same wall
+clock (measured 20 264 ms against 20 195 ms, 69 ms apart) on the defaults and fully fitted.
+
+**The gap instrument — `test/content-round.test.js`.** Pinning that thresholds are unique and
+increasing does not stop a future edit re-clustering them into building 7, which is the exact defect
+this round fixes and which nothing in the tree would have caught. It walks 120 buildings, records the
+building index of every unlock, plaque and Climb rung, and fails if the ladder goes quiet for longer
+than 16 buildings — what it delivers today (buildings 31 to 47, between Burj × 2 and Burj × 3, and
+even there the roof card counts down to both). Tighten that number when the ladder gets denser; never
+loosen it without a lead's ruling.
+
+### Cut from the winning proposal, and why
+
+- **The machine and pit slots** (gearless, machine-room-less, oil buffers, the overspeed governor and
+  its safety wedges). Both judges named them as the first cut and they were right: they are new
+  geometry in `render/shaft.js`, the one file three hostile rounds have spent keeping byte-identical
+  through the fall. They land alone, in their own pass, behind the fall's own identity assertion.
+- **The twelve-building ROUTE.** It terminates at twelve and then repeats; it rotates the world under
+  the child on the screen that carries the maths; `createShaft` builds the world once and the crop
+  guard is a closure-scoped array with no removal path. Amendment 12 already ruled on it. The
+  CONTENT survives as part cards; the container does not ship.
+- **Renaming the levels to maths bands.** It takes away names the child has had for a week, which is
+  the one thing the ruling forbids outright, and every level already carries its band as its tag.
+- **`pin a building`** — a second navigation concept, earning nothing.
+- **`history.missed`**, the child's last ten wrong presses, persisted: the only proposed state whose
+  content is their failures.
+
+### Handed on
+
+- **The machine and pit slots are the next pass**, and they should ship with a fall comparison of
+  their own: the phases, the durations and the copy of `fall` unchanged, drawn frame by frame, before
+  and after. Everything else in the parts ladder is inert by construction; those two are not.
+- **The 16-building quiet stretch is real.** Between Burj Khalifa × 2 (building 31) and × 3 (47) the
+  child crosses no threshold at all — the roof card still counts down to both ladders every time, but
+  nothing arrives. Two more real buildings between 154 and 308 floors would close it; there is no
+  shortage of them.
+- **The braille car panel is drawn at 12 world units wide**, which is a legible strip and a barely
+  legible braille cell on a 320 px phone. The part card shows it at readable size and that is where
+  the rule is taught; if the car ever gets a bigger interior, redraw it there too.
+- **`settings.secondTry` is still `true` at every level** — round 1's open question, unchanged.

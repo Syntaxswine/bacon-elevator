@@ -12,15 +12,15 @@ const VERSION = '1.0.0'
 // the browser was /sw.js. A child who already had the game could not be reached by a correction at
 // all, and `Version 1.0.0` on the Grown-ups screen said the same on both builds, so nobody could
 // tell. The cache name is now a function of the CONTENT, not of a literal somebody has to remember.
-const BUILD = 'ef630a206a78'
+const BUILD = 'a2b844cc98cc'
 const CACHE = 'be-' + VERSION + '-' + BUILD
 const ASSETS = [
   './', './index.html', './404.html', './manifest.webmanifest', './favicon.ico',
   './css/app.css',
   './src/version.js', './src/main.js', './src/rng.js', './src/levels.js', './src/math.js', './src/explain.js',
-  './src/elevator.js', './src/timeline.js', './src/trivia.js', './src/state.js', './src/save.js', './src/storage.js', './src/audio.js',
+  './src/elevator.js', './src/timeline.js', './src/trivia.js', './src/gate.js', './src/parts.js', './src/climb.js', './src/state.js', './src/save.js', './src/storage.js', './src/audio.js',
   './src/render/shaft.js', './src/render/panel.js', './src/render/screens.js',
-  './data/trivia.json',
+  './data/trivia.json', './data/parts.json', './data/climb.json',
   './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/apple-touch-icon.png', './assets/favicon-32.png',
   './assets/icon-maskable-192.png', './assets/icon-maskable-512.png',
 ]

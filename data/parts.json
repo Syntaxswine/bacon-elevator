@@ -1,0 +1,330 @@
+{
+  "note": "One true sentence per elevator part, with the sources it was checked against. Every quote below was fetched from the url beside it. The runtime gate is src/parts.js loadParts(), which uses the same src/gate.js the fact bank uses: an id that exists in PARTS, a sentence at most 240 characters with no forbidden word, and at least one http(s) source whose title is not merely its own domain. An unverifiable sentence is cut, not softened (docs/BRIEF.md requirement 6).",
+  "items": [
+    {
+      "id": "doors-centre",
+      "real": "Two panels part in the middle, each one travelling half the opening. It is the commonest passenger door because both panels move at once, so it opens fastest and needs the least pocket on either side.",
+      "sources": [
+        {
+          "title": "Elevator — Wikipedia, Doors",
+          "url": "https://en.wikipedia.org/wiki/Elevator",
+          "quote": "The most common configuration is to have two panels that meet in the middle and slide open laterally."
+        },
+        {
+          "title": "A Comprehensive Guide to Elevator Door Types — AVT Beckett",
+          "url": "https://avtbeckett.com/blog/a-comprehensive-guide-to-elevator-door-types/",
+          "quote": "Door panels travel to and from the midpoint of the opening"
+        }
+      ]
+    },
+    {
+      "id": "doors-telescopic",
+      "real": "Two panels slide the same way, one faster than the other. The fast panel crosses the whole opening while the slow one crosses half, so they telescope into a pocket half as deep as a single panel would need.",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Elevator Door Types — AVT Beckett",
+          "url": "https://avtbeckett.com/blog/a-comprehensive-guide-to-elevator-door-types/",
+          "quote": "Two doors slide in the same direction, one moving faster than the other"
+        },
+        {
+          "title": "Elevator — Wikipedia, Doors",
+          "url": "https://en.wikipedia.org/wiki/Elevator",
+          "quote": "In a cascading telescopic configuration...the doors roll on independent tracks so that while open, they are tucked behind one another."
+        }
+      ]
+    },
+    {
+      "id": "doors-single",
+      "real": "One panel slides to one side. It needs a pocket as wide as the opening itself, so it is used on narrow entrances and in homes, where there is a wall to hide the panel in.",
+      "sources": [
+        {
+          "title": "A Comprehensive Guide to Elevator Door Types — AVT Beckett",
+          "url": "https://avtbeckett.com/blog/a-comprehensive-guide-to-elevator-door-types/",
+          "quote": "Slide door needs twice its width to open fully"
+        }
+      ]
+    },
+    {
+      "id": "doors-gate",
+      "real": "A folding lattice of steel arms instead of a solid door. Freight lifts and older passenger lifts used them, and because the gate has open spaces in it you can watch the shaft go past while you ride.",
+      "sources": [
+        {
+          "title": "Elevator Collapsible Door — Vishwacon",
+          "url": "https://www.vishwaconelevatorgearbox.com/elevator-collapsible-door.html",
+          "quote": "freight and goods lifts, industrial elevators, and older passenger elevators"
+        },
+        {
+          "title": "Residential Elevator Door and Gate Options — Arrow Lift",
+          "url": "https://arrowlift.com/home-elevators/home-elevator-design-options/door-and-gate-options/",
+          "quote": "Unlike accordion or sliding panels, scissor gates have open spaces in their design, which is why they are considered a true gate rather than a door."
+        }
+      ]
+    },
+    {
+      "id": "doors-four",
+      "real": "Four panels: two telescoping each way from the middle. Hospital and freight lifts have openings too wide for two panels, and a telescoping set tucks behind itself instead of needing a pocket the width of the door.",
+      "sources": [
+        {
+          "title": "Elevator — Wikipedia, Doors",
+          "url": "https://en.wikipedia.org/wiki/Elevator",
+          "quote": "In a cascading telescopic configuration...the doors roll on independent tracks so that while open, they are tucked behind one another."
+        },
+        {
+          "title": "A Comprehensive Guide to Elevator Door Types — AVT Beckett",
+          "url": "https://avtbeckett.com/blog/a-comprehensive-guide-to-elevator-door-types/",
+          "quote": "Door panels travel to and from the midpoint of the opening"
+        }
+      ]
+    },
+
+    {
+      "id": "segment",
+      "real": "Seven bars in a figure-eight. Light the right ones and you have any digit from 0 to 9; it is the plainest way an indicator can show which floor the car is on.",
+      "sources": [
+        {
+          "title": "Segment display — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Segment_display",
+          "quote": "A segment display is a display device comprising several segments, which switch on and off to give the appearance of digits or alphanumeric characters."
+        }
+      ]
+    },
+    {
+      "id": "dotmatrix",
+      "real": "A grid of little lamps, five across and seven down for each character. The same grid can spell a floor number or draw an arrow, which is why lifts, station boards and bus fronts all use one.",
+      "sources": [
+        {
+          "title": "Dot-matrix display — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Dot-matrix_display",
+          "quote": "A common size for a character is 5×7 pixels, either separated with blank lines with no dots (in most text-only displays), or with lines of blank pixels (making the real size 6×8)."
+        }
+      ]
+    },
+    {
+      "id": "ind-dial",
+      "real": "Before digital counters, a lift told you where the car was with a semicircular brass dial and a pointer that swept round it. You can still buy them cast in solid brass for old buildings.",
+      "sources": [
+        {
+          "title": "Historic Cast Brass Dial Indicators — C.J. Anderson",
+          "url": "https://cjanderson.com/historic-cast-brass-dial-indicators/",
+          "quote": "180° and 360° designs for classic elevators"
+        },
+        {
+          "title": "521 CMR 28.9 Car Position Indicators (Massachusetts) — Cornell LII",
+          "url": "https://www.law.cornell.edu/regulations/massachusetts/521-CMR-28-9",
+          "quote": "The car position indicator shall be located above the car control panel or over the door to show the position of the elevator in the hoistway."
+        }
+      ]
+    },
+    {
+      "id": "ind-numerals",
+      "real": "A row of floor numbers with one lit at a time. A car position indicator sits over the door or above the buttons, and the older kind is exactly this: a row of illuminating numbers rather than a screen.",
+      "sources": [
+        {
+          "title": "Glossary of Elevator Terms — Embree Elevator",
+          "url": "https://www.embreeelevator.com/glossary-of-terms/",
+          "quote": "Normally located above the door jamb these can consist of a row of illuminating numbers or a digital display."
+        },
+        {
+          "title": "521 CMR 28.9 Car Position Indicators (Massachusetts) — Cornell LII",
+          "url": "https://www.law.cornell.edu/regulations/massachusetts/521-CMR-28-9",
+          "quote": "The car position indicator shall be located above the car control panel or over the door to show the position of the elevator in the hoistway."
+        }
+      ]
+    },
+    {
+      "id": "ind-nixie",
+      "real": "A nixie tube glows orange because each numeral is a wire shape inside a glass envelope. RFT built the Z562M2 to show lift floors 1 to 8, and the Z562M3 to show the two arrows for going up and going down.",
+      "sources": [
+        {
+          "title": "Z562M3 tube — Swiss Nixie",
+          "url": "https://www.swissnixie.com/tubes/Z562M3/",
+          "quote": "It can display two arrows. It was used in elevators to indicate 'going up' and 'going down', but it also could be used for indicate left and right."
+        },
+        {
+          "title": "Nixie tube — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Nixie_tube",
+          "quote": "the glass tube contains a wire-mesh anode and multiple cathodes, shaped like numerals or other symbols"
+        }
+      ]
+    },
+
+    {
+      "id": "cab-steel",
+      "real": "Painted steel panels: the plain, tough car that most goods and service lifts have. Nothing to polish and nothing to scratch off.",
+      "sources": [
+        {
+          "title": "Metal Elevator Interior Finishes — Architectural Elevator Design",
+          "url": "https://architecturalelevatordesign.com/elevator-interior-finish/metal/",
+          "quote": "Our Standard metal collection delivers timeless sophistication to elevator interiors through classic stainless steel, brass, bronze, and Muntz finishes."
+        }
+      ]
+    },
+    {
+      "id": "cab-stainless",
+      "real": "Satin, or No. 4, stainless: the sheet is brushed with an abrasive until it carries fine parallel lines. The lines scatter the light, so the wall hides fine scratches far better than a mirror would.",
+      "sources": [
+        {
+          "title": "Satin No.4 Stainless Steel Sheets for Elevator, Wall and Door Panels — Chromasteel",
+          "url": "https://chromasteel.com/products/satin-stainless-steel/",
+          "quote": "Satin Finish(No.4) is a linear brushed finish produced by polishing the sheet with an abrasive to create uniform, fine brush lines and a soft matte look."
+        }
+      ]
+    },
+    {
+      "id": "cab-veneer",
+      "real": "Real wood veneer on the panels, with a stainless handrail across the back. Veneer is a thin slice of actual timber, so the grain runs differently down every panel; hotels and old office buildings use it.",
+      "sources": [
+        {
+          "title": "Elevator Cab Interior Materials Compared — CED Elevator",
+          "url": "https://www.cedelevator.com/best-elevator-cab-interior-materials-stainless-steel-laminate-glass-wood-compared/",
+          "quote": "Natural wood veneer delivers something laminate cannot completely duplicate: real grain variation and depth."
+        }
+      ]
+    },
+    {
+      "id": "cab-brass",
+      "real": "Brass panels, polished until they shine. Brass and bronze are the old hotel-lobby metals, and they are still made in brushed and mirror-polished finishes for lift cars today.",
+      "sources": [
+        {
+          "title": "Metal Elevator Interior Finishes — Architectural Elevator Design",
+          "url": "https://architecturalelevatordesign.com/elevator-interior-finish/metal/",
+          "quote": "Available in brushed and mirror-polished options, these enduring metals provide refined elegance and proven durability for any cab interior vision."
+        }
+      ]
+    },
+    {
+      "id": "cab-glass",
+      "real": "A scenic car has a glazed wall, so the ride itself is the view. John Portman's Hyatt Regency Atlanta opened in 1967 with glass cars running up a twenty-two-storey atrium, and hotels have copied it ever since.",
+      "sources": [
+        {
+          "title": "Hyatt Regency Atlanta — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Hyatt_Regency_Atlanta",
+          "quote": "John C. Portman Jr.'s revolutionary 22-story atrium design for the hotel has influenced hotel design enormously"
+        }
+      ]
+    },
+
+    {
+      "id": "single",
+      "real": "One strike as the car arrives. The 2010 ADA Standards ask for one sound going up and two going down, so a rider who cannot see the lantern still knows which way the car is about to go.",
+      "sources": [
+        {
+          "title": "2010 ADA Standards 407.2.2.3 Audible Signals — UpCodes",
+          "url": "https://up.codes/s/audible-signals",
+          "quote": "Audible signals shall sound once for the up direction and twice for the down direction, or shall have verbal annunciators that indicate the direction of elevator car travel."
+        }
+      ]
+    },
+    {
+      "id": "two-tone",
+      "real": "Two notes instead of one, the high note first. The count is what the rule cares about, not the pitch: still one sound for up and two for down, whatever the fixture sounds like.",
+      "sources": [
+        {
+          "title": "2010 ADA Standards 407.2.2.3 Audible Signals — UpCodes",
+          "url": "https://up.codes/s/audible-signals",
+          "quote": "Audible signals shall sound once for the up direction and twice for the down direction, or shall have verbal annunciators that indicate the direction of elevator car travel."
+        },
+        {
+          "title": "ADA Guide Chapter 4: Elevators and Platform Lifts — U.S. Access Board",
+          "url": "https://www.access-board.gov/ada/guides/chapter-4-elevators-and-platform-lifts/",
+          "quote": "Audible signals: one (up)/ two (down) or annunciator"
+        }
+      ]
+    },
+    {
+      "id": "chime-gong",
+      "real": "The older fixture is a real bell, struck by a plunger, mounted at the landing beside the lantern. It is an actual sound in the air rather than a tone from a speaker — and it still counts one for up, two for down.",
+      "sources": [
+        {
+          "title": "Arrival gong — Schmitt Aufzüge glossary",
+          "url": "https://www.schmitt-elevators.com/planning/knowledge/glossary/detail/arrival-gong/",
+          "quote": "an acoustic signal when a lift cage arrives at the stop"
+        },
+        {
+          "title": "2010 ADA Standards 407.2.2.3 Audible Signals — UpCodes",
+          "url": "https://up.codes/s/audible-signals",
+          "quote": "Audible signals shall sound once for the up direction and twice for the down direction, or shall have verbal annunciators that indicate the direction of elevator car travel."
+        }
+      ]
+    },
+
+    {
+      "id": "edge-safety",
+      "real": "A metal bar down the leading edge of the door. Push it and switches inside it open, the closing stops, and the doors go back — the oldest way a lift knows something is in the way.",
+      "sources": [
+        {
+          "title": "Glossary of Elevator Terms — Embree Elevator",
+          "url": "https://www.embreeelevator.com/glossary-of-terms/",
+          "quote": "The mechanism houses switch contacts which operate when the bar comes into contact with an obstruction, stops the closing doors reversing them into the open position."
+        }
+      ]
+    },
+    {
+      "id": "edge-curtain",
+      "real": "Many infrared beams shine across the opening. Break one and the doors stop and open again — and the US rule says the device must work without needing to be touched at all.",
+      "sources": [
+        {
+          "title": "2010 ADA Standards 407.3 Elevator Doors — Corada",
+          "url": "https://www.corada.com/documents/2010ADAStandards/407-3",
+          "quote": "The device shall not require physical contact to be activated, although contact is permitted to occur before the door reverses."
+        },
+        {
+          "title": "Creating New Safety Benchmarks in India's Elevator Industry — Mitsubishi Electric",
+          "url": "https://in.mitsubishielectric.com/en/feature/partneringindia/insights/creating-new-safety-benchmarks-in-indias-elevator-Industry.html",
+          "quote": "The sensor utilizes multiple infrared light beams to prevent the passengers and their belongings from being caught between the doors."
+        }
+      ]
+    },
+
+    {
+      "id": "guides-shoe",
+      "real": "The car does not hang free: it is held by guide rails down both sides of the shaft. A sliding shoe is a lined block that grips the rail and keeps the car from swaying as it travels.",
+      "sources": [
+        {
+          "title": "Glossary of Elevator Terms — Embree Elevator",
+          "url": "https://www.embreeelevator.com/glossary-of-terms/",
+          "quote": "The devices located between the car or counterweight and their respective guide rails to ensure that the lateral motion of the car and counterweight is kept at a minimum as they travel along the guide rails."
+        }
+      ]
+    },
+    {
+      "id": "guides-roller",
+      "real": "Three rubber-tyred wheels per corner ride the rail instead of a sliding block. Rolling beats sliding at speed, so fast lifts use roller guides and the ride is quieter.",
+      "sources": [
+        {
+          "title": "Elevator — Wikipedia, Design",
+          "url": "https://en.wikipedia.org/wiki/Elevator",
+          "quote": "The elevator cab and counterweight travel along guide rails...using oil-lubricated guide shoes, roller guide shoes in high speed elevators, active roller guides or maglev shoes."
+        }
+      ]
+    },
+
+    {
+      "id": "panel-plain",
+      "real": "A column of round buttons, one per floor, each lighting when the call is registered. The button you press is the call; the light going out is the car answering it.",
+      "sources": [
+        {
+          "title": "Glossary of Elevator Terms — Embree Elevator",
+          "url": "https://www.embreeelevator.com/glossary-of-terms/",
+          "quote": "Mounted within the elevator car to indicate to passengers the car's floor position."
+        }
+      ]
+    },
+    {
+      "id": "panel-braille",
+      "real": "A raised number and its braille go immediately to the LEFT of the button they belong to. A rider who cannot see reads the label with a finger, then presses the button beside it — the same side every time, in every building.",
+      "sources": [
+        {
+          "title": "2010 ADA Standards 407.4.7.1.2 Location — Corada",
+          "url": "https://www.corada.com/documents/2010ADAStandards/407-4-7-1-2",
+          "quote": "Raised character and braille designations shall be placed immediately to the left of the control button to which the designations apply."
+        },
+        {
+          "title": "ADA Guide Chapter 4: Elevators and Platform Lifts — U.S. Access Board",
+          "url": "https://www.access-board.gov/ada/guides/chapter-4-elevators-and-platform-lifts/",
+          "quote": "Raised characters to immediate left of button, raised 1/32 inches min, sans serif"
+        }
+      ]
+    }
+  ]
+}

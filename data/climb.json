@@ -1,0 +1,145 @@
+{
+  "note": "The Climb: ten real buildings in floor order, against the floors the child has ridden under power. Every quote below was fetched from the url beside it. The runtime gate is src/climb.js loadClimb(), which uses the same src/gate.js the fact bank uses. Two claims from the first draft were re-sourced rather than softened before they shipped: the Petronas deck parity (lower deck even, upper deck odd) and the Shanghai Tower speed record with the year it ended, both now carried by a verbatim quote. Past the last rung the ladder counts Burj Khalifas, so the roof card can never run out of a next thing to name.",
+  "items": [
+    {
+      "id": "haughwout",
+      "name": "the E. V. Haughwout Building",
+      "city": "New York",
+      "floors": 5,
+      "line": "Only five storeys — and the world's first successful passenger lift went in here on 23 March 1857, a hydraulic lift designed for the building by Elisha Graves Otis. It rose about two-thirds of a foot every second.",
+      "sources": [
+        {
+          "title": "E. V. Haughwout Building — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/E._V._Haughwout_Building",
+          "quote": "installed the world's first successful passenger elevator on March 23, 1857, a hydraulic lift designed for the building by Elisha Graves Otis"
+        }
+      ]
+    },
+    {
+      "id": "flatiron",
+      "name": "the Flatiron Building",
+      "city": "New York",
+      "floors": 22,
+      "line": "Its lifts were hydraulic — water pressure, not a motor at the top — right up to 1997, when new electric cars replaced the last hydraulic lifts in New York City.",
+      "sources": [
+        {
+          "title": "Flatiron Building — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Flatiron_Building",
+          "quote": "replacing the antiquated cabs, which were the last hydraulic elevators in New York City"
+        }
+      ]
+    },
+    {
+      "id": "woolworth",
+      "name": "the Woolworth Building",
+      "city": "New York",
+      "floors": 60,
+      "line": "Sixty storeys in 1913, served by 26 Otis gearless traction lifts — some express, running non-stop between chosen floors, some local, stopping at every floor in their range.",
+      "sources": [
+        {
+          "title": "Woolworth Building — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Woolworth_Building",
+          "quote": "26 Otis electric elevators with gearless traction, as well as an electric-drum shuttle elevator within the tower"
+        }
+      ]
+    },
+    {
+      "id": "shard",
+      "name": "the Shard",
+      "city": "London",
+      "floors": 72,
+      "line": "Seventy-two habitable floors inside a 95-storey tower, with 36 lifts. Not every storey is a floor you can stand on: the spire above the viewing gallery is storeys with nothing in them.",
+      "sources": [
+        {
+          "title": "The Shard — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/The_Shard",
+          "quote": "95-storey mixed-use development"
+        }
+      ]
+    },
+    {
+      "id": "petronas",
+      "name": "the Petronas Towers",
+      "city": "Kuala Lumpur",
+      "floors": 88,
+      "line": "The main lifts are double-deckers — two cars stacked in one shaft. The lower deck serves the even-numbered floors and the upper deck the odd ones, so you take an escalator up one level to board the top car.",
+      "sources": [
+        {
+          "title": "Petronas Towers — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Petronas_Towers",
+          "quote": "All main lifts are double-decker with the lower deck of the lift taking passengers to even-numbered floors and upper deck to odd-numbered floors."
+        }
+      ]
+    },
+    {
+      "id": "taipei101",
+      "name": "Taipei 101",
+      "city": "Taipei",
+      "floors": 101,
+      "line": "Its observatory lifts climb at 16.83 metres every second — the fastest in the world when the tower opened in 2004, and fifth floor to eighty-ninth floor in 37 seconds.",
+      "sources": [
+        {
+          "title": "Taipei 101 — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Taipei_101",
+          "quote": "60.6 kilometers (37.7 mi) per hour, 16.83 m (55.22 ft) per second"
+        }
+      ]
+    },
+    {
+      "id": "empire-state",
+      "name": "the Empire State Building",
+      "city": "New York",
+      "floors": 102,
+      "line": "One hundred and two storeys, and 73 lifts in all counting the service ones. The originals were designed to run at 1,200 feet a minute, but a city law held them to 700 until it was lifted just after the building opened.",
+      "sources": [
+        {
+          "title": "Empire State Building — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Empire_State_Building",
+          "quote": "73 elevators in all, including service elevators"
+        }
+      ]
+    },
+    {
+      "id": "willis",
+      "name": "the Willis Tower",
+      "city": "Chicago",
+      "floors": 108,
+      "line": "You do not ride one lift to the top. Express lifts run to sky lobbies at the 33rd/34th and 66th/67th floors, and there you change to a local lift — like changing trains, but upwards.",
+      "sources": [
+        {
+          "title": "Willis Tower — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Willis_Tower",
+          "quote": "sky lobbies at the 33rd/34th and 66th/67th floors, where passengers could transfer to local elevators"
+        }
+      ]
+    },
+    {
+      "id": "shanghai-tower",
+      "name": "the Shanghai Tower",
+      "city": "Shanghai",
+      "floors": 128,
+      "line": "Its lifts ran at 20.5 metres a second — the fastest in the world until 2017, when the Guangzhou CTF Finance Centre passed them at 21 metres a second.",
+      "sources": [
+        {
+          "title": "Shanghai Tower — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Shanghai_Tower",
+          "quote": "The Shanghai Tower also had the world's fastest elevators at a top speed of 20.5 meters per second (74 kilometers per hour; 46 miles per hour) until 2017"
+        }
+      ]
+    },
+    {
+      "id": "burj-khalifa",
+      "name": "the Burj Khalifa",
+      "city": "Dubai",
+      "floors": 154,
+      "line": "One hundred and fifty-four floors above the ground, and the longest lift travel in the world: 504 metres in one shaft. Ride this many floors again and you have climbed it twice.",
+      "sources": [
+        {
+          "title": "Burj Khalifa — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Burj_Khalifa",
+          "quote": "World's longest travel distance elevators: 504 m (1,654 ft)"
+        }
+      ]
+    }
+  ]
+}

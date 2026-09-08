@@ -193,18 +193,21 @@ test('r3-math-09: an incidental double suppresses its own shape for a few questi
 // the last one, with PLAQUES declared eleven lines above and drawn greyed in the Workshop.
 test('r3-elevator-feel-02: the roof keeps naming a next goal after the last part is owned', () => {
   const lastPart = Math.max(...PARTS.map((p) => p.at))
-  assert.equal(lunchboxMilestone(0).part.at, 18)
+  // The content round moved the first rung from 18 (building 2) to 12 (building 1) and added
+  // fourteen more; the invariant this test polices is unchanged. The DENSITY of the ladder is
+  // policed separately, by the gap instrument in test/parts.test.js.
+  assert.equal(lunchboxMilestone(0).part.at, 12)
   const after = lunchboxMilestone(lastPart)
   assert.ok(after && !after.part, `at ${lastPart} bacon the card still points at a part`)
-  assert.equal(after.at, PLAQUES[0])
-  for (const at of [lastPart, 199, 200, 399, 1499]) {
+  assert.equal(after.at, PLAQUES.find((x) => x > lastPart), 'past the last part it must name the next plaque')
+  for (const at of [lastPart, 199, 200, 399, 1499, 2999]) {
     const m = lunchboxMilestone(at)
     assert.ok(m && Number.isFinite(m.at) && m.at > at, `nothing to aim at with ${at} bacon`)
   }
   assert.equal(lunchboxMilestone(PLAQUES[PLAQUES.length - 1]), null, 'and it ends when the wall is full')
   // the card renders the plaque line, not a blank
-  const st = { lunchbox: 150, plaques: [], ride: { tray: 0 }, roof: { gained: 5, bonus: 3, unlocked: [], plaques: [], offer: null, offerTaken: null, lunchboxBefore: 142 }, settings: { motion: 'auto' } }
-  assert.match(roof(st), /Next plaque at 200 bacon/)
+  const st = { lunchbox: 390, plaques: ['200'], ride: { tray: 0 }, records: { floors: 0, rides: 0, longest: 0, passengers: 0 }, climb: [], unlocks: [], roof: { gained: 5, bonus: 3, unlocked: [], plaques: [], offer: null, offerTaken: null, lunchboxBefore: 382 }, settings: { motion: 'auto' } }
+  assert.match(roof(st), /Next plaque at 400 bacon/)
 })
 
 // ---- r3-elevator-feel-07 -------------------------------------------------------------------

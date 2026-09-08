@@ -93,7 +93,7 @@ test('the renderers emit every id and data attribute the DOM contract names; eve
   assert.match(main, /app\.dataset\.screen = state\.screen/)
   assert.match(main, /app\.dataset\.phase = state\.phase/)
   for (const k of ['data-key="${d}"', 'data-key="go"', 'data-key="back"', 'data-key="hint"', 'data-key="sign"', 'data-floor="${lab}"', 'data-door="open"', 'data-door="close"', 'data-bell', 'data-choice="${i}"', 'data-continue', 'data-result="${choiceResult(t, i)}"']) assert.ok(panel.includes(k), k)
-  for (const k of ['data-nav="ride"', 'data-nav="lobby"', 'data-nav="picker"', 'data-nav="factbook"', 'data-nav="workshop"', 'data-nav="grownups"', 'data-level="${l.id}"', 'data-level="${id}"', 'data-setting="${key}"', 'data-continue', 'data-next', 'data-offer', 'data-gear', 'data-reset', 'data-sound']) assert.ok(screens.includes(k), k)
+  for (const k of ['data-nav="ride"', 'data-nav="lobby"', 'data-nav="picker"', 'data-nav="factbook"', 'data-nav="workshop"', 'data-nav="logbook"', 'data-nav="grownups"', 'data-level="${l.id}"', 'data-level="${id}"', 'data-setting="${key}"', 'data-continue', 'data-next', 'data-offer', 'data-gear', 'data-reset', 'data-sound']) assert.ok(screens.includes(k), k)
   assert.match(shaft, /id: 'car', 'data-motion': 'idle'/)
   assert.match(shaft, /id: 'doors', 'data-state': 'open'/)
   assert.match(shaft, /id: 'indicator', 'data-floor': 'G', 'data-arrow': 'none'/)
@@ -102,9 +102,21 @@ test('the renderers emit every id and data attribute the DOM contract names; eve
     for (const m of src.matchAll(/<button\b[^>]*>/g)) assert.ok(/data-tap/.test(m[0]), `${name}: button without data-tap: ${m[0].slice(0, 80)}`)
   }
   assert.ok(!/<a\b/.test(panel) && !/<a\b/.test(main), 'no anchors in the panel or the ride skeleton')
-  assert.match(screens, /links \? `<a href="\$\{esc\(s\.url\)\}" target="_blank" rel="noopener noreferrer">/, 'the Fact Book links only when the setting is on')
-  assert.ok(!/<a\b/.test(screens.replace(/links \? `<a href[^`]*`/g, '')), 'no other anchor anywhere')
+  // EVERY anchor in the screens is behind the links setting, wherever it is. Two surfaces carry one
+  // now (the Fact Book and the part card), so this asks the QUESTION the rule is about instead of
+  // matching one spelling of one call site — a grep that pins a spelling polices the spelling.
+  const anchors = [...screens.matchAll(/<a\b[^>]*>/g)]
+  assert.ok(anchors.length >= 1, 'the Fact Book has stopped linking altogether')
+  for (const m of anchors) {
+    assert.match(screens.slice(Math.max(0, m.index - 200), m.index), /links \?/, `an anchor that is not behind the links setting: ${m[0]}`)
+    assert.match(m[0], /rel="noopener noreferrer"/, `an anchor without rel=noopener: ${m[0]}`)
+    assert.match(m[0], /target="_blank"/, `an anchor that leaves the game in place: ${m[0]}`)
+  }
   assert.match(panel, /aria-label="\$\{LETTERS\[i\]\}: \$\{esc\(c\)\}"/, 'choices are read as "B: Kodak"')
+  // The content round's additions. Each of these is something the drive taps or reads.
+  for (const k of ['data-equip-slot', 'data-equip-part', 'data-part-card', 'data-part-close', 'id="workshop-next"', 'id="records"', 'data-record=', 'data-ticket=', 'data-climb=', 'data-reached=', 'data-fact-ghost=', 'data-goal=']) assert.ok(screens.includes(k), k)
+  assert.match(shaft, /id: 'doors', 'data-state': 'open', 'data-doors'/, 'the fitted door set is on the doors themselves')
+  for (const k of ["'data-ind'", "'data-cab'", "id: 'door-edge'", "id: 'guides'", "id: 'cop'"]) assert.ok(shaft.includes(k), k)
 })
 
 test('the drive hook and the URL knobs are wired in main.js exactly as the contract says', () => {

@@ -141,6 +141,60 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .level .name { font-weight: 700; font-size: calc(var(--body) / 18 * 19); }
 .level .tag { font-size: calc(var(--body) / 18 * 15); color: var(--ink-soft); }
 .level.current { border-color: var(--sage-deep); background: #E8F0E4; }
+/* ---------- the content round: parts, the part card, the Logbook, the Fact Book board ---------- */
+/* Every size here is on the `calc(var(--body) / 18 * N)` scale, because `Bigger text` is a TYPE
+   SCALE and an absolute font-size makes it a no-op on the screen that carries it (amendment 12). */
+
+/* A part is a DRAWING and a name, in a row that is still one radio and still one tap. The ⓘ beside
+   it is its own 56 px target: reading about a part must never risk equipping it by accident. */
+.parts { display: flex; flex-direction: column; gap: 8px; }
+.part-row { display: flex; gap: 8px; align-items: stretch; }
+.radio.part { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 6px 10px; }
+.radio.part .pname { font-size: calc(var(--body) / 18 * 17); line-height: 1.25; }
+.radio.part .pname small { font-size: calc(var(--body) / 18 * 14); }
+/* A locked row keeps its NAME, its drawing and its exact distance — never a silhouette, never a
+   "???". The dimming is a state, not a secret. */
+.radio.part.locked .part-art { opacity: 0.45; }
+.radio[aria-checked="true"].part .pname small { color: #EAF1E6; }
+.part-art { width: 64px; height: 40px; flex: 0 0 auto; }
+.part-art.next { width: 80px; height: 50px; }
+.part-art.big { width: min(240px, 70vw); height: auto; }
+.btn.info { flex: 0 0 auto; min-width: 56px; padding: 0 12px; font-size: calc(var(--body) / 18 * 22); }
+.next-part { display: flex; align-items: center; gap: 12px; border: 3px solid var(--sage-edge); background: #EDF3EA; border-radius: var(--radius); padding: 10px 12px; margin: 10px 0 4px; }
+.part-big { display: flex; justify-content: center; margin: 10px 0; }
+.part-sheet .q { font-weight: 700; font-size: calc(var(--body) / 18 * 22); margin: 0; }
+.part-sheet .factline { font-size: calc(var(--body) / 18 * 18); line-height: 1.45; margin: 10px 0; }
+.part-sheet .src { font-size: calc(var(--body) / 18 * 15); color: var(--ink-soft); margin: 4px 0; word-break: break-word; }
+.part-sheet a { color: var(--go); }
+/* the part card is a sheet over the Workshop, so the Workshop is the box it fills */
+.screen.workshop, .screen.factbook, .screen.logbook { position: relative; }
+
+/* the roof card names the part it just handed over, and draws it */
+.new-parts { display: flex; flex-direction: column; gap: 8px; align-items: center; margin: 8px 0; }
+.new-part { display: flex; align-items: center; gap: 10px; text-align: left; }
+
+/* the two forward lines on the lobby: what the next thing is and how far away it is */
+.goal { color: var(--ink-soft); margin: 2px 0; }
+
+/* The Logbook. Tabular figures, no bars, no percentages — and no falls, ever, on a screen the
+   child can reach. */
+.tickets { display: flex; flex-wrap: wrap; gap: 8px; }
+.ticket { width: 144px; height: 60px; }
+.records { display: flex; flex-direction: column; }
+.rec { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; min-height: 34px; padding: 4px 0; border-bottom: 1px solid #d9d4c7; }
+.rec .lab { color: var(--ink); }
+.rec .val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700; }
+.climb-row { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #d9d4c7; opacity: 0.55; }
+.climb-row.reached { opacity: 1; }
+.climb-row .floors { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: calc(var(--body) / 18 * 20); min-width: 3.2em; text-align: right; }
+.climb-row .who { flex: 1 1 auto; line-height: 1.35; }
+.climb-row .src { display: block; font-size: calc(var(--body) / 18 * 14); color: var(--ink-soft); word-break: break-word; }
+
+/* The Fact Book's completion board: a full slot beside an empty one, countable at a glance. */
+.count { font-weight: 700; }
+.ghosts { display: flex; flex-wrap: wrap; gap: 6px; }
+.ghost { display: block; width: 26px; height: 18px; border: 2px dashed #b6b0a2; border-radius: 4px; background: #EDEAE1; }
+
 .book-item { border: 2px solid #cfc9bb; border-radius: 10px; padding: 10px 12px; margin: 8px 0; background: #fff; }
 .book-item .q { font-weight: 600; }
 .book-item .src { font-size: calc(var(--body) / 18 * 15); color: var(--ink-soft); word-break: break-word; }
