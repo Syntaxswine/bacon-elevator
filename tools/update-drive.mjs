@@ -41,7 +41,9 @@ const PROFILE = join(tmpdir(), 'be-swp') // short: see trap 1
 const CHROME = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', '/usr/bin/google-chrome', '/usr/bin/chromium', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].filter(Boolean).find(existsSync)
 if (!CHROME) throw new Error('No Chrome/Edge found. Set CHROME_PATH.')
 
-const COPY = ['index.html', 'sw.js', 'manifest.webmanifest', 'favicon.ico', '.nojekyll', 'css', 'src', 'data', 'assets']
+// Everything sw.js precaches must be here: addAll() rejects on ONE missing entry and the whole
+// install fails, so a file added to ASSETS and not to this list reads as "no worker ever installs".
+const COPY = ['index.html', '404.html', 'sw.js', 'manifest.webmanifest', 'favicon.ico', '.nojekyll', 'css', 'src', 'data', 'assets']
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' }
 
 const fails = []

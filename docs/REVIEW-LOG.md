@@ -578,3 +578,126 @@ existing saves in `migrate`.
   strictly better than the silent wipe, and it is the shape the review asked for, but a real merge
   (take the larger lunchbox, the union of the facts) is the honest end state.
 - **`settings.secondTry` is still `true` at every level** — round 1's open question, unchanged.
+
+## Round 3 — hostile review (2026-09-08)
+
+Forty-four findings: **14 medium, 30 low**, no highs. The panel attached no numeric score to this
+packet; the severity census is the score, and it is the first round with nothing above medium
+(round 1 and round 2 both opened with defects that put a control off the screen or wiped a save).
+Every one of the fourteen mediums, and two of the lows, carried three independent verifier reports;
+the other twenty-eight lows were filed unverified. **Forty-three fixed** (three of them in part),
+**one skipped**, with reasons below.
+
+**Instruments before → after:** `npm test` 173 → **192 passing**; `npm run drive` 70 → **85 passing**
+(14 → 16 scenarios × 5 phones, plus a second `layout` pass at the DEVICE heights); `npm run drive:update`
+**15/15**. Every fix is pinned by a test in `test/round3.test.js` or a scenario in
+`tools/drive-scenarios.mjs` that fails without it. The layout and DOM fixes were mutation-tested by
+reverting the fix and watching the new assertion go red — the numbers that came back are the
+reviewers' own: `.roof [data-next]: 0 px of 72 on screen at rest, in a 276 px viewport`;
+`.lobby [data-nav="ride"]: 26 px of 72`; `unlit floor digit "R" at 2.57:1`;
+`[rules] .rules .body needs scrolling: 584 > 562`; `the car is moving with #doors[data-state="closing"]`.
+
+### Two things the round found that no finding named
+
+- **`--tall` was not in the gate at all.** r3-mobile-ux-2 is the counter-example to round 1's
+  assumption that the device heights are "the easier case": `display: standalone` is exactly the mode
+  that hands the page its full height, and the parent who does the right thing — Add to Home Screen —
+  is the one who got the sliced Rules card. `node tools/phone-drive.mjs` now runs `layout` a second
+  time at the device heights, reported as `layout-tall`.
+- **`tools/update-drive.mjs` copies a hand-written file list.** Adding `404.html` to `sw.js`'s
+  `ASSETS` broke `npm run drive:update` outright, because `addAll()` rejects on one missing entry and
+  the whole install fails — the trap `test/dom-contract.test.js` already guards for the repo, with
+  nothing guarding the deploy harness's own copy of the tree. `404.html` is in `COPY` now and the
+  reason is written above it.
+
+### Medium
+
+| id | what changed, and why | pinned by |
+|---|---|---|
+| r3-autism-fit-01 | **The trivia answer was named by letter on one screen and by text on the next.** The beat band says `The answer is C.`; 900 ms later the fact card said `The answer is A lift.` — the same sentence stem, one naming a LETTER, one naming text that begins with "A". Seven of 67 items have such an answer, five of them inside Corner Shop's 22-item band, and eleven have such a distractor, which the `You chose …` line hit too. The card now reads `You chose A: A trolley.` / `The answer is C: A lift.`, the colon convention the choice buttons' `aria-label` already used. The three letters moved to `src/trivia.js` (`CHOICE_LETTERS`), because the card could not reach them in `panel.js`. | `test/round3.test.js` r3-autism-fit-01: the observed item verbatim, then every `A `/`An `-initial answer in the bank |
+| r3-math-01 | **Custom with one operation served the identical sum twice running.** Two mechanisms, and the report named only the first: the table is smaller than the 20-key ring (× at Largest 20 is ten keys), AND a single-kind step makes `kindRun.n >= 3` permanently true from question 4, which rejected all 50 attempts whatever the pool size — `× only, 2–100` (a 44-key pool, twice the ring) repeated the previous key at exactly the uniform-random rate. The kind-run guard now applies only where there is more than one kind to vary, and the `if (last) return last` fallback keeps the last-served key out. Measured after: 0.00 % back-to-back on every single-op configuration, where × at Largest 20 was 4.5–7 %. | `test/round3.test.js` r3-math-01: nine one-op and small-pool Custom settings, 12 seeds × 250 draws each at 80 % accuracy |
+| r3-math-02 | **The ladder only ever adapted upward.** `step3Run` offers `LEVEL_ORDER[idx + 1]`; nothing counted the mirror, so a child who accepted one offer too many fell on most questions of every building indefinitely while `history.falls` recorded every one of them and no renderer read it. `struggleRun` counts buildings finished on step 1 with ≥ 5 falls, and after two the SAME roof card offers the building below, with the same Yes/Stay and `Stay` still primary. Not the silent easing §4 dropped: the child answers it. Verifiers disagreed on how far the ladder can actually overshoot (one rung by the offer path, four by the picker); the asymmetry itself is what is fixed. | `test/round3.test.js` r3-math-02: two all-wrong buildings at Office Block, the offer, the accept, and Corner Shop offering nothing below itself |
+| r3-math-03 | **The Skyscraper promotion still narrowed the question set.** Amendment 12 wrote the rule and `test/levels.test.js:148` carries its title, but that guard asserts only ≥ 10 % fresh and a non-falling ceiling — it never compares the two pools, so Office 3 → Sky 1 sat at 147 reachable keys against 5 676 (38× narrower) and cleared the freshness bar by 4.3 points. Skyscraper step 1 now carries the ± rows step 3 already had, at the level's own 144 ceiling rather than Office's 100. Measured after: 8 810 keys against Office 3's 5 435 (1.6× LARGER), 52 % of them fresh, × and ÷ still 5/7 of the weight. | `test/round3.test.js` r3-math-03 asserts the POOL SIZE across all four promotions — the invariant the old test's title claimed and its body did not measure |
+| r3-math-04 | **partly.** A sum whose operator was glossed `go down` made the elevator go up. The gloss now names the arithmetic and says what actually moves — `▼ is take away: the number goes down.` — and the Rules card's picture reads `▲ = add, ▼ = take away` instead of `▲ = up, ▼ = down`, which was the sentence contradicting the tile beside it. The OPERATORS stay: §4 ships them as the elevator-native form, every kind is an abstraction the car does not obey (`7 + 5` does not send the car to 12), and dropping ▼ leaves ▲ with the identical glyph clash plus a new one — a missed `6 ▲ 4` sits on the display through the whole fall while the indicator reads ▼ and the car really is going down. See "skipped in part" below. | drive `rules-route`: the band must name `add`/`take away` AND `the number goes up/down`, and must not say `means go` |
+| r3-elevator-feel-01 | **The 1.2 s before a fall was the reward display minus a small green tick.** `.blank.filled` had no CSS rule of its own, so the true answer arrived in exactly the ink and underline of the digits the child had just typed, with an empty message band: the wrong 7 silently became a 10 and the car dropped. The true answer is now drawn in `--ink` (`#question.truth`) and the band says `you pressed 7` — the string `state.lastResult`/`ride.typedWrong` already held and nothing read. No cross and no red: the fall carries no punishing copy anywhere, which is BRIEF requirement 7 and the reason the reviewers' suggested ✗ was not taken. | drive `fall`: the `truth` class, the computed ink, the band text, and the tone check (`no !, ✗, wrong, oops`) |
+| r3-elevator-feel-02 | **in part.** `lunchboxMilestone` filtered PARTS only, so from the 100-bacon chime (building 7) the roof card printed no forward goal at all — for the twelve buildings to the 200 plaque and for ever after the last one — while `PLAQUES` sits eleven lines above it and the Workshop already draws all four greyed. It falls through to the plaque ladder now. The other half of the finding, "make the buildings differ AS ELEVATORS", is a v2 feature against amendment 12's own decision; see below. | `test/round3.test.js` r3-elevator-feel-02: the fall-through at every part and plaque boundary, and the rendered `Next plaque at 200 bacon` |
+| r3-mobile-ux-1 | **The roof's controls were below the fold on every landscape phone.** `Next building` sat at y 370–442 in viewports 276–412 tall (0 px visible at 276/320/331) and `Lobby` at 0 px in all six, on a card that ended in clean paper — no cut glyph, no shadow, nothing saying it continued. Two fixes, because the second verifier was right that this is a `.page` bug and the roof is its worst instance: `.page` now carries the same four-layer scroll cue `.sheet .body` was given, and the roof's button stack is sticky to the bottom of its scroller (inert whenever the card fits). | drive `layout`: a new `onScreen` measurement — a named control must have ≥ 44 px on screen AT REST — run on the roof in portrait and at two landscape turns |
+| r3-mobile-ux-2 | **The installed Rules card cut `There is no clock.` in half.** At 360 × 640 the body needed 584 px in 562: 640 drops out of the `max-height: 620px` tier and takes the full-size type with no room for it. The band is 621–661 at 360 wide and never fits at 320. The `.rules` compaction is now its own tier at 700 px (the card needs 662 at full size), leaving the ride's budget untouched, and the 620 tier no longer restates it. | `node tools/phone-drive.mjs` runs `layout` a second time at the device heights (`layout-tall`), which is the only way the gate sees `display: standalone` |
+| r3-code-hostile-01 | **After a dead floor-key tap the next sum was never shown.** `ui.transient` was cleared only by a 1400 ms timer and `render()` hands any standing transient straight to `display.render`, which returns before the `keypad` case — so tapping 9 at G (the move the dead-key handler exists for) and then the lit button left the keypad live for up to 1.35 s with no sum, no typed digits and no `Try once more.`; with Second try off, GO in that window dropped the car for a sum that was never displayed. Worse than filed: the stale line is an executable WRONG instruction, because `Press 1` was about floor button 1 and the panel underneath has swapped to the digit pad, where `1` is an answer key. A transient is now scoped to the phase, screen, problem and entry it was written for. | drive `transient-scope` (new): the dead-key line, the lit button, the sum on screen, a typed digit visible at once, and the same again with Second try off |
+| r3-code-hostile-02 | **With a second tab open, the child's next tap — including a correct GO — was discarded.** `save()` runs as an EFFECT of the dispatch the tap produced, so `adopt and return` threw away the reduced state and replaced it with the other tab's snapshot, which `parse()` parks on the Lobby. Merely OPENING the game a second time moves the counter (each tab saves on its own `visibilitychange`), and one verifier diffed the two records: the one the child was forced to "catch up with" was byte-identical to their own. The counter's job is to stop BACON being lost and it still does that — a record holding more bacon is adopted whatever the phase — but a tab mid-building that holds at least as much keeps the child's action, which is the same rule the `storage` listener already applied. | drive `two-tabs`, extended by the one tap it stopped short of: after the stale tab is fronted twice, the next floor press must open the keypad and a correct GO must move the car |
+| r3-trivia-truth-01 | **The Pi Day fact card showed the child "In Memoriam" and linked into an obituaries section.** `gate()` built its scanned text from question/answer/distractors/fact and stopped there, but `sources[].title` is rendered verbatim on the card and as the Fact Book's link. The item is difficulty 1 with a 46-character question, so it is in the pool at Corner Shop. The gate now scans every source title, url and quote against a WIDER list than the fact text (memorial vocabulary included; `grave` deliberately excluded, because Elisha Graves Otis is in the bank's source titles and a gate that fires on a middle name polices a spelling, not a hazard). The citation was replaced with the Wikipedia Pi Day article (fetched, quote verbatim) and the `1:59 p.m.` detail left with it rather than standing uncited. | `test/round3.test.js` r3-trivia-truth-01: the gate refuses a memorial title, url and quote independently, the shipped bank passes, and no shipped source carries one |
+| r3-deploy-pages-01 | **With the worker installed, a navigation two segments deep returned a blank white page with no controls.** `req.mode === 'navigate'` classed every in-scope navigation as index.html, so `/bacon-elevator/floors/nope/x` got the cached shell whose relative refs then resolved against `/floors/nope/`: HTTP 200, empty body, zero buttons or links, no reload recovering it, and the deliberately built `404.html` dead code for every client that had ever opened the game. Only the scope root is answered with the app now; anything else goes to the network so Pages serves the friendly page, and `404.html` is precached so it works offline too. Verified live against a Pages-faithful server with the worker controlling: `floors/nope/x`, `nope` and `index.html/` all return 404 with the elevator drawing and a `Back to the lobby` link; the root still loads the game with 23 controls. | `test/round3.test.js` r3-deploy-pages-01 (the root comparison, the navigate fall-through, the offline fallback, both asset lists) |
+
+### Low — fixed
+
+| id | what changed |
+|---|---|
+| r3-autism-fit-02 / r3-elevator-feel-05 | **in part.** At 568 × 232 the bottom row (0 and GO) hangs 26 px below the fold at rest. `--cell` cannot go under 48 px (amendment 8, and the drive fails on it), so the panel keeps scrolling — but it now carries the same scroll cue `.sheet .body` has, so it says so. The sliver is tappable and one drag fixes it for the session; both verifiers measured that. |
+| r3-autism-fit-03 | The storage / adopted notice moved out of the end of the lobby markup and up under the lunchbox total, where a grown-up trips over it without scrolling. |
+| r3-autism-fit-04 | The unlit floor digits went from `#9a968c` (2.57:1) to `#6F6B62` (4.6:1); the dimming cue stays in the ring and the fill. The drive's contrast sweep deliberately skips disabled controls, so this gets its own measurement — taken at the RESTING background, because `.face` fades its amber over 200 ms and a button that has just stopped being lit is not "unlit". |
+| r3-math-06 | Custom's tag names the table its × and ÷ knobs actually built (`numbers 2 to 25; × and ÷ use 2 to 5`), so the seven presses of `Largest` that change nothing, and the ceiling that then exceeds the parent's own number, are both readable. The 5 × 5 floor stays: there is no honest table under it. |
+| r3-math-07 | `maths: {max, exact: false}` declares that answering an item leaves the integers, and `withinNumberBand` refuses such an item below Megatall. `10 m ÷ 4 m = 2.5 floors` was reaching Office Block and Skyscraper, whose own tables state `division always exact`. The Eiffel `103,000 ÷ 40,000 ≈ 2.5` item is declared too. |
+| r3-math-08 | The recovered number on a missing-number Repair card is drawn in the clause's own teal, so the child can see which of the three numbers was the one asked for. |
+| r3-math-09 | `sameSeen` is a five-question fuse, not a latch held for the building, so the first incidental `3 + 3` at Corner Shop no longer removes every double and every `a − a` from the rest of it. |
+| r3-elevator-feel-03 | **in part.** The ▼ hall call, drawn on all ten landings and written to by nothing in the whole game, lights on the victory descent — at the ROOF, which is where the rider who wants to go down is standing. The ▲ call is still driven by the car call; giving the waiting passenger a real hall call is a bigger change to the arrive() sequence than this round is taking. |
+| r3-elevator-feel-04 | The fall's indicator counts the floors it passes. The timeline carries one sill event, at the pit, so the number is derived from the car's own drawn position instead — it cannot drift from the drawing that way. |
+| r3-elevator-feel-06 | The 18-bacon telescopic doors are a wide slow leaf and a narrow fast one meeting off centre, so the part is recognisable standing still rather than only during the 500 ms slide. Two leaf pairs are drawn and one is shown: scaling a single pair would scale its stroke and its handle mark with it. |
+| r3-elevator-feel-07 | The Rules card names the ding only when sound is on, and otherwise says `Turn on ♪ for the ding.` Sound stays off by default. |
+| r3-mobile-ux-3 | The menu screens get a landscape layout: under 500 px of height the lobby hero yields its ART (the part with no words on it) and keeps the title and the total, so `Ride` is a whole button instead of a 26 px unlabelled blue sliver. |
+| r3-mobile-ux-4 | In short landscape the top bar's five items share ~250 px, so the chip drops its level name there — the same answer the 340 px rule already gives, and the level is named on the lobby chip, the picker and Grown-ups. |
+| r3-mobile-ux-5 | Fixed by the roof's sticky button stack (r3-mobile-ux-1): `Lobby` was 0 px on screen at se1 portrait too. |
+| r3-mobile-ux-6 | `assets/favicon-32.png` was precached and re-fetched on every `?reset=1` for a file nothing referenced. `index.html` references it now (some Android launchers prefer a PNG to an .ico). |
+| r3-mobile-ux-7 / r3-code-hostile-07 | The worst-case trivia check runs a second time with Bigger text on, and the panel is the band that yields in trivia mode (`min-content` rows, `overflow-y: auto`) so the third answer is reachable instead of placed 54 px past a fold it could not scroll to. Every real item in the bank still fits without scrolling. |
+| r3-code-hostile-03 | A timeline that carries no door step BEFORE the car moves inherits the reducer's door state instead of whatever frame the cancelled animation left behind, so GO inside the door close no longer rides a floor with the leaves 44 % open and `data-state="closing"`. |
+| r3-code-hostile-04 | `tagFloors` and the shaft's waiter are gated on `state.pool.length`, the same condition `arrive()` already used, so a bank that failed to load no longer draws people waiting on floors the lift rides straight past. |
+| r3-code-hostile-05 | The bell key's two lines are set solid, which buys the 5 px it overflowed by with Bigger text at 320 wide. The TYPE is not reduced: that is the setting undoing itself, and the drive checks that every panel key grows with it. |
+| r3-code-hostile-06 | A retry may not follow a retry in `pickFact` — the belt `makeProblem`'s comeback queue already wears. A child who missed every fact saw four, for ever, at Corner Shop and at Megatall alike; now the bank keeps opening and the deferred retry simply fires one passenger later. |
+| r3-trivia-truth-02 | Six items had an answer 10–39 characters longer than the longest distractor beside it. Distractors lengthened (or, on the worst one, the answer trimmed to the clause that answers the question); a lint holds the whole bank to ≤ 8. `answer is longest` fell from 42.6 % to 39.0 % against a 33.3 % baseline — the extremes are gone, the residual mix effect is not. |
+| r3-trivia-truth-03 | The `rule` string names its own two exceptions, as amendment 12 already narrowed round 1's claim. |
+| r3-trivia-truth-04 | Mponeng's answer reads `About 4 km`, which matches its Guinness citation and its own fact text, and puts it in the same form as its three distractors. |
+| r3-trivia-truth-05 | Bailong's `171.4 m above ground` is replaced by the split its source actually gives (505 ft in the wall, 565 ft of exposed derrick → 154 m and 172 m) with that quote shipped; `quartzite` corrected to `quartz sandstone`. The lift/elevator etymology gets both etymonline entries, fetched, with verbatim quotes. |
+| r3-trivia-truth-06 | `Source: piday.org (piday.org)` — a lint now refuses any source title that is just its own domain. |
+| r3-deploy-pages-02 | Grown-ups prints `Version 1.0.0 · ef630a206a78`, read from the name of the cache serving this tab. It cannot be stamped into `src/version.js`: that file is one of the files BUILD hashes. |
+| r3-deploy-pages-03 | DESIGN.md's Architecture and PWA sections describe the worker that ships. The confirm-or-revert note on amendment 10 is resolved: confirmed, after two hostile reviews and 15/15 on `drive:update`. |
+
+### Skipped, and why
+
+- **r3-deploy-pages-04 — the update chip covers most of the shaft on a 320 px phone.** Filed as
+  opinion, and the constraint is real: the chip may not cover a tap target (the drive asserts it, and
+  round 2 moved it off the panel for exactly that reason), so the shaft is the only safe ground; the
+  chip must clear 48 px to be tappable at all; and se1's shaft is 82 px. Anything that meets both
+  rules covers most of it. The chip is dismissible, is held until the car is at rest, and does not
+  cover the panel. **The lead should decide** whether the chip is worth a dedicated band above the
+  top bar, which is the only place left.
+- **r3-math-04, the structural half.** All three suggested fixes were declined and one reworded.
+  "Make the ▲▼ sums describe THIS ride" makes the elevator the maths, which is a different game;
+  "move them to a building where the car travels more than one floor" contradicts amendment 12 (a
+  level is a maths band, not a height); and "drop ▼ and keep ▲" is refuted by two of the three
+  verifiers — ▲ agrees only in sign (`6 ▲ 4 = 10` while the car goes G → 1), keeps the identical
+  glyph clash with the lantern and the indicator, and adds the mirror contradiction on a fall. The
+  copy is fixed; the notation stands.
+- **r3-elevator-feel-02, the "buildings differ as elevators" half.** Amendment 12 already ruled on
+  it ("a level is a maths band, not a height"), `src/levels.js` records the decision at the top of
+  the file, and BRIEF requirement 7 opens with *Predictable, consistent*. The measurable half — the
+  roof card going silent about goals that exist — is fixed. **The lead should decide** whether the
+  v2 elevator ladder (an express zone, a taller shaft, a second car) is worth reopening it.
+- **r3-math-02's four-rung version.** The offer path can only overshoot by ONE rung — climbing needs
+  two clean step-3 buildings, which a child above their ceiling cannot produce — so the report's
+  100 %-fall rows at Office/Skyscraper/Megatall are reachable only through the picker, which is
+  bidirectional and undone by the same three taps. The mirror offer is built for the rung the ladder
+  can actually deliver.
+
+### Handed on
+
+- **`answer is longest` is still 39.0 % against a 33.3 % baseline.** The ≤ 8-character lint kills the
+  extremes; the residual is a mix effect across 67 items and closing it means re-authoring most of
+  the bank's distractors. Worth doing when the bank next grows, not as a patch.
+- **The ▲ hall call is still driven by the car call inside the car.** Honest semantics need the
+  waiting passenger to register a real call in `arrive()` before the car answers it, which touches
+  the phase sequence rather than the renderer.
+- **`.page`'s scroll cue is a cue, not a foot.** Grown-ups is 2 400 px tall and the roof is the only
+  `.page` whose primary control is at the bottom; if another one appears, give it the same sticky
+  stack rather than trusting the gradient.
+- **Two items are still checked twice against the same document**, unchanged from round 2 — but the
+  `rule` string now says so.
+- **`settings.secondTry` is still `true` at every level** — round 1's open question, unchanged.

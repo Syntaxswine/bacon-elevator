@@ -1,7 +1,7 @@
 // Screen markup: lobby, picker, rules, roof, fact book, workshop, grown-ups, and the fact sheet.
 import { LEVELS, customLevel } from '../levels.js'
 import { PARTS, PLAQUES, lunchboxMilestone } from '../state.js'
-import { domainOf } from '../trivia.js'
+import { domainOf, letterFor } from '../trivia.js'
 import { encodeCode } from '../save.js'
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
@@ -61,6 +61,7 @@ export function lobby(state, extras = {}) {
       <h1>Bacon Elevator</h1>
       <div class="total" aria-label="lunchbox total">${LUNCH} <span id="lunchbox-total">${state.lunchbox}</span> ${BACON()}</div>
       ${state.ride ? `<p class="muted small">A building is waiting at floor ${esc(floorLabel(state.ride.floor))} with ${state.ride.tray} bacon on the tray.</p>` : ''}
+      ${noticeHTML(extras)}
     </div>
     <div class="stack">
       <button class="btn primary tall wide" data-nav="ride" data-tap aria-label="Ride">${rideLabel}</button>
@@ -80,7 +81,6 @@ export function lobby(state, extras = {}) {
       </div>
       ${plaques}
     </div>
-    ${noticeHTML(extras)}
   </div>`
 }
 
@@ -112,12 +112,12 @@ export function rules(state) {
       <h1>How it works</h1>
       <div class="pics">
         <div class="pic">${PIC.press}Press the lit button</div>
-        <div class="pic">${PIC.solve}Work out the sum. ▲ = up, ▼ = down</div>
+        <div class="pic">${PIC.solve}Work out the sum. ▲ = add, ▼ = take away</div>
         <div class="pic">${PIC.up}Right: up one floor, bacon on the tray</div>
         <div class="pic">${PIC.fall}Wrong: a fall, then back up</div>
         <div class="pic wide">${PIC.passenger}<span>A passenger may ask a question. <strong>A passenger's question never falls.</strong></span></div>
       </div>
-      <p class="detail">Right: the doors close, the elevator goes up one floor, one ding, the bacon slides in.</p>
+      <p class="detail">Right: the doors close, the elevator goes up one floor${state.settings.sound ? ', one ding' : ''}, the bacon slides in.${state.settings.sound ? '' : ' Turn on ♪ for the ding.'}</p>
       <p>Wrong: the panel shows the true sum, then the elevator falls onto the springy spikes. The safety brake catches it. A repair card shows the sum, and you answer it again.</p>
       <p class="never">Bacon rides on the tray and goes into the lunchbox at the roof. <strong>Bacon is never lost. There is no clock.</strong></p>
     </div>
@@ -149,7 +149,7 @@ export function roof(state) {
     ${info.gained === null ? '' : `<p class="gain">Tray ${info.gained} → lunchbox</p>
     <p class="gain">+${info.bonus} roof bonus</p>`}
     <p class="total">${LUNCH} <span id="lunchbox-roof">${state.lunchbox}</span> ${BACON()}</p>
-    ${unlockedNames.length ? `<p><strong>New in the Workshop:</strong> ${esc(unlockedNames.join(', '))}</p>` : next ? `<p class="muted">Next part at ${next.at} bacon: ${esc(next.part.name)}</p>` : ''}
+    ${unlockedNames.length ? `<p><strong>New in the Workshop:</strong> ${esc(unlockedNames.join(', '))}</p>` : next ? `<p class="muted">${next.part ? `Next part at ${next.at} bacon: ${esc(next.part.name)}` : `Next plaque at ${next.at} bacon`}</p>` : ''}
     ${info.plaques.length ? `<p><strong>A plaque for ${esc(info.plaques.join(' and '))} bacon hangs in the Lobby.</strong></p>` : ''}
     ${taken ? `<p><strong>Next building: ${esc(taken)}.</strong></p>` : ''}
     ${offerName ? `<div class="row" style="justify-content:center"><span>Try ${esc(offerName)}?</span><button class="btn" data-offer="yes" data-tap aria-label="Yes, try ${esc(offerName)}">Yes</button><button class="btn primary" data-offer="stay" data-tap aria-label="Stay">Stay</button></div>` : ''}
@@ -248,7 +248,7 @@ export function grownups(state, extras = {}) {
     <p class="muted small">Two taps, five seconds apart. Everything goes back to the start.</p>
     <button class="btn" data-reset data-tap aria-label="${resetLabel}">${resetLabel}</button>
     <p class="muted small" id="resetmsg" aria-live="polite">${esc(extras.resetMsg || '')}</p>
-    <p class="muted small" style="margin-top:20px">Version ${esc(extras.version || '')}</p>
+    <p class="muted small" style="margin-top:20px">Version ${esc(extras.version || '')}${extras.build ? ` · ${esc(extras.build)}` : ''}</p>
   </div>`
 }
 
@@ -260,8 +260,8 @@ export function factSheet(state) {
   return `<div class="sheet fact" role="dialog" aria-label="Fact card">
     <div class="body">
       <p class="q">${esc(t.fact.q)}</p>
-      <p class="verdict ${right ? 'right' : ''}">You chose ${esc(chosen)}.${right ? ' +2 bacon' : ''}</p>
-      ${right ? '' : `<p class="verdict">The answer is ${esc(t.fact.answer)}.</p>`}
+      <p class="verdict ${right ? 'right' : ''}">You chose ${esc(letterFor(t.chosen))}: ${esc(chosen)}.${right ? ' +2 bacon' : ''}</p>
+      ${right ? '' : `<p class="verdict">The answer is ${esc(letterFor(t.answer))}: ${esc(t.fact.answer)}.</p>`}
       <p class="factline">${esc(t.fact.fact)}</p>
       ${t.fact.sources.map((s) => `<p class="src">Source: ${esc(s.title)} (${esc(domainOf(s.url))})</p>`).join('')}
     </div>

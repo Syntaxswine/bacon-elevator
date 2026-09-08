@@ -1,7 +1,7 @@
 {
   "version": 1,
   "built": "2026-09-08",
-  "rule": "Every item passed a CONFIRM checker and a hostile REFUTE checker, each fetching an independent source; an unverifiable fact is cut, not softened. See docs/TRIVIA.md.",
+  "rule": "Every item passed a CONFIRM checker and a hostile REFUTE checker, each fetching an independent source, except two declared items named in test/trivia.test.js; an unverifiable fact is cut, not softened. See docs/TRIVIA.md.",
   "count": 67,
   "items": [
     {
@@ -349,9 +349,9 @@
       "question": "In ancient Rome, how were the lifts under the Colosseum's floor powered to raise scenery and animal cages up into the arena?",
       "answer": "Men pushing a winch round in a circle",
       "distractors": [
-        "A water wheel",
-        "A steam engine",
-        "Horses on a treadmill"
+        "A water wheel turned by an aqueduct",
+        "A steam engine under the arena floor",
+        "Horses walking on a treadmill"
       ],
       "fact": "Under the Colosseum's floor were capstans - cross-shaped winches that teams of men pushed round as they walked in a circle - which lifted cages and scenery up through trapdoors into the arena. Researcher Heinz-Jürgen Beste of the German Archaeological Institute worked out that there were 60 of them.",
       "sources": [
@@ -519,9 +519,9 @@
       "question": "Where are the cushioning buffers of a rope-driven elevator installed?",
       "answer": "In the pit at the bottom of the shaft",
       "distractors": [
-        "On top of the car's roof",
-        "Inside the machine room",
-        "Behind the floor buttons"
+        "On top of the car's roof, under the ropes",
+        "Inside the machine room at the very top",
+        "Behind the floor buttons in the car"
       ],
       "fact": "California's elevator rules say the buffers must sit in the pit under both the car and the counterweight. Spring buffers are fine for slower elevators, but when the rated speed is over 200 feet per minute the rules call for oil buffers (or something that works just as well).",
       "sources": [
@@ -588,8 +588,8 @@
       "question": "What does an elevator's regenerative drive do with the electricity made when the car slows down?",
       "answer": "Feeds it back into the building's power supply",
       "distractors": [
-        "Turns it into heat in resistors",
-        "Stores it inside the counterweight",
+        "Turns it into heat in a bank of resistors",
+        "Stores it inside the counterweight itself",
         "Sends it up the guide rails as light"
       ],
       "fact": "A traction elevator generates electricity when a lightly loaded car goes up, a heavy car goes down, or the car brakes. A regenerative drive sends that power back into the building's electrical grid instead of wasting it as heat in resistors; Otis says its ReGen drive cuts energy use by up to 75% compared with non-regenerative drives.",
@@ -660,11 +660,11 @@
       "category": "elevator",
       "difficulty": 1,
       "question": "In most US elevators, why can't pressing the 'door close' button make the doors shut right away?",
-      "answer": "A law says the doors must stay open for a few seconds so everyone has time to get in",
+      "answer": "A law says the doors must stay open for a few seconds",
       "distractors": [
-        "The button only switches on the ceiling light",
-        "The doors are too heavy to move any faster",
-        "The button only works on the top floor"
+        "The button only switches on the ceiling light, not the doors",
+        "The doors are far too heavy to move any faster than they do",
+        "The button only works on the top floor of the building"
       ],
       "fact": "Because of the 1990 Americans with Disabilities Act, US elevator doors must stay fully open for at least 3 seconds after a button inside the car is pressed, so people using wheelchairs or crutches have time to board. The 'door close' button cannot cut that wait short; once the required wait is over, it can work.",
       "sources": [
@@ -714,6 +714,16 @@
           "title": "Lift or elevator? The history and origin | Stannah Lifts",
           "url": "https://www.stannahlifts.co.uk/news/lift-or-elevator-the-history-and-origin",
           "quote": "British, Australians, Irish, New Zealanders and South Africans use 'lift'"
+        },
+        {
+          "title": "Lift - Etymology, Origin & Meaning | Etymonline",
+          "url": "https://www.etymonline.com/word/lift",
+          "quote": "from Old Norse lypta 'to raise' (Scandinavian -pt- pronounced like -ft-)"
+        },
+        {
+          "title": "Elevator - Etymology, Origin & Meaning | Etymonline",
+          "url": "https://www.etymonline.com/word/elevator",
+          "quote": "from Latin elevare 'lift up, raise,' figuratively, 'to lighten, alleviate,' from ex 'out' + levare 'lighten, raise'"
         }
       ],
       "verification": [
@@ -724,8 +734,8 @@
         },
         {
           "lens": "refute",
-          "source_title": "Lift - Etymology, Origin & Meaning | Etymonline",
-          "source_url": "https://www.etymonline.com/word/lift"
+          "source_title": "Elevator - Wikipedia",
+          "source_url": "https://en.wikipedia.org/wiki/Elevator"
         }
       ]
     },
@@ -880,7 +890,7 @@
       "category": "elevator",
       "difficulty": 2,
       "question": "As of 2026, the deepest mine in the world is Mponeng in South Africa. About how far below the ground does it reach?",
-      "answer": "Nearly 4 km",
+      "answer": "About 4 km",
       "distractors": [
         "About 400 m",
         "About 1 km",
@@ -1110,7 +1120,8 @@
         }
       ],
       "maths": {
-        "max": 103000
+        "max": 103000,
+        "exact": false
       }
     },
     {
@@ -1193,12 +1204,17 @@
         "196 m",
         "526 m"
       ],
-      "fact": "The glass-sided Bailong ('Hundred Dragons') Elevator is 326 m tall, with 171.4 m of it above ground on the face of a quartzite cliff in Zhangjiajie National Forest Park. Its three double-deck cars each carry dozens of people and reach the top in under two minutes.",
+      "fact": "The glass-sided Bailong ('Hundred Dragons') Elevator is 326 m tall on the face of a quartz sandstone cliff in Zhangjiajie National Forest Park: the lower 154 m runs inside the mountain wall and the upper 172 m is an exposed steel tower. Its three double-deck cars each carry dozens of people and reach the top in under two minutes.",
       "sources": [
         {
           "title": "Guinness World Records: Tallest outdoor elevator",
           "url": "https://www.guinnessworldrecords.com/world-records/106876-tallest-outdoor-elevator",
           "quote": "The world's tallest outdoor elevator is the 326-m (1,070-ft) glass-sided Bailong (“Hundred Dragons”) Elevator ... The ascent in one of the three double-deck elevators travels at 3m/s and takes 1 minute 58 seconds."
+        },
+        {
+          "title": "Bailong Elevator - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Bailong_Elevator",
+          "quote": "The elevator was built into the quartz sandstone cliff face, with the lower 505 feet embedded inside the mountain wall, and the upper 565 feet consisting of exposed steel derrick."
         }
       ],
       "verification": [
@@ -1421,9 +1437,9 @@
       "question": "What is an 'elevator pitch'?",
       "answer": "A super-short speech to sell an idea, short enough for an elevator ride",
       "distractors": [
-        "The slope of an elevator's floor",
-        "The musical note of an elevator's ding",
-        "The price of a ride in an elevator"
+        "The angle of the slope an elevator's floor is built at",
+        "The musical note that an elevator's arrival ding is tuned to",
+        "The price a building charges a visitor for one ride in its lift"
       ],
       "fact": "An elevator pitch is a very short version of a sales talk or business plan - named from the idea that it should be short enough to say during an elevator ride.",
       "sources": [
@@ -1500,9 +1516,9 @@
       "question": "In Europe, the lift accessibility rules say a narrow lift must have a mirror inside. What is the mirror for?",
       "answer": "So a wheelchair user can see behind them when backing out",
       "distractors": [
-        "To make the lift look bigger",
-        "So riders can check their hair",
-        "To bounce light around and save electricity"
+        "To make the inside of the lift look bigger than it is",
+        "So that riders can check their hair before they arrive",
+        "To bounce light around the car and save electricity"
       ],
       "fact": "The European lift accessibility standard EN 81-70 requires a mirror in lift cars that are too narrow for a wheelchair to turn round. A passenger in a wheelchair has to reverse out, and the mirror lets them see what is behind them.",
       "sources": [
@@ -1758,15 +1774,15 @@
         "14 April",
         "31 March"
       ],
-      "fact": "Pi Day is 14 March because, written the American way, that is 3/14, the first digits of pi (3.14159...). Physicist Larry Shaw started it at the Exploratorium science museum in San Francisco in 1988, with the first party at 1:59 p.m., the next three digits of pi.",
+      "fact": "Pi Day is 14 March because, written the American way, that is 3/14, the first digits of pi (3.14159...). Physicist Larry Shaw started it at the Exploratorium science museum in San Francisco in 1988, and it is now celebrated all over the world.",
       "sources": [
         {
-          "title": "Reed Magazine: In Memoriam, Larry Shaw 1961",
-          "url": "https://www.reed.edu/reed-magazine/in-memoriam/obituaries/2018/larry-shaw-1961.html",
-          "quote": "In 1988, Larry was working as a technical curator for the Exploratorium, a San Francisco museum, when he came up with the idea of honoring the influential constant with an annual party. ... The Exploratorium celebrated its first Pi Day on March 14 at 1:59."
+          "title": "Pi Day - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Pi_Day",
+          "quote": "In 1988, the earliest known official or large-scale celebration of Pi Day was organized by Larry Shaw at the San Francisco Exploratorium, where Shaw worked as a physicist, with staff and public marching around one of its circular spaces, then consuming fruit pies."
         },
         {
-          "title": "piday.org",
+          "title": "Pi Day - piday.org",
           "url": "https://www.piday.org/",
           "quote": "Pi Day is celebrated on March 14th (3/14) around the world."
         }
@@ -1779,8 +1795,8 @@
         },
         {
           "lens": "refute",
-          "source_title": "Pi Day - Wikipedia",
-          "source_url": "https://en.wikipedia.org/wiki/Pi_Day"
+          "source_title": "A Slice of Pi Day History | Exploratorium",
+          "source_url": "https://www.exploratorium.edu/pi-day/pi-day-history"
         }
       ]
     },
@@ -2350,7 +2366,8 @@
         }
       ],
       "maths": {
-        "max": 10
+        "max": 10,
+        "exact": false
       }
     },
     {

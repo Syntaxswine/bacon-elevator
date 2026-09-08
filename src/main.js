@@ -34,7 +34,7 @@ const app = document.getElementById('app')
 // entries themselves, so whatever refills the cache is the deploy that is actually live.
 // RESET_ASSETS must equal sw.js's ASSETS; test/version.test.js compares the two lists.
 export const RESET_ASSETS = [
-  './', './index.html', './manifest.webmanifest', './favicon.ico',
+  './', './index.html', './404.html', './manifest.webmanifest', './favicon.ico',
   './css/app.css',
   './src/version.js', './src/main.js', './src/rng.js', './src/levels.js', './src/math.js', './src/explain.js',
   './src/elevator.js', './src/timeline.js', './src/trivia.js', './src/state.js', './src/save.js', './src/storage.js', './src/audio.js',
@@ -115,7 +115,7 @@ const display = createDisplay(document.getElementById('question'), document.getE
 const hintBox = document.getElementById('hint')
 const sheetBox = document.getElementById('sheet')
 const carEl = document.getElementById('car')
-const ui = { resetArmedAt: 0, gearAt: 0, codeMsg: '', resetMsg: '', transient: null, factVisible: false, factTimer: 0, prevPhase: null, lastMotion: '', storageFailed: false, adopted: '', inertTimer: 0 }
+const ui = { resetArmedAt: 0, gearAt: 0, codeMsg: '', resetMsg: '', transient: null, factVisible: false, factTimer: 0, prevPhase: null, lastMotion: '', storageFailed: false, adopted: '', inertTimer: 0, build: '' }
 
 // ---- drive log (only under ?drive=1) ----------------------------------------------------
 // events: timeline step names and the car's motion transitions, in the order they happened;
@@ -216,10 +216,26 @@ function fireStep(step) {
 }
 
 // ---- dispatch and effects ---------------------------------------------------------------
+// A TRANSIENT BELONGS TO THE PANEL IT WAS WRITTEN FOR, NOT TO ITS TIMER.
+// The dead-floor-key line (`Press 1` / `Floor 9 is not the next stop.`) was cleared only by a
+// 1400 ms setTimeout, and render() hands any standing transient straight to display.render, which
+// returns before the `keypad` case. So tapping 9 at G — the move the dead-key handler exists for —
+// and then the lit button left the keypad live for up to 1.35 s with NO sum on screen, no typed
+// digits, and no `Try once more.`; with Second try off, GO in that window dropped the car for a sum
+// that was never displayed. Worse, the stale line is an executable wrong instruction: the panel
+// underneath has swapped to the digit pad, where `1` is an ANSWER key (r3-code-hostile-01).
+function scopeOf(st) {
+  const r = st.ride
+  return `${st.phase}|${st.screen}|${r && r.problem ? r.problem.key : ''}|${r ? r.typed : ''}|${r ? r.tries : ''}`
+}
 function dispatch(action) {
   if (DRIVE) actions.push(action.type)
+  const before = scopeOf(state)
   const r = reduce(state, action, rngFor(state))
   state = r.state
+  // Mid-timeline transients (`arrive`, `brake`) are owned by fireStep and cleared by
+  // start/finishTimeline, so the scope rule only polices the resting screens.
+  if (!play && scopeOf(state) !== before) { clearTimeout(ui.inertTimer); ui.inertTimer = 0; ui.transient = null }
   for (const e of r.effects) {
     if (e.type === 'timeline') startTimeline(e)
     else if (e.type === 'sound') audio.play(e.name)
@@ -240,8 +256,11 @@ function diskWrites() {
   if (raw === null) return null
   try { const o = JSON.parse(raw); return Number.isSafeInteger(o.writes) ? o.writes : 0 } catch { return null }
 }
-function adoptDiskSave(reason) {
-  const incoming = parse(storage.getItem(SAVE_KEY))
+// The bacon this tab is holding, banked and unbanked. The two-tab counter exists to stop bacon
+// being lost; this is the quantity it is protecting.
+const bankOf = (st) => (st && Number.isSafeInteger(st.lunchbox) ? st.lunchbox : 0) + (st && st.ride && Number.isSafeInteger(st.ride.tray) ? st.ride.tray : 0)
+function adoptDiskSave(reason, pre) {
+  const incoming = pre || parse(storage.getItem(SAVE_KEY))
   if (!incoming) return false
   cancelTimeline(); rng = null
   writeCount = Number.isSafeInteger(incoming.writes) ? incoming.writes : 0
@@ -253,7 +272,21 @@ function adoptDiskSave(reason) {
 }
 function save() {
   const disk = diskWrites()
-  if (disk !== null && disk > writeCount) { if (adoptDiskSave('other-tab')) render(); return }
+  // ADOPTING IN HERE THREW AWAY THE ACTION THAT ASKED FOR THE SAVE.
+  // save() runs as an EFFECT of the dispatch the child's tap produced, so `adopt and return` meant
+  // the reduced state — the press-floor, or a CORRECT GO — was discarded and replaced by the other
+  // tab's snapshot, which parse() parks on the Lobby. Opening the game a second time is enough to
+  // move the counter (each tab saves on its own visibilitychange), so a child who taps their Home
+  // Screen icon while the game is already in a tab loses every following tap in both tabs
+  // (r3-code-hostile-02). The counter's job is to stop BACON being lost, and it still does: a record
+  // holding more bacon than this tab is adopted whatever the phase. Otherwise a tab that is mid-
+  // building keeps the child's action and writes over an idle tab's snapshot — the same rule the
+  // `storage` listener below already applies ("nothing may move under the child's finger mid-sum").
+  if (disk !== null && disk > writeCount) {
+    const incoming = parse(storage.getItem(SAVE_KEY))
+    const atRest = state.phase === 'lobby' || state.screen === 'lobby'
+    if (incoming && (atRest || bankOf(incoming) > bankOf(state))) { if (adoptDiskSave('other-tab', incoming)) render(); return }
+  }
   writeCount = Math.max(writeCount, disk === null ? 0 : disk) + 1
   state.writes = writeCount
   const ok = storage.setItem(SAVE_KEY, serialize(state))
@@ -292,7 +325,7 @@ function render() {
   else if (s === 'roof') sections.roof.innerHTML = screens.roof(state)
   else if (s === 'factbook') sections.factbook.innerHTML = screens.factbook(state)
   else if (s === 'workshop') sections.workshop.innerHTML = screens.workshop(state)
-  else if (s === 'grownups') sections.grownups.innerHTML = screens.grownups(state, { version: VERSION, codeMsg: ui.codeMsg, resetMsg: ui.resetMsg, resetArmed: ui.resetArmedAt > 0, ...notices })
+  else if (s === 'grownups') sections.grownups.innerHTML = screens.grownups(state, { version: VERSION, build: ui.build, codeMsg: ui.codeMsg, resetMsg: ui.resetMsg, resetArmed: ui.resetArmedAt > 0, ...notices })
   // the ride screen is persistent: update in place
   const r = state.ride
   document.getElementById('tray').textContent = String(r ? r.tray : 0)
@@ -620,6 +653,19 @@ function applyUpdate() {
   try { sessionStorage.setItem(RESUME_KEY, '1') } catch { /* Safari private mode */ }
   if (waitingWorker) waitingWorker.postMessage({ type: 'skip-waiting' })
   const chip = document.getElementById('update-chip'); if (chip) chip.remove()
+}
+// WHICH BUILD IS THIS PHONE ACTUALLY RUNNING? `Version 1.0.0` was the only human-readable answer,
+// and sw.js's own comment records that the identical string on two different builds is what made a
+// stale install undiagnosable. The fix made the CACHE NAME content-derived (`be-1.0.0-239e82454a4f`)
+// and left the one surface a parent can read un-fingerprinted (r3-deploy-pages-02). The name of the
+// cache serving THIS tab is the honest answer, and reading it costs nothing: it cannot be stamped
+// into src/version.js, because version.js is itself one of the files BUILD hashes.
+if (globalThis.caches && caches.keys) {
+  caches.keys().then((ks) => {
+    const k = ks.filter((x) => x.startsWith('be-')).sort().pop()
+    const stamp = k ? k.split('-').pop() : ''
+    if (stamp && stamp !== ui.build) { ui.build = stamp; if (state.screen === 'grownups') render() }
+  }).catch(() => { /* no cache storage (private mode, a blocked origin): the version line stands alone */ })
 }
 if ('serviceWorker' in navigator && params.get('nosw') !== '1') {
   window.addEventListener('load', () => {

@@ -109,6 +109,14 @@ export function initialState(salt) {
     ride: null,
     rulesSeen: false,
     step3Run: 0,
+    // THE LADDER ONLY EVER ADAPTED UPWARD. `step3Run` counts clean step-3 buildings and offers the
+    // next building up; nothing counted the mirror, so a child who accepted one offer too many fell
+    // on most questions of every building for ever and the game — which records `history.falls` and
+    // reads it nowhere — never once offered the smaller building back (r3-math-02). `struggleRun`
+    // is that mirror: buildings finished at step 1 with 5 or more falls, and after two of them the
+    // SAME roof card offers LEVEL_ORDER[idx - 1]. An offer is not a silent difficulty change
+    // (DESIGN §4): the child answers it, and `Stay` is still the primary button.
+    struggleRun: 0,
     plaques: [],
     // runtime (not persisted)
     phase: 'lobby',
@@ -166,7 +174,7 @@ function newRide(state, seed) {
   return {
     seed: seed >>> 0, floor: 0, target: 1, cleared: [], tray: 0, banked: 0, phase: 'floor', problem: null, typed: '',
     tries: 0, streak: 0, stepDowns: 0, comeback: [], passengersDone: [], retrying: false, typedWrong: '',
-    falls: 0, draws: 0, ctx: initialCtx(), lastKind: null, fallFloor: 0, roofCard: null, inFlight: null,
+    falls: 0, draws: 0, ctx: initialCtx(), lastKind: null, lastRetry: false, fallFloor: 0, roofCard: null, inFlight: null,
   }
 }
 
@@ -208,7 +216,7 @@ function askProblem(state, rng) {
 
 function askPassenger(state, rng) {
   const r = state.ride
-  const fact = pickFact(state.pool, state.facts.seen, r.lastKind, rng, state.facts.retry, TRIVIA_LIMITS[state.level] ?? null, state.history.count)
+  const fact = pickFact(state.pool, state.facts.seen, r.lastKind, rng, state.facts.retry, TRIVIA_LIMITS[state.level] ?? null, state.history.count, !!r.lastRetry)
   if (!fact) return null
   const { choices, answer } = makeChoices(fact, rng)
   return { fact, choices, answer, chosen: null, result: null }
@@ -280,8 +288,13 @@ function arrive(state, rng) {
     // bound. Found while measuring the save's growth for r2-code-hostile-06.
     const plaques = PLAQUES.filter((p) => p <= lunchbox && !state.plaques.includes(String(p))).map(String)
     const step3Run = (state.step === 3 && s.ride.falls <= 1) ? state.step3Run + 1 : 0
+    // The mirror of step3Run: a building finished on the BOTTOM step with 5 or more falls out of
+    // nine sums is a child who cannot do this band, and step 1 has no lower step to drop to.
+    const struggleRun = (state.step === 1 && s.ride.falls >= 5) ? state.struggleRun + 1 : 0
     const idx = LEVEL_ORDER.indexOf(state.level)
-    const next = state.adaptive && step3Run >= 2 && idx >= 0 && idx < LEVEL_ORDER.length - 1 ? LEVEL_ORDER[idx + 1] : null
+    const up = state.adaptive && step3Run >= 2 && idx >= 0 && idx < LEVEL_ORDER.length - 1 ? LEVEL_ORDER[idx + 1] : null
+    const down = state.adaptive && !up && struggleRun >= 2 && idx > 0 ? LEVEL_ORDER[idx - 1] : null
+    const next = up || down
     s = {
       ...s,
       lunchbox,
@@ -289,6 +302,7 @@ function arrive(state, rng) {
       unlocks: state.unlocks.concat(unlocked),
       plaques: state.plaques.concat(plaques),
       step3Run,
+      struggleRun,
       // The roof summary lives in the ride, which IS persisted, so a reload at the roof shows the
       // real numbers instead of a fabricated "Tray 0 -> lunchbox".
       ride: { ...s.ride, tray: s.ride.tray + ROOF_BONUS, banked: s.ride.tray + ROOF_BONUS, roofCard: { gained, bonus: ROOF_BONUS, unlocked, plaques, offer: next, offerTaken: null, lunchboxBefore: state.lunchbox } },
@@ -301,7 +315,7 @@ function arrive(state, rng) {
   if (isPassengerFloor(floor, state.settings.passengers) && !r.passengersDone.includes(floor) && state.pool.length) {
     const trivia = askPassenger(s, rng)
     if (trivia) {
-      s = stable({ ...s, trivia }, 'trivia', { ride: { lastKind: trivia.fact.kind } })
+      s = stable({ ...s, trivia }, 'trivia', { ride: { lastKind: trivia.fact.kind, lastRetry: !!trivia.fact.fromRetry } })
       effects.push(SAVE)
       return { state: withDraws(s, rng), effects }
     }
@@ -594,7 +608,7 @@ export function reduce(state, action, rng) {
       if (phase !== 'roof' || !state.roof || !state.roof.offer) return same(state)
       const accept = !!action.accept
       const card = { ...state.roof, offer: null, offerTaken: accept ? state.roof.offer : null }
-      const s = { ...state, roof: card, ride: state.ride ? { ...state.ride, roofCard: state.ride.roofCard ? { ...state.ride.roofCard, offer: null, offerTaken: card.offerTaken } : null } : null, step3Run: 0 }
+      const s = { ...state, roof: card, ride: state.ride ? { ...state.ride, roofCard: state.ride.roofCard ? { ...state.ride.roofCard, offer: null, offerTaken: card.offerTaken } : null } : null, step3Run: 0, struggleRun: 0 }
       if (accept) return { state: { ...s, level: state.roof.offer, step: 1, history: { ...s.history, comeback: [] } }, effects: [SOUND('click'), SAVE] }
       return { state: s, effects: [SOUND('click'), SAVE] }
     }
@@ -633,7 +647,7 @@ export function reduce(state, action, rng) {
       // A comeback must not cross a level change: a Corner Shop child is not handed `2 − 27` from
       // a Megatall building.
       const history = id === state.level ? s.history : { ...s.history, comeback: [] }
-      return { state: { ...s, history, level: id, step, step3Run: id === state.level ? s.step3Run : 0 }, effects: [SOUND('click'), SAVE] }
+      return { state: { ...s, history, level: id, step, step3Run: id === state.level ? s.step3Run : 0, struggleRun: id === state.level ? s.struggleRun : 0 }, effects: [SOUND('click'), SAVE] }
     }
 
     case 'set-setting': {
@@ -694,7 +708,14 @@ export function reduce(state, action, rng) {
   }
 }
 
+// THE ROOF CARD'S FORWARD LINE MUST NOT RUN OUT WHILE THERE IS STILL SOMETHING TO AIM AT.
+// This filtered PARTS only, so from the 100-bacon chime (building 7) the card printed no next goal
+// at all — for the twelve buildings and ~35 minutes it takes to reach the 200 plaque, and for ever
+// after the 1500 one. PLAQUES is declared eleven lines above and the Workshop already draws all four
+// greyed out; the roof simply never named them (r3-elevator-feel-02).
 export function lunchboxMilestone(lunchbox) {
-  const next = PARTS.filter((p) => p.at > lunchbox).sort((a, b) => a.at - b.at)[0]
-  return next ? { at: next.at, part: next } : null
+  const part = PARTS.filter((p) => p.at > lunchbox).sort((a, b) => a.at - b.at)[0]
+  if (part) return { at: part.at, part }
+  const plaque = PLAQUES.filter((p) => p > lunchbox).sort((a, b) => a - b)[0]
+  return Number.isFinite(plaque) ? { at: plaque, plaque } : null
 }

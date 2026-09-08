@@ -37,7 +37,15 @@ const opt = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] :
 // `height` is therefore the browser-visible height with the bars showing (the worst case a
 // child sees on first load, before scrolling collapses the bar); `device` records the screen
 // it came from. Sources: Apple's Safari viewport sizes and Chrome's mobile toolbar height.
-// Run with --tall to use the device heights instead (fullscreen / Home Screen install).
+// Run with --tall to use ONLY the device heights (fullscreen / Home Screen install).
+//
+// THE INSTALLED CONFIGURATION IS IN THE DEFAULT GATE. `display: standalone` in the manifest is
+// exactly the mode that hands the page the device height, and a parent who does the right thing —
+// Add to Home Screen, no address bar for the child to wander out of — is the one who gets it. Round
+// 1 called `--tall` "the easier case" and left it out; round 3 found the counter-example, a Rules
+// card that sliced `There is no clock.` in half at 360 x 640 and reported it only under --tall
+// (r3-mobile-ux-2). A default run therefore plays every scenario at the browser heights and then
+// re-runs the layout instrument at the device heights.
 const PHONES = {
   se: { name: 'iPhone SE 2/3, Safari bars (375x553; screen 375x667)', device: 667, viewport: { width: 375, height: 553, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' },
   i12: { name: 'iPhone 12/13/14, Safari bars (390x664; screen 390x844)', device: 844, viewport: { width: 390, height: 664, deviceScaleFactor: 3, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' },
@@ -95,12 +103,20 @@ async function main() {
 
   let failures = 0
   const report = []
+  // pass 1: the browser-visible heights, every scenario. pass 2: the device heights (an installed
+  // Home Screen icon), layout only — the scenario that measures the vertical budget.
+  const PASSES = flag('--tall')
+    ? [{ suffix: '', tall: true, sc: null }]
+    : [{ suffix: '', tall: false, sc: null }, { suffix: '-tall', tall: true, sc: 'layout' }]
   try {
-    for (const key of phoneKeys) {
+    for (const pass of PASSES) for (const key of phoneKeys) {
       const phone = PHONES[key]
       if (!phone) throw new Error(`unknown phone "${key}" (${Object.keys(PHONES).join(', ')})`)
+      if (pass.tall && !pass.sc) { /* --tall: every scenario, as before */ }
       for (const sc of scenarios) {
         if (only && !sc.name.includes(only)) continue
+        if (pass.sc && sc.name !== pass.sc) continue
+        if (pass.tall && phone.device === phone.viewport.height) continue // nothing new to measure
         const page = await browser.newPage()
         const errors = []
         page.on('console', (m) => { if (m.type() === 'error') errors.push('console.error: ' + m.text()) })
@@ -108,11 +124,11 @@ async function main() {
         page.on('requestfailed', (r) => errors.push('requestfailed: ' + r.url() + ' ' + (r.failure() && r.failure().errorText)))
         page.on('response', (r) => { if (r.status() >= 400) errors.push(`http ${r.status()}: ${r.url()}`) })
         await page.setUserAgent(phone.ua)
-        await page.setViewport(flag('--tall') ? { ...phone.viewport, height: phone.device } : phone.viewport)
+        await page.setViewport(pass.tall ? { ...phone.viewport, height: phone.device } : phone.viewport)
         const t0 = Date.now()
         const ctx = {
           page, url, phone, key, ROOT, errors,
-          shot: async (name) => { if (shots) await page.screenshot({ path: join(ROOT, 'shots', `${key}-${sc.name}-${name}.png`) }) },
+          shot: async (name) => { if (shots) await page.screenshot({ path: join(ROOT, 'shots', `${key}-${sc.name}${pass.suffix}-${name}.png`) }) },
           goto: async (hash = '') => { await page.goto(url + hash, { waitUntil: 'load' }); await page.evaluate(() => new Promise(r => requestAnimationFrame(() => r()))) },
         }
         let status = 'PASS', detail = ''
@@ -125,8 +141,8 @@ async function main() {
         if (errors.length && sc.allowErrors !== true) { status = 'FAIL'; detail += (detail ? ' | ' : '') + errors.slice(0, 5).join(' | ') }
         if (status === 'FAIL') failures++
         const ms = Date.now() - t0
-        report.push({ phone: phone.name, scenario: sc.name, status, ms, detail })
-        console.log(`${status === 'PASS' ? 'ok  ' : 'FAIL'} [${key}] ${sc.name} (${ms} ms)${detail ? '\n      ' + detail : ''}`)
+        report.push({ phone: phone.name, scenario: sc.name + pass.suffix, status, ms, detail })
+        console.log(`${status === 'PASS' ? 'ok  ' : 'FAIL'} [${key}] ${sc.name}${pass.suffix} (${ms} ms)${detail ? '\n      ' + detail : ''}`)
         await page.close()
       }
     }

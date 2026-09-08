@@ -7,7 +7,7 @@ export const MINUS = '−'
 export const KINDS = ['add', 'sub', 'mul', 'div', 'missAdd', 'missMul', 'up', 'down']
 
 export function initialCtx() {
-  return { ring: [], lastAnswer: null, sameSeen: false, kindRun: { kind: null, n: 0 }, comeback: [], count: 0, skills: {}, lastComeback: false }
+  return { ring: [], lastAnswer: null, sameSeen: 0, kindRun: { kind: null, n: 0 }, comeback: [], count: 0, skills: {}, lastComeback: false }
 }
 
 function fillCtx(ctx) {
@@ -15,7 +15,12 @@ function fillCtx(ctx) {
   return {
     ring: Array.isArray(c.ring) ? c.ring : [],
     lastAnswer: c.lastAnswer === undefined ? null : c.lastAnswer,
-    sameSeen: !!c.sameSeen,
+    // sameSeen IS A FUSE, NOT A LATCH. It used to be a boolean set for the rest of the building, so
+    // the first incidental `3 + 3` at Corner Shop — where no entry declares `double` — removed 1+1,
+    // 2+2, 3+3, 4+4, 5+5 and every a−a from the remaining questions, and doubles are a taught fact at
+    // that age (r3-math-09). It now holds for five questions and burns down. A legacy save (or a
+    // test) that writes `true` gets a full fuse; `false` gets none.
+    sameSeen: Number.isInteger(c.sameSeen) ? Math.max(0, Math.min(20, c.sameSeen)) : (c.sameSeen ? SAME_FUSE : 0),
     kindRun: c.kindRun && typeof c.kindRun === 'object' ? c.kindRun : { kind: null, n: 0 },
     comeback: Array.isArray(c.comeback) ? c.comeback : [],
     count: Number.isInteger(c.count) ? c.count : 0,
@@ -112,6 +117,9 @@ function finish(kind, a, b, extra = {}) {
   p.key = keyOf(p)
   return p
 }
+
+// How many questions an incidental a === b suppresses its own shape for.
+export const SAME_FUSE = 5
 
 const digits = (n) => String(Math.abs(n)).split('').reverse().map(Number)
 function carries(a, b) {
@@ -251,23 +259,41 @@ export function makeProblem(level, step, ctx, rng) {
     : c.comeback.filter((x) => x && Number.isInteger(x.due) && x.due <= c.count && validProblem(x.problem) && x.problem.key !== lastKey).sort((x, y) => x.due - y.due)[0]
   if (due) return { ...validProblem(due.problem), comeback: true }
   const entries = stepOf(level, step).kinds
-  let last = null
+  // THE KIND-RUN GUARD IS ABOUT VARIETY, AND A STEP WITH ONE KIND HAS NONE TO OFFER.
+  // `Custom → only ×` builds a single-kind step, so from question 4 `kindRun.n >= 3` was true for
+  // ever and rejected all 50 attempts on 99 % of questions whatever the pool size — the ring, the
+  // same-answer rule and the doubles fuse all stopped being consulted and every question came out of
+  // the unchecked fallback below. Measured: `× only, 2–100` (a 44-key pool, twice the ring) repeated
+  // the previous key at exactly the uniform-random rate, i.e. the anti-repeat layer contributed
+  // nothing (r3-math-01).
+  const multiKind = new Set(entries.map((e) => e.kind)).size > 1
+  let last = null, lastFresh = null
+  const lastServed = c.ring.length ? c.ring[c.ring.length - 1] : null
   for (let attempt = 0; attempt < 50; attempt++) {
     const e = pickEntry(entries, c, rng)
     let p = null
     for (let k = 0; k < 40 && !p; k++) p = draw(e, rng)
     if (!p) continue
     last = p
+    if (p.key !== lastServed) lastFresh = p
     if (c.ring.includes(p.key)) continue
     if (c.lastAnswer !== null && p.answer === c.lastAnswer) continue
-    if (c.sameSeen && p.a === p.b && !p.pair) continue   // a DECLARED double/square is the table, not a coincidence
-    if (c.kindRun && c.kindRun.kind === p.kind && c.kindRun.n >= 3) continue
+    if (c.sameSeen > 0 && p.a === p.b && !p.pair) continue   // a DECLARED double/square is the table, not a coincidence
+    if (multiKind && c.kindRun && c.kindRun.kind === p.kind && c.kindRun.n >= 3) continue
     // The FIRST sum a child ever sees is the game's whole first impression, and it is drawn with no
     // ring, no last answer and no same-seen latch to steer it: one fresh save in six opened on an
     // answer of 0 (`5 − 5`, `2 ▼ 2`). Only here, and only on the very first question of a save.
     if (c.count === 0 && p.answer === 0) continue
     return p
   }
+  // THE FALLBACK IS STILL BOUND BY THE ONE RULE THE PROJECT WROTE DOWN.
+  // DESIGN §4 sanctions "50 retries, then accept", and r2-math-01 states the standard the comeback
+  // path is already held to: "It may not serve the identical sum twice running." This path applied
+  // no ring, no same-answer and no same-key check at all, so `Custom → only ×, Largest 20` (a 10-key
+  // table against a 20-key ring) asked the identical sum twice running 4–7 % of the time — measured
+  // on the panel, floors 7 and 8 of one building both `5 × 4 = ▮`. The last-served key is now the one
+  // thing the fallback will not hand back.
+  if (lastFresh) return lastFresh
   if (last) return last
   // Every draw broke a constraint (an impossible table). Degrade to a legal, RANDOM sum inside the
   // entry's own ceiling — never one corner of the range served for ever, and never a kind the
@@ -319,7 +345,7 @@ export function afterAnswer(ctx, problem, correct) {
   return {
     ring,
     lastAnswer: problem.answer,
-    sameSeen: c.sameSeen || (problem.a === problem.b && !problem.pair),
+    sameSeen: (problem.a === problem.b && !problem.pair) ? SAME_FUSE : Math.max(0, c.sameSeen - 1),
     kindRun: c.kindRun.kind === problem.kind ? { kind: problem.kind, n: c.kindRun.n + 1 } : { kind: problem.kind, n: 1 },
     comeback,
     count: c.count + 1,

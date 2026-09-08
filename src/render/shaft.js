@@ -1,6 +1,6 @@
 // The shaft: an inline SVG cut-away of the Bacon Building, scrolled to keep the car centred.
 // Timelines are played by main.js; this module is told begin/event/frame/end and draws.
-import { positionAt, DURATIONS, label } from '../elevator.js'
+import { positionAt, DURATIONS, label, FLOORS } from '../elevator.js'
 import { isPassengerFloor } from '../trivia.js'
 
 const NS = 'http://www.w3.org/2000/svg'
@@ -199,11 +199,28 @@ export function createShaft(container, opts = {}) {
   const clip = el('clipPath', { id: 'door-clip' }, [el('rect', { x: OPEN_X, y: -CAR_H + OPEN_Y, width: OPEN_W, height: OPEN_H })])
   carInner.appendChild(clip)
   const doors = el('g', { id: 'doors', 'data-state': 'open', 'clip-path': 'url(#door-clip)' })
+  // A PART THE CHILD SPENDS TWO BUILDINGS EARNING MUST CHANGE WHAT THE LIFT LOOKS LIKE.
+  // Both parts used to draw the same shut door - two equal leaves meeting on the centreline - so the
+  // 18-bacon telescopic doors were visible only during the 500 ms slide (r3-elevator-feel-06). A real
+  // two-speed side-opening door has a wide slow leaf and a narrow fast one meeting well off centre,
+  // which is recognisable standing still. Two leaf pairs are drawn and one is shown: scaling a single
+  // pair would scale its stroke and its handle mark with it.
+  const SLOW = OPEN_W * 2 / 3, FAST = OPEN_W / 3
   const doorL = el('g'), doorR = el('g')
-  for (const [g, x] of [[doorL, OPEN_X], [doorR, OPEN_X + OPEN_W / 2]]) {
-    g.appendChild(el('rect', { x, y: -CAR_H + OPEN_Y, width: OPEN_W / 2, height: OPEN_H, fill: '#D9D4C7', stroke: '#6B6B6B', 'stroke-width': 2 }))
-    g.appendChild(el('line', { x1: x + OPEN_W / 2 - (g === doorL ? 6 : OPEN_W / 2 - 6), y1: -CAR_H + OPEN_Y + 18, x2: x + OPEN_W / 2 - (g === doorL ? 6 : OPEN_W / 2 - 6), y2: -CAR_H + OPEN_Y + 32, stroke: '#6B6B6B', 'stroke-width': 3, 'stroke-linecap': 'round' }))
+  const leaf = (x, w, handleX) => el('g', {}, [
+    el('rect', { x, y: -CAR_H + OPEN_Y, width: w, height: OPEN_H, fill: '#D9D4C7', stroke: '#6B6B6B', 'stroke-width': 2 }),
+    el('line', { x1: handleX, y1: -CAR_H + OPEN_Y + 18, x2: handleX, y2: -CAR_H + OPEN_Y + 32, stroke: '#6B6B6B', 'stroke-width': 3, 'stroke-linecap': 'round' }),
+  ])
+  const centreLeaf = [leaf(OPEN_X, OPEN_W / 2, OPEN_X + OPEN_W / 2 - 6), leaf(OPEN_X + OPEN_W / 2, OPEN_W / 2, OPEN_X + OPEN_W / 2 + 6)]
+  const teleLeaf = [leaf(OPEN_X, SLOW, OPEN_X + SLOW - 6), leaf(OPEN_X + SLOW, FAST, OPEN_X + SLOW + 6)]
+  doorL.appendChild(centreLeaf[0]); doorL.appendChild(teleLeaf[0])
+  doorR.appendChild(centreLeaf[1]); doorR.appendChild(teleLeaf[1])
+  function setLeaves(kind) {
+    const tele = kind === 'doors-telescopic'
+    centreLeaf.forEach((g) => g.setAttribute('visibility', tele ? 'hidden' : 'visible'))
+    teleLeaf.forEach((g) => g.setAttribute('visibility', tele ? 'visible' : 'hidden'))
   }
+  setLeaves('doors-centre')
   doors.appendChild(doorL); doors.appendChild(doorR)
   carInner.appendChild(doors)
   // indicator bezel
@@ -319,7 +336,9 @@ export function createShaft(container, opts = {}) {
     const o = clamp(open, 0, 1)
     lastDoorPos = o
     if (equipped.doors === 'doors-telescopic') {
-      doorL.setAttribute('transform', `translate(${-OPEN_W / 2 * o} 0)`)
+      // Both leaves slide left; the narrow one travels the full opening while the wide one travels
+      // its own width, so it is visibly the faster of the two and they stack in the pocket.
+      doorL.setAttribute('transform', `translate(${-SLOW * o} 0)`)
       doorR.setAttribute('transform', `translate(${-OPEN_W * o} 0)`)
     } else {
       doorL.setAttribute('transform', `translate(${-OPEN_W / 2 * o} 0)`)
@@ -392,6 +411,15 @@ export function createShaft(container, opts = {}) {
         if (reduced) { pos = p >= 1 ? -1 : a.from; opacity = p >= 1 ? clamp((elapsed - a.impactAt) / DURATIONS.hold, 0, 1) : 1 - p }
         else { pos = a.from + (-1 - a.from) * p * p; slack = p < 1 ? 1 : clamp(1 - (elapsed - a.impactAt) / DURATIONS.impact, 0, 1) }
       }
+      // THE INDICATOR COUNTS THE FLOORS IT PASSES, GOING DOWN TOO. The fall timeline carries one
+      // sill event, at the pit, so the number stayed on the departure floor for the whole drop while
+      // the car visibly crossed five landings; the ordinary ride, and the express hoist out of the
+      // pit, both count properly. Derived from the car's own position rather than from steps the
+      // timeline does not have, so it cannot drift from the drawing (r3-elevator-feel-04).
+      if (!reduced && elapsed < a.impactAt) {
+        const passing = Math.max(0, Math.ceil(pos - 0.001))
+        if (passing !== a.sillPassed) { a.sillPassed = passing; setIndicator(label(passing), 'down') }
+      }
       if (elapsed >= a.impactAt && !reduced) {
         const q = clamp((elapsed - a.impactAt) / DURATIONS.impact, 0, 1)
         // squash 10 %, one bounce, settle
@@ -433,15 +461,26 @@ export function createShaft(container, opts = {}) {
     setReduced(v) { reduced = !!v },
     // Idle render from state.
     setState(state) {
+      if (equipped.doors !== state.equipped.doors) setLeaves(state.equipped.doors)
       equipped = { doors: state.equipped.doors, indicator: state.equipped.indicator }
       const r = state.ride
       const cleared = r ? r.cleared : []
       const done = r ? r.passengersDone : []
       for (const [f, L] of landings) {
         if (L.plate) L.plate.setAttribute('visibility', cleared.includes(f) ? 'hidden' : 'visible')
-        if (L.waiter) L.waiter.setAttribute('visibility', isPassengerFloor(f, state.settings.passengers) && !done.includes(f) && !(riderIn && r && r.floor === f) ? 'visible' : 'hidden')
+        // `state.pool.length` is the same condition arrive() uses before it offers a passenger at
+        // all. Without it, a bank that failed to load (the loader's documented catch path,
+        // "passengers stay home") still drew a person standing on floors 4 and 8 that the lift then
+        // rode straight past, for ever (r3-code-hostile-04).
+        if (L.waiter) L.waiter.setAttribute('visibility', state.pool.length && isPassengerFloor(f, state.settings.passengers) && !done.includes(f) && !(riderIn && r && r.floor === f) ? 'visible' : 'hidden')
       }
-      setHallCall(state.car.carCall === null || state.car.carCall === undefined ? null : state.car.carCall, state.phase === 'descending' ? 'down' : 'up')
+      // THE ▼ HALL CALL WAS DECORATION NOTHING WROTE TO. `dir` is only 'down' while the car is
+      // descending, and by then `carCall` is null, so the lower circle drawn on all ten landings
+      // never once turned amber in a whole game (r3-elevator-feel-03). The victory descent is a real
+      // down call: it is the rider AT THE ROOF who wants to go down, so that is the landing that
+      // lights — which is also where the car is standing when it starts.
+      if (state.phase === 'descending') setHallCall(FLOORS.ROOF, 'down')
+      else setHallCall(state.car.carCall === null || state.car.carCall === undefined ? null : state.car.carCall, 'up')
       riderIn = state.phase === 'trivia' || state.phase === 'fact'
       rider.setAttribute('visibility', riderIn ? 'visible' : 'hidden')
       if (riderIn && r) { const L = landings.get(r.floor); if (L && L.waiter) L.waiter.setAttribute('visibility', 'hidden') }
@@ -474,9 +513,27 @@ export function createShaft(container, opts = {}) {
         sillPassed: null,
         lastElapsed: 0,
       }
+      // THE DOORS ARE SHUT BEFORE THE CAR MOVES - the interlock the Rules card states.
+      // GO calls startTimeline, which cancels whatever animation is running. Tap the door-close key
+      // and then answer within 500 ms and the reducer already believes the doors are `closed`, so it
+      // emits no doors step; this line then pinned both leaves wherever the killed animation had left
+      // them and the car rode a whole floor with a 44 % gap between them and `data-state="closing"`
+      // still on (r3-code-hostile-03). A timeline that carries no door step inherits the REDUCER's
+      // door state, not the last frame drawn.
+      // The step must come BEFORE the car moves: an ordinary ride's only door step is the
+      // `doors-opening` at the far end, which says nothing about how it left this floor.
+      const wantOpen = state.car.doors === 'open' || state.car.doors === 'opening' ? 1 : 0
+      const startsAt = move ? move.t : (fallStart ? fallStart.t : Infinity)
+      const settled = steps.some((x) => (x.ev === 'doors-closing' || x.ev === 'doors-opening') && x.t < startsAt)
+      if (!settled && lastDoorPos !== wantOpen) { setDoors(wantOpen); doors.setAttribute('data-state', state.car.doors) }
       anim.door = { from: lastDoorPos, to: lastDoorPos, t0: 0, t1: 1 }
-      idle.doorsOpen = state.car.doors === 'open' || state.car.doors === 'opening' ? 1 : 0
+      idle.doorsOpen = wantOpen
       car.setAttribute('data-motion', name === 'fall' ? 'falling' : name === 'express' ? 'hoisting' : name === 'closeDoors' || name === 'openDoors' ? 'idle' : 'moving')
+      // The fall timeline carries ONE sill event, at the pit, so the number froze at the departure
+      // floor for the whole 800 ms drop while the car visibly passed five landings - on the ordinary
+      // ride, and on the express recovery out of the pit, it counts (r3-elevator-feel-04). The
+      // renderer knows the car's position every frame, so the number is derived from THAT rather than
+      // from steps the timeline does not have: see the sill sweep in frame().
       if (name === 'fall') setIndicator(label(from), 'down')
       else if (name === 'descend') setIndicator(label(from), 'down')
       else if (name === 'ride' || name === 'express') setIndicator(label(from), 'up')

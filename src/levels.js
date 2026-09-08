@@ -56,7 +56,14 @@ export const LEVELS = [
       // easier, 45x narrower pool arriving on the screen that says "Try Skyscraper?", and six correct
       // answers to climb back. The 11s and 12s move here, which is what the building is FOR; step 2
       // still owns the missing-factor form and step 3 the squares, division within 144 and regrouping.
-      { kinds: [K('mul', 3, { a: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }), K('div', 2, { q: [2, 10], b: [2, 10], max: 100, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10] })] },
+      // r3-math-03: moving the 11s and 12s here closed the CONTAINMENT half (100 % → 86 %) and left
+      // the SIZE half open — 147 reachable keys against Office step 3's 5 676, 38x narrower, and the
+      // only promotion of the four that shrinks the pool at all (the other three widen it or replace
+      // it outright). The two ± rows Skyscraper step 3 already carries are lifted to step 1 as well,
+      // so the screen that says `Try Skyscraper?` no longer answers with a pool three quarters of
+      // which the child has just proved. The building is still `times tables`: × and ÷ hold 5/7 of
+      // the weight and the level's ceiling is unchanged at 144.
+      { kinds: [K('mul', 3, { a: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }), K('div', 2, { q: [2, 10], b: [2, 10], max: 100, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10] }), K('add', 1, { a: [11, 99], b: [11, 99], max: 144 }), K('sub', 1, { a: [11, 144], b: [11, 99], max: 144 })] },
       { kinds: [K('mul', 2, { a: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }), K('missMul', 2, { a: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }), K('div', 1, { q: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] })] },
       { kinds: [K('div', 2, { q: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }), K('mul', 1, { a: [2, 12], b: [2, 12], max: 144, square: true }), K('add', 1, { a: [11, 89], b: [11, 89], max: 100, regroup: true }), K('sub', 1, { a: [11, 99], b: [11, 89], max: 100, regroup: true })] },
     ],
@@ -115,5 +122,10 @@ export function customLevel({ ops = ['add', 'sub'], min = 0, max = 20, negatives
   // like × and ÷ above they are relaxed out of the Smallest/Largest range — and, unlike × and ÷,
   // they were relaxed silently. `ops ▲▼, 9997 to 9999` read `numbers 0 to 9999` over a `9 ▲ 1`.
   const floorOps = OPS.has('up') || OPS.has('down')
-  return { id: 'custom', name: 'Custom', short: 'Custom', tag: `numbers ${lo} to ${hi}${floorOps ? '; ▲▼ inside the building, 0 to 10' : ''}`, custom: true, negatives: !!negatives, steps: [{ kinds }] }
+  // …and the same honesty for × and ÷, whose FACTORS are floored at 5 by the line above. Seven
+  // consecutive presses of the Largest `+` key (2 → 35) change nothing a child sees, and the ceiling
+  // the tables then reach (5 × 5 = 25) sits ABOVE the number the parent set. The tag says which
+  // table it actually built, so the stepper's effect — and its floor — are readable (r3-math-06).
+  const tableOps = OPS.has('mul') || OPS.has('div')
+  return { id: 'custom', name: 'Custom', short: 'Custom', tag: `numbers ${lo} to ${hi}${tableOps ? `; × and ÷ use ${facLo} to ${facHi}` : ''}${floorOps ? '; ▲▼ inside the building, 0 to 10' : ''}`, custom: true, negatives: !!negatives, steps: [{ kinds }] }
 }

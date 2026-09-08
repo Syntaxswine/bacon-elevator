@@ -165,22 +165,28 @@ async function rideTo(page, floor) {
 // Put the bank's worst-case trivia into the real panel, let the page re-measure (the shaft's
 // ResizeObserver, the camera pull-back and the .tiny rule are the page's own code paths, not
 // something an assertion may reason about), assert, then put back exactly what was there.
-async function worstCase(page, check, name) {
+// `big` runs the same worst case with the accessibility setting a parent is invited to turn on.
+// The bound the instrument enforces held only at the default type size: the bank's longest question
+// with the three longest choices ran 54 px past the fold at 320 x 454 with Bigger text, into a panel
+// that was `overflow-y: visible` and so could not be scrolled to (r3-mobile-ux-7 / r3-code-hostile-07).
+async function worstCase(page, check, name, opts = {}) {
   await page.evaluate((w) => {
     const panel = document.getElementById('panel'), appEl = document.getElementById('app')
-    window.__worst = { mode: panel.dataset.mode, html: panel.innerHTML, phase: appEl.dataset.phase }
+    window.__worst = { mode: panel.dataset.mode, html: panel.innerHTML, phase: appEl.dataset.phase, big: document.documentElement.classList.contains('big') }
+    if (w.big) document.documentElement.classList.add('big')
     const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
     const LET = ['A', 'B', 'C']
     panel.dataset.mode = 'trivia'
     appEl.dataset.phase = 'trivia'
     panel.innerHTML = `<div class="tq">${esc(w.q)}</div>` + w.choices.map((c, i) =>
       `<button class="cell choice" data-choice="${i}" data-tap data-result="" aria-label="${LET[i]}: ${esc(c)}"><span class="letter" aria-hidden="true">${LET[i]}</span><span class="ctext">${esc(c)}</span></button>`).join('')
-  }, WORST)
+  }, { ...WORST, big: !!opts.big })
   await wait(220)
   const r = await check(name, { ride: true, worstTrivia: true })
   await page.evaluate(() => {
     const panel = document.getElementById('panel'), appEl = document.getElementById('app')
     panel.dataset.mode = window.__worst.mode; panel.innerHTML = window.__worst.html; appEl.dataset.phase = window.__worst.phase
+    document.documentElement.classList.toggle('big', window.__worst.big)
     delete window.__worst
   })
   await wait(220)
@@ -233,6 +239,19 @@ async function checkLayout(page, name, opts = {}) {
       if (ratio < need) out.problems.push(`contrast ${ratio.toFixed(2)} < ${need}: "${el.textContent.trim().slice(0, 30)}" ${cs.color} on L=${bg.toFixed(3)}`)
       if (size < 16 && el.matches('button')) out.problems.push(`focusable text under 16 px: ${el.textContent.trim().slice(0, 30)}`)
     }
+    // A CONTROL THE CHILD IS MEANT TO PRESS NOW MUST BE ON SCREEN AT REST.
+    // The `.page` exemption above answers "is it reachable?", which is the right question for a key
+    // buried in a long settings list and the wrong one for the forward button on the reward screen:
+    // at the roof, `Next building` and `Lobby` were both 0 px on screen at every landscape turn and
+    // `Lobby` at se1 portrait, on a card that ended in clean paper with no cut glyph and no cue
+    // (r3-mobile-ux-1, r3-mobile-ux-5). Measured unscrolled, which is what the child sees.
+    for (const sel of (opts.onScreen || [])) {
+      const el = document.querySelector(sel)
+      if (!el) { out.problems.push(`${sel}: not on the screen at all`); continue }
+      const b = el.getBoundingClientRect()
+      const shown = Math.max(0, Math.min(b.bottom, window.innerHeight) - Math.max(b.top, 0))
+      if (shown < 44) out.problems.push(`${sel}: ${Math.round(shown)} px of ${Math.round(b.height)} on screen at rest, in a ${window.innerHeight} px viewport`)
+    }
     if (opts.ride) {
       const shaftBox = document.getElementById('shaft')
       const sh = shaftBox.getBoundingClientRect()
@@ -267,6 +286,24 @@ async function checkLayout(page, name, opts = {}) {
         panelEl0.scrollTop = was
         out.panelScroll = `panel scrolls ${panelEl0.scrollHeight} in ${Math.round(panelEl0.clientHeight)}`
       }
+      // r3-autism-fit-04: THE UNLIT CALL BUTTONS. The contrast sweep above skips anything inside a
+      // disabled button (WCAG 1.4.3 exempts disabled controls), which is right for a greyed key and
+      // wrong for the surface a lift-loving child stares at most: the unlit floor digits sat at
+      // 2.57:1 at 24 px/700. The dimming cue belongs in the ring and the fill, not in the digit.
+      // The RESTING look only: `.face` fades its background over 200 ms, so a button that has just
+      // stopped being the lit call is still amber for a fifth of a second and is not what "unlit"
+      // means. Measured at the declared disabled fill, which is the state the child sits looking at.
+      for (const face of document.querySelectorAll('.panel .floor:disabled .face')) {
+        const fr = face.getBoundingClientRect()
+        if (fr.width < 1 || fr.height < 1) continue
+        const cs = getComputedStyle(face)
+        if (cs.backgroundColor.replace(/\s/g, '') !== 'rgb(242,239,232)') continue   // mid-fade, or lit
+        const fg = lum(cs.color)
+        if (!fg) continue
+        const bg = bgOf(face)
+        const ratio = (Math.max(fg.L, bg) + 0.05) / (Math.min(fg.L, bg) + 0.05)
+        if (ratio < 4.5) out.problems.push(`unlit floor digit "${face.textContent.trim()}" at ${ratio.toFixed(2)}:1 (${cs.color} on ${cs.backgroundColor})`)
+      }
       // the floor-mode spacer is a spacer: a lone bold `·` reads as a mystery button
       const panelEl = document.getElementById('panel')
       if (panelEl.dataset.mode === 'floor') for (const sp of panelEl.querySelectorAll('.spacer')) {
@@ -294,16 +331,32 @@ async function checkLayout(page, name, opts = {}) {
       if (!tq) out.problems.push('the worst-case trivia panel is not up')
       else {
         if (tq.scrollHeight > tq.clientHeight + 1) out.problems.push(`the longest question is clipped: ${tq.scrollHeight} > ${tq.clientHeight}`)
+        // The same distinction the [data-tap] rule above draws: a choice past the fold in a panel
+        // that GENUINELY scrolls is reachable, one in a panel that does not is off screen for ever.
+        // With Bigger text on a 320 px phone the worst case runs 54 px past the fold, and the panel
+        // used to be `overflow-y: visible` there, so the third answer could not be reached at all
+        // (r3-mobile-ux-7 / r3-code-hostile-07).
+        const scrolls = panel.scrollHeight > panel.clientHeight + 1
         const hs = []
         for (const b of panel.querySelectorAll('.choice')) {
           const r = b.getBoundingClientRect(), t = b.querySelector('.ctext').getBoundingClientRect()
           hs.push(Math.round(r.height))
           if (t.top < r.top + 2 || t.bottom > r.bottom - 2) out.problems.push(`choice ${b.dataset.choice} text paints over its border: text ${Math.round(t.top)}-${Math.round(t.bottom)} in ${Math.round(r.top)}-${Math.round(r.bottom)}`)
-          if (r.bottom > window.innerHeight + 1) out.problems.push(`choice ${b.dataset.choice} below the viewport by ${Math.round(r.bottom - window.innerHeight)}`)
+          if (!scrolls && r.bottom > window.innerHeight + 1) out.problems.push(`choice ${b.dataset.choice} below the viewport by ${Math.round(r.bottom - window.innerHeight)}`)
           if (r.height < 48) out.problems.push(`choice ${b.dataset.choice} is ${Math.round(r.height)} px tall`)
           if (parseFloat(getComputedStyle(b).fontSize) < 16) out.problems.push(`choice ${b.dataset.choice} text under 16 px`)
         }
-        out.worst = `tq ${Math.round(tq.getBoundingClientRect().height)}px @${getComputedStyle(tq).fontSize}, choices ${hs.join('/')}`
+        if (scrolls) {
+          const was = panel.scrollTop
+          panel.scrollTop = panel.scrollHeight
+          const box = panel.getBoundingClientRect()
+          for (const b of panel.querySelectorAll('.choice')) {
+            const q = b.getBoundingClientRect()
+            if (q.bottom > box.bottom + 1) out.problems.push(`choice ${b.dataset.choice} unreachable even scrolled to the end`)
+          }
+          panel.scrollTop = was
+        }
+        out.worst = `tq ${Math.round(tq.getBoundingClientRect().height)}px @${getComputedStyle(tq).fontSize}, choices ${hs.join('/')}${scrolls ? `, panel scrolls ${panel.scrollHeight} in ${Math.round(panel.clientHeight)}` : ''}`
       }
     }
     // The hint's number line: one countable hop per unit, not one arc labelled `+ 5`.
@@ -677,7 +730,34 @@ scenarios.push({
     expect(!/185, 179, 164/.test(dead.deadShadow || ''), `a disabled key keeps the live drop shadow: ${dead.deadShadow}`)
     const shown = await text(page, '#question')
     expect(shown.replace(/\s+/g, ' ') === problem.text.replace('▮', String(problem.answer)), `the true equation should show first: "${shown}"`)
+    // r3-elevator-feel-01: THE BEAT BEFORE THE FALL IS NOT THE REWARD DISPLAY MINUS A TICK.
+    // `moving` (a CORRECT answer) draws this same string plus a green ✓, and `.blank.filled` had no
+    // rule of its own, so the true answer arrived in exactly the ink and underline of the digits the
+    // child had just typed and the message band was empty: the wrong entry silently became the right
+    // one and the car dropped. No cross and no red — the fall carries no punishing copy — but the
+    // true answer must be visibly the machine's writing, and the band must say whose the other was.
+    const beat = await page.evaluate(() => {
+      const q = document.getElementById('question')
+      const blank = q.querySelector('.blank.filled')
+      const cs = blank ? getComputedStyle(blank) : null
+      return { cls: q.className, colour: cs && cs.color, rule: cs && cs.borderBottomColor, msg: document.getElementById('message').textContent.trim() }
+    })
+    expect(/\btruth\b/.test(beat.cls), `the falling beat draws as an ordinary answer: #question class "${beat.cls}"`)
+    expect(beat.colour === 'rgb(43, 43, 43)' && beat.rule === 'rgb(43, 43, 43)', `the true answer is drawn in the child's own ink: ${beat.colour} / ${beat.rule}`)
+    expect(beat.msg === `you pressed ${wrong}`, `the falling band should name the child's answer, got "${beat.msg}"`)
+    expect(!/[!✗]|wrong|oops/i.test(await text(page, '.display')), 'falling copy tone')
     trays.push(await num(page, '#tray'))
+    // r3-elevator-feel-04: the indicator counts the floors it passes going DOWN too. The fall
+    // timeline carries one sill event, at the pit, so the number used to sit on the departure floor
+    // for the whole drop while the car visibly crossed five landings.
+    const counted = new Set()
+    for (let i = 0; i < 90; i++) {
+      const f = await attr(page, '#indicator', 'data-floor')
+      counted.add(f)
+      if (f === 'P') break
+      await wait(20)
+    }
+    expect(counted.size >= 3, `the indicator showed ${[...counted].join(',')} for the whole fall from ${s.ride.floor}`)
     await page.waitForFunction(() => document.getElementById('indicator').dataset.floor === 'P', { timeout: 3000 })
     await shot('pit')
     await waitPhaseIn(page, ['repair'])
@@ -895,6 +975,16 @@ scenarios.push(
       await startRide(page); await waitPhaseIn(page, ['floor'])
       const bigQ = await page.$eval('#question', (e) => parseFloat(getComputedStyle(e).fontSize))
       const bigKeyRow = await page.$eval('#panel .cell', (e) => parseFloat(getComputedStyle(e).fontSize))
+      // r3-code-hostile-05: at 320 wide the bell key wraps to two lines (the emoji over RULES) and
+      // with Bigger text on it needed 47 px of a 42 px content box, so the word sat half off the
+      // bottom of the key — the one setting whose whole job is legibility, clipping its own label.
+      const bigClip = await page.evaluate(() => {
+        const bad = []
+        for (const k of document.querySelectorAll('#panel .cell')) {
+          if (k.scrollHeight > k.clientHeight + 1) bad.push(`${(k.textContent || '').trim().slice(0, 12)} needs ${k.scrollHeight} of ${k.clientHeight}`)
+        }
+        return bad.length ? bad.join('; ') : null
+      })
       await tap(page, '.topbar [data-nav="lobby"]'); await waitScreen(page, 'lobby')
       await tap(page, '[data-gear]'); await tap(page, '[data-gear]'); await waitScreen(page, 'grownups')
       await tap(page, '[data-setting="bigText"][data-value="false"]')
@@ -904,6 +994,7 @@ scenarios.push(
       const smallKeyRow = await page.$eval('#panel .cell', (e) => parseFloat(getComputedStyle(e).fontSize))
       expect(bigQ > smallQ + 0.5, `Bigger text left the sum at ${smallQ} px`)
       expect(bigKeyRow > smallKeyRow + 0.5, `Bigger text left the panel keys at ${smallKeyRow} px`)
+      expect(!bigClip, `Bigger text clipped the label it enlarged: ${bigClip}`)
       await tap(page, '.topbar [data-nav="lobby"]'); await waitScreen(page, 'lobby')
       // persistence across a reload (no ?reset)
       await ctx.goto(Q)
@@ -986,6 +1077,17 @@ scenarios.push(
         return r
       }
       await check('lobby')
+      // r3-mobile-ux-3: the menu screens had no landscape layout at all, so on an SE 1 turned
+      // sideways the lobby hero took the first 250 px of a 276 px viewport and `Ride` — the one
+      // button that starts the game — was a 26 px unlabelled blue sliver at the bottom edge.
+      {
+        const portrait0 = ctx.phone.viewport
+        for (const [w, h] of [[568, 276], [640, 304]]) {
+          await page.setViewport({ ...portrait0, width: w, height: h, isLandscape: true }); await wait(180)
+          await check(`lobby-${w}x${h}`, { onScreen: ['.lobby [data-nav="ride"]'] })
+        }
+        await page.setViewport(portrait0); await wait(150)
+      }
       await tap(page, '[data-nav="picker"]'); await waitScreen(page, 'picker'); await check('picker')
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
       await tap(page, '[data-nav="workshop"]'); await waitScreen(page, 'workshop'); await check('workshop')
@@ -1003,6 +1105,7 @@ scenarios.push(
       await tap(page, 'button[data-floor="1"]'); await waitPhaseIn(page, ['keypad'])
       await check('keypad', { ride: true, go: true })
       await worstCase(page, check, 'worst-trivia')
+      await worstCase(page, check, 'worst-trivia-big', { big: true })
       await tap(page, 'button[data-key="hint"]')
       expect(!(await page.$eval('#hint', (h) => h.hidden)), 'HINT should show')
       const hp = (await slim(page)).ride.problem
@@ -1045,9 +1148,24 @@ scenarios.push(
       await rideOne(page)
       await waitScreen(page, 'roof')
       await check('roof', { roof: true })
+      // THE REWARD SCREEN'S OWN CONTROLS, at the turn where they were 0 px on screen and at the
+      // smallest portrait phone the project ships a profile for.
+      const ROOF_CONTROLS = ['.roof [data-next]', '.roof [data-nav="lobby"]']
+      await check('roof-portrait', { roof: true, onScreen: ROOF_CONTROLS })
+      await turn(568, 276); await check('roof-568x276', { roof: true, onScreen: ROOF_CONTROLS })
+      await turn(640, 304); await check('roof-640x304', { roof: true, onScreen: ROOF_CONTROLS })
+      await page.setViewport(portrait); await wait(150)
       await tap(page, '.roof [data-nav="lobby"]')
       await waitPhaseIn(page, ['descending'], 3000)
       expect((await attr(page, '#indicator', 'data-arrow')) === 'down', 'descent arrow')
+      // r3-elevator-feel-03: the lower circle drawn on all ten landings was decoration nothing ever
+      // wrote to — `dir` was only 'down' while descending, and by then the car call is null. The
+      // victory descent is a real down call, made by the rider at the roof.
+      const downCall = await page.evaluate(() => {
+        const lit = [...document.querySelectorAll('#shaft circle')].filter((c) => (c.getAttribute('fill') || '').toUpperCase() === '#E8B04A')
+        return lit.length
+      })
+      expect(downCall >= 1, 'no hall call lights on the way down: the ▼ button is decoration')
       await waitScreen(page, 'lobby')
       // a Megatall 3-digit Repair card: the worked line fits the 4-row card, nothing clipped
       await tap(page, '[data-nav="picker"]'); await waitScreen(page, 'picker')
@@ -1202,6 +1320,41 @@ scenarios.push({
 // itself out the moment it was pressed. This runs at TIMESCALE 1 — the defect is a one-frame
 // ordering bug and ?fast=1 compresses the whole ride into 270 ms.
 scenarios.push({
+  name: 'passengers-need-a-bank',
+  // r3-code-hostile-04: tagFloors and the shaft's waiter asked only isPassengerFloor(); neither
+  // consulted state.pool, while arrive() correctly requires it. With the bank blocked — the loader's
+  // own documented catch path, "passengers stay home" — the panel still tagged floors 4 and 8 with a
+  // ? badge and the shaft still drew two people waiting on floors the lift then rode straight past.
+  async run(ctx) {
+    const { page } = ctx
+    // The worker may already be installed and controlling from an earlier scenario in this browser,
+    // and a cached response cannot be intercepted: clear it out first, THEN block the bank.
+    await ctx.goto(Q + '&nosw=1&reset=1')
+    await wait(500)
+    await page.evaluate(async () => {
+      if (globalThis.caches) await caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))).catch(() => {})
+      if (navigator.serviceWorker) await navigator.serviceWorker.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.unregister()))).catch(() => {})
+    })
+    await page.setRequestInterception(true)
+    page.on('request', (r) => { if (/data\/trivia\.json/.test(r.url())) r.abort(); else r.continue() })
+    await ctx.goto(Q + '&nosw=1')
+    await wait(400)
+    await startRide(page)
+    const s = await slim(page)
+    expect(s.pool === 0, `the bank should not have loaded, got ${s.pool} facts`)
+    const drawn = await page.evaluate(() => ({
+      tags: document.querySelectorAll('#panel .floor .tag').length,
+      waiters: [...document.querySelectorAll('#shaft .waiter')].filter((w) => w.getAttribute('visibility') !== 'hidden').length,
+    }))
+    expect(drawn.tags === 0, `${drawn.tags} ? badges with no bank loaded`)
+    expect(drawn.waiters === 0, `${drawn.waiters} people drawn waiting for a lift that will not stop`)
+    // and the ride still plays
+    await rideOne(page)
+    expect((await slim(page)).ride.floor === 1, 'the ride should still work with no bank')
+    return `bank blocked: 0 facts, 0 ? badges, 0 waiters, the ride still plays`
+  },
+  allowErrors: true,
+}, {
   name: 'door-interlock',
   async run(ctx) {
     const { page, shot } = ctx
@@ -1235,7 +1388,59 @@ scenarios.push({
     const mid = samples.find((s) => s.phase === 'moving' && s.doors === 'closed')
     expect(mid, 'the car never reached a closed-door moving frame')
     await shot('mid-ride')
-    return `${samples.length} frames sampled at timescale 1: ◁▷ lit only inside the ${lit.length}-frame reopen window`
+    // r3-code-hostile-03: THE INTERLOCK THE RULES CARD STATES. GO cancels whatever animation is
+    // running, and if the child taps ▷◁ and then answers within 500 ms the reducer already believes
+    // the doors are `closed`, so the ride timeline carries no doors step — and the renderer pinned
+    // both leaves wherever the killed animation had left them. Measured: the car rode a whole floor
+    // with a 44 % gap between the leaves and data-state stuck on `closing`.
+    await waitPhaseIn(page, ['floor'], 6000)
+    // ▷◁ and the lit floor button in the SAME turn, so the 500 ms close animation is still running
+    // when GO cancels it; then the answer, entered without waiting for anything.
+    const t3 = (await slim(page)).ride.target
+    await page.evaluate((f) => {
+      document.querySelector('#panel [data-door="close"]').click()
+      document.querySelector(`#panel button[data-floor="${f}"]`).click()
+    }, t3)
+    await waitPhaseIn(page, ['keypad'], 4000)
+    const p2 = (await slim(page)).ride.problem
+    await page.evaluate((ans) => {
+      for (const ch of String(Math.abs(ans))) document.querySelector(`#panel [data-key="${ch}"]`).click()
+      document.querySelector('#panel [data-key="go"]').click()
+    }, p2.answer)
+    await waitPhaseIn(page, ['moving'], 4000)
+    await wait(200)
+    const doorsMoving = await page.evaluate(() => {
+      const gs = [...document.querySelectorAll('#doors > g')]
+      return { state: document.getElementById('doors').dataset.state, tx: gs.map((g) => g.getAttribute('transform') || 'none') }
+    })
+    expect(doorsMoving.state === 'closed', `the car is moving with #doors[data-state="${doorsMoving.state}"]`)
+    expect(doorsMoving.tx.every((t) => t === 'none' || /translate\(-?0(\.0+)? 0\)/.test(t) || /translate\(0 0\)/.test(t)),
+      `the car is riding with its doors part open: ${doorsMoving.tx.join(' ')}`)
+    // r3-elevator-feel-06: A PART THE CHILD SPENDS TWO BUILDINGS EARNING MUST CHANGE WHAT THE LIFT
+    // LOOKS LIKE. Both parts drew the same SHUT door — two equal leaves meeting on the centreline —
+    // so the 18-bacon telescopic doors were visible only during the 500 ms slide. A real two-speed
+    // side-opening door has a wide slow leaf and a narrow fast one meeting well off centre.
+    const leaves = await page.evaluate(() => {
+      const eq = window.__bacon.state().equipped.doors
+      const out = { equipped: eq, pairs: [] }
+      for (const g of document.querySelectorAll('#doors > g')) {
+        for (const leaf of g.children) {
+          const r = leaf.querySelector('rect')
+          out.pairs.push({ shown: leaf.getAttribute('visibility') !== 'hidden', x: +r.getAttribute('x'), w: +r.getAttribute('width') })
+        }
+      }
+      return out
+    })
+    expect(leaves.pairs.length === 4, `the shaft draws ${leaves.pairs.length} door leaves, not two pairs`)
+    const shown = leaves.pairs.filter((l) => l.shown), hidden = leaves.pairs.filter((l) => !l.shown)
+    expect(shown.length === 2 && hidden.length === 2, `${shown.length} leaves are visible: exactly one pair may be`)
+    const widths = (ls) => ls.map((l) => l.w).sort((a, b) => a - b)
+    expect(JSON.stringify(widths(shown)) !== JSON.stringify(widths(hidden)),
+      `both door parts draw the same shut door: ${JSON.stringify(widths(shown))}`)
+    const centre = leaves.equipped === 'doors-centre'
+    expect(centre === (widths(shown)[0] === widths(shown)[1]),
+      `${leaves.equipped} is drawn with ${centre ? 'unequal' : 'equal'} leaves: ${JSON.stringify(widths(shown))}`)
+    return `${samples.length} frames sampled at timescale 1: ◁▷ lit only inside the ${lit.length}-frame reopen window; GO inside the door close still rides shut (${doorsMoving.tx.join(' ')}); ${leaves.equipped} leaves ${widths(shown).join('/')} vs the other part's ${widths(hidden).join('/')}`
   },
 })
 
@@ -1275,7 +1480,27 @@ scenarios.push({
     expect(after.lunchbox >= played.lunchbox, `an untouched tab took the lunchbox from ${played.lunchbox} to ${after.lunchbox}`)
     expect((after.ride ? after.ride.tray : 0) >= played.ride.tray, `an untouched tab took the tray from ${played.ride.tray} to ${after.ride ? after.ride.tray : null}`)
     expect(after.buildings >= played.buildings, 'an untouched tab rolled the building count back')
-    return `played lunchbox ${played.lunchbox} tray ${played.ride.tray}; after a stale tab was fronted twice, lunchbox ${after.lunchbox} tray ${after.ride ? after.ride.tray : 0} (writes ${after.writes})`
+    // r3-code-hostile-02: …AND THE NEXT TAP MUST STILL BE ACTED ON. save() runs as an EFFECT of the
+    // dispatch the tap produced, so `adopt and return` discarded the reduced state — the press-floor,
+    // or a CORRECT GO — and replaced it with the other tab's snapshot, which parse() parks on the
+    // Lobby. Merely OPENING the game a second time moves the counter (each tab saves on its own
+    // visibilitychange), so the child lost every following tap. This is the one tap the round-2
+    // scenario stopped short of.
+    const wasFloor = (await slim(page)).ride.floor
+    await waitPhaseIn(page, ['floor'])
+    const target = (await slim(page)).ride.target
+    await tap(page, `button[data-floor="${target}"]`)
+    await wait(150)
+    const afterTap = await slim(page)
+    expect(afterTap.screen === 'ride' && afterTap.phase === 'keypad',
+      `the tap after a second tab was discarded: screen ${afterTap.screen}, phase ${afterTap.phase} (was at floor ${wasFloor})`)
+    const pk = afterTap.ride.problem
+    await enter(page, pk.answer)
+    await waitPhaseIn(page, ['floor', 'trivia', 'roof'], 6000)
+    const rode = await slim(page)
+    expect(rode.screen === 'ride' && rode.ride.floor === wasFloor + 1,
+      `a CORRECT answer after a second tab moved nothing: floor ${rode.ride ? rode.ride.floor : null}, screen ${rode.screen}`)
+    return `played lunchbox ${played.lunchbox} tray ${played.ride.tray}; after a stale tab was fronted twice, lunchbox ${after.lunchbox} tray ${after.ride ? after.ride.tray : 0} (writes ${after.writes}); the next tap and a correct GO both landed (floor ${wasFloor} → ${rode.ride.floor})`
   },
 })
 
@@ -1350,7 +1575,11 @@ scenarios.push({
       const p = (await slim(page)).ride.problem
       if (p.kind === 'up' || p.kind === 'down') {
         const msg = await text(page, '#message')
-        expect(/means go (up|down)/.test(msg), `${p.text} is on screen and the band says "${msg}"`)
+        // r3-math-04: it used to read `▼ means go down: take away.` while a correct answer sends the
+        // car UP one floor and the only time the car obeys a ▼ is the fall. The gloss must name the
+        // arithmetic and say what moves — the NUMBER — and must not issue an instruction to the car.
+        expect(/\b(add|take away)\b/.test(msg) && /the number goes (up|down)/.test(msg) && !/means go/.test(msg),
+          `${p.text} is on screen and the band says "${msg}"`)
         gloss = msg
         await shot('arrow-gloss')
         break
@@ -1360,6 +1589,66 @@ scenarios.push({
     }
     expect(gloss, 'no ▲ or ▼ sum came up in 30 questions, so the gloss was never tested')
     return `lobby → How it works → lobby; bell reads "${bell}"; the gloss reads "${gloss}"`
+  },
+})
+
+// r3-code-hostile-01. A TRANSIENT BELONGS TO THE PANEL IT WAS WRITTEN FOR, NOT TO ITS TIMER.
+// ui.transient (the dead-floor-key line) was cleared only by a 1400 ms setTimeout, and render()
+// hands any standing transient straight to display.render, which returns before the `keypad` case.
+// Tapping 9 at G — the move the dead-key handler exists for — and then the lit button left the
+// keypad live for up to 1.35 s with NO sum on screen, no typed digits and no `Try once more.`; with
+// Second try off, GO in that window dropped the car for a sum that was never displayed. And the
+// stale line is not merely absent information: `Press 1` was about floor button 1, and the panel
+// underneath has swapped to the digit pad, where `1` is an ANSWER key.
+scenarios.push({
+  name: 'transient-scope',
+  async run(ctx) {
+    const { page, shot } = ctx
+    await load(ctx)
+    await startRide(page)
+    const deadTap = async () => {
+      await page.evaluate(() => {
+        const b = document.querySelector('button[data-floor="9"]')
+        const r = b.getBoundingClientRect()
+        document.getElementById('app').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }))
+      })
+      await wait(80)
+    }
+    await deadTap()
+    expect(/not the next stop/.test(await text(page, '#message')), 'the dead-key line did not come up at all')
+    // …then the very next thing the child does, well inside the 1400 ms
+    const target = (await slim(page)).ride.target
+    await tap(page, `button[data-floor="${target}"]`)
+    await waitPhaseIn(page, ['keypad'])
+    await wait(60)
+    const q = await text(page, '#question'), m = await text(page, '#message')
+    const live = (await slim(page)).ride.problem
+    expect(!/not the next stop/.test(m), `the digit keypad is live under "${m}" — an instruction about the panel that is gone`)
+    expect(q.replace(/\s+/g, ' ').startsWith(live.text.split(' ')[0]), `the sum the child must answer is not on screen: "${q}" for ${live.text}`)
+    await shot('keypad-after-dead-key')
+    // and a typed digit appears at once, rather than into a suppressed display
+    await tap(page, 'button[data-key="1"]')
+    await wait(60)
+    expect(/1/.test(await text(page, '#question')), `a typed digit is invisible: "${await text(page, '#question')}"`)
+    await tap(page, 'button[data-key="back"]')
+    // …and with Second try off, the sum is on screen before a GO can drop the car for it
+    await tap(page, '.topbar [data-nav="lobby"]'); await waitScreen(page, 'lobby')
+    await tap(page, '[data-gear]'); await tap(page, '[data-gear]'); await waitScreen(page, 'grownups')
+    await tap(page, '[data-setting="secondTry"][data-value="false"]')
+    await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
+    await tap(page, '[data-nav="ride"]'); await waitScreen(page, 'ride'); await waitPhaseIn(page, ['floor', 'keypad'])
+    // the ride resumes at the keypad it was left on: clear it and ride the floor out
+    if ((await slim(page)).phase === 'keypad') { await enter(page, (await slim(page)).ride.problem.answer); await waitPhaseIn(page, ['floor', 'trivia', 'roof'], 6000) }
+    if ((await slim(page)).phase === 'trivia') await answerTrivia(page, true)
+    await waitPhaseIn(page, ['floor'], 6000)
+    await deadTap()
+    const t2 = (await slim(page)).ride.target
+    await tap(page, `button[data-floor="${t2}"]`)
+    await waitPhaseIn(page, ['keypad'])
+    const p2 = (await slim(page)).ride.problem
+    expect((await text(page, '#question')).replace(/\s+/g, ' ').startsWith(p2.text.split(' ')[0]),
+      `the sum was never shown before the fall: "${await text(page, '#question')}"`)
+    return `the dead-key line yields to the sum it covered; a typed digit shows at once`
   },
 })
 
@@ -1387,6 +1676,7 @@ scenarios.push({
     expect((await slim(page)).phase === 'floor', 'a dead key must stay inert: it may say something, never do something')
     await wait(1500)
     expect((await text(page, '#message')) === before, 'the answer must go away again: ' + await text(page, '#message'))
+
 
     // r2-elevator-feel-05: the hall calls were two white circles nothing ever wrote to.
     const callFill = () => page.evaluate(() => {

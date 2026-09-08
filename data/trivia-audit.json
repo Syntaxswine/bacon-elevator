@@ -686,9 +686,9 @@
       "question": "In ancient Rome, how were the lifts under the Colosseum's floor powered to raise scenery and animal cages up into the arena?",
       "answer": "Men pushing a winch round in a circle",
       "distractors": [
-        "A water wheel",
-        "A steam engine",
-        "Horses on a treadmill"
+        "A water wheel turned by an aqueduct",
+        "A steam engine under the arena floor",
+        "Horses walking on a treadmill"
       ],
       "fact": "Under the Colosseum's floor were capstans - cross-shaped winches that teams of men pushed round as they walked in a circle - which lifted cages and scenery up through trapdoors into the arena. Researcher Heinz-Jürgen Beste of the German Archaeological Institute worked out that there were 60 of them.",
       "difficulty": 1,
@@ -743,7 +743,8 @@
             }
           ]
         }
-      }
+      },
+      "round3": "r3-trivia-truth-02: 16-character lead (37 vs 21). Distractors lengthened; all three remain false (the Colosseum's hoists were hand-worked capstans)."
     },
     {
       "id": "elevator-history-home-insurance-building-1885",
@@ -917,9 +918,9 @@
       "question": "Where are the cushioning buffers of a rope-driven elevator installed?",
       "answer": "In the pit at the bottom of the shaft",
       "distractors": [
-        "On top of the car's roof",
-        "Inside the machine room",
-        "Behind the floor buttons"
+        "On top of the car's roof, under the ropes",
+        "Inside the machine room at the very top",
+        "Behind the floor buttons in the car"
       ],
       "fact": "California's elevator rules say the buffers must sit in the pit under both the car and the counterweight. Spring buffers are fine for slower elevators, but when the rated speed is over 200 feet per minute the rules call for oil buffers (or something that works just as well).",
       "difficulty": 1,
@@ -948,7 +949,8 @@
           "source_title": "California Code of Regulations, Title 8, §3031. Car and Counterweight Buffers and Bumpers",
           "quote": "Buffers or bumpers shall be located in the pit. ... Oil buffers or their equivalent shall be used where the rated speed is in excess of 200 feet per minute."
         }
-      ]
+      ],
+      "round3": "r3-trivia-truth-02: 13-character lead (37 vs 24). Distractors lengthened; all three remain false."
     },
     {
       "id": "elevator-engineering-kone-monospace-1996",
@@ -1026,8 +1028,8 @@
       "question": "What does an elevator's regenerative drive do with the electricity made when the car slows down?",
       "answer": "Feeds it back into the building's power supply",
       "distractors": [
-        "Turns it into heat in resistors",
-        "Stores it inside the counterweight",
+        "Turns it into heat in a bank of resistors",
+        "Stores it inside the counterweight itself",
         "Sends it up the guide rails as light"
       ],
       "fact": "A traction elevator generates electricity when a lightly loaded car goes up, a heavy car goes down, or the car brakes. A regenerative drive sends that power back into the building's electrical grid instead of wasting it as heat in resistors; Otis says its ReGen drive cuts energy use by up to 75% compared with non-regenerative drives.",
@@ -1062,7 +1064,8 @@
           "source_title": "ReGen Drives: The smart choice - Otis Elevator (brochure, 2007)",
           "quote": "ReGen drives feed this energy back into the building's internal electrical grid where it can be used by other loads or users connected to the same network. ReGen drives reduce energy usage by up to 75 percent compared to non-regenerative drives."
         }
-      ]
+      ],
+      "round3": "r3-trivia-truth-02: 10-character lead (46 vs 36). Distractors lengthened; all three remain false."
     },
     {
       "id": "elevator-engineering-infrared-light-curtain",
@@ -1112,11 +1115,11 @@
       "id": "elevator-engineering-door-close-button",
       "category": "elevator",
       "question": "In most US elevators, why can't pressing the 'door close' button make the doors shut right away?",
-      "answer": "A law says the doors must stay open for a few seconds so everyone has time to get in",
+      "answer": "A law says the doors must stay open for a few seconds",
       "distractors": [
-        "The button only switches on the ceiling light",
-        "The doors are too heavy to move any faster",
-        "The button only works on the top floor"
+        "The button only switches on the ceiling light, not the doors",
+        "The doors are far too heavy to move any faster than they do",
+        "The button only works on the top floor of the building"
       ],
       "fact": "Because of the 1990 Americans with Disabilities Act, US elevator doors must stay fully open for at least 3 seconds after a button inside the car is pressed, so people using wheelchairs or crutches have time to board. The 'door close' button cannot cut that wait short; once the required wait is over, it can work.",
       "difficulty": 1,
@@ -1186,7 +1189,8 @@
             }
           ]
         }
-      }
+      },
+      "round3": "r3-trivia-truth-02: 42.6 % of the bank's three-choice presentations made the answer the strictly longest option against a 33.3 % baseline, and this item led by 39 characters (84 vs 45) - answerable by shape alone. The answer is trimmed to the clause that actually answers the question and the three distractors are brought up to its length; every distractor is still false."
     },
     {
       "id": "elevator-engineering-lift-vs-elevator",
@@ -1205,6 +1209,16 @@
           "title": "Lift or elevator? The history and origin | Stannah Lifts",
           "url": "https://www.stannahlifts.co.uk/news/lift-or-elevator-the-history-and-origin",
           "quote": "British, Australians, Irish, New Zealanders and South Africans use 'lift'"
+        },
+        {
+          "title": "Lift - Etymology, Origin & Meaning | Etymonline",
+          "url": "https://www.etymonline.com/word/lift",
+          "quote": "from Old Norse lypta 'to raise' (Scandinavian -pt- pronounced like -ft-)"
+        },
+        {
+          "title": "Elevator - Etymology, Origin & Meaning | Etymonline",
+          "url": "https://www.etymonline.com/word/elevator",
+          "quote": "from Latin elevare 'lift up, raise,' figuratively, 'to lighten, alleviate,' from ex 'out' + levare 'lighten, raise'"
         }
       ],
       "verified": true,
@@ -1225,7 +1239,8 @@
           "source_title": "Lift - Etymology, Origin & Meaning | Etymonline",
           "quote": "from Old Norse lypta 'to raise' (Scandinavian -pt- pronounced like -ft-), from Proto-Germanic *luftijan"
         }
-      ]
+      ],
+      "round3": "r3-trivia-truth-05: the etymology claim ('lift' < Old Norse lypta, 'elevator' < Latin elevare) rode on a single lift-retailer marketing blog whose quoted snippet covers only the usage list. Both etymonline entries fetched and shipped with verbatim quotes; the refute lens moves to the Wikipedia Elevator article."
     },
     {
       "id": "elevator-engineering-inspection-certificate",
@@ -1454,7 +1469,7 @@
       "id": "elevator-records-deepest-mine-mponeng",
       "category": "elevator",
       "question": "As of 2026, the deepest mine in the world is Mponeng in South Africa. About how far below the ground does it reach?",
-      "answer": "Nearly 4 km",
+      "answer": "About 4 km",
       "distractors": [
         "About 400 m",
         "About 1 km",
@@ -1497,7 +1512,8 @@
           "source_title": "Harmony Gold: Mponeng Mine",
           "quote": "Mponeng is the deepest mine in the world."
         }
-      ]
+      ],
+      "round3": "r3-trivia-truth-04: the answer read 'Nearly 4 km' while its own Guinness citation says the operating depth reached 3.9 km by 2012 and later expansions went BELOW the 4-km mark - the answer pointed under its source. 'About 4 km' matches both the citation and the item's own fact text, and puts the answer in the same form as its three distractors."
     },
     {
       "id": "elevator-records-multi-ropeless-sideways",
@@ -1817,13 +1833,18 @@
         "196 m",
         "526 m"
       ],
-      "fact": "The glass-sided Bailong ('Hundred Dragons') Elevator is 326 m tall, with 171.4 m of it above ground on the face of a quartzite cliff in Zhangjiajie National Forest Park. Its three double-deck cars each carry dozens of people and reach the top in under two minutes.",
+      "fact": "The glass-sided Bailong ('Hundred Dragons') Elevator is 326 m tall on the face of a quartz sandstone cliff in Zhangjiajie National Forest Park: the lower 154 m runs inside the mountain wall and the upper 172 m is an exposed steel tower. Its three double-deck cars each carry dozens of people and reach the top in under two minutes.",
       "difficulty": 2,
       "sources": [
         {
           "title": "Guinness World Records: Tallest outdoor elevator",
           "url": "https://www.guinnessworldrecords.com/world-records/106876-tallest-outdoor-elevator",
           "quote": "The world's tallest outdoor elevator is the 326-m (1,070-ft) glass-sided Bailong (“Hundred Dragons”) Elevator ... The ascent in one of the three double-deck elevators travels at 3m/s and takes 1 minute 58 seconds."
+        },
+        {
+          "title": "Bailong Elevator - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Bailong_Elevator",
+          "quote": "The elevator was built into the quartz sandstone cliff face, with the lower 505 feet embedded inside the mountain wall, and the upper 565 feet consisting of exposed steel derrick."
         }
       ],
       "verified": true,
@@ -1865,7 +1886,8 @@
             }
           ]
         }
-      }
+      },
+      "round3": "r3-trivia-truth-05: the card asserted '171.4 m of it above ground'; neither shipped source gave that breakdown. Wikipedia's Bailong Elevator article (fetched) gives it as 505 ft embedded in the wall and 565 ft of exposed steel derrick, so the card now states 154 m and 172 m and ships that quote. 'quartzite' corrected to 'quartz sandstone', which is what the source says."
     },
     {
       "id": "elevator-culture-ding-count",
@@ -2139,9 +2161,9 @@
       "question": "What is an 'elevator pitch'?",
       "answer": "A super-short speech to sell an idea, short enough for an elevator ride",
       "distractors": [
-        "The slope of an elevator's floor",
-        "The musical note of an elevator's ding",
-        "The price of a ride in an elevator"
+        "The angle of the slope an elevator's floor is built at",
+        "The musical note that an elevator's arrival ding is tuned to",
+        "The price a building charges a visitor for one ride in its lift"
       ],
       "fact": "An elevator pitch is a very short version of a sales talk or business plan - named from the idea that it should be short enough to say during an elevator ride.",
       "difficulty": 1,
@@ -2175,7 +2197,8 @@
           "source_title": "elevator pitch — Wiktionary",
           "quote": "From the idea that such a pitch is concise enough to be given during a trip between floors in an elevator."
         }
-      ]
+      ],
+      "round3": "r3-trivia-truth-02: the answer led the longest distractor by 33 characters (71 vs 38). Distractors lengthened; all three remain false."
     },
     {
       "id": "elevator-culture-great-glass-elevator-knids",
@@ -2232,9 +2255,9 @@
       "question": "In Europe, the lift accessibility rules say a narrow lift must have a mirror inside. What is the mirror for?",
       "answer": "So a wheelchair user can see behind them when backing out",
       "distractors": [
-        "To make the lift look bigger",
-        "So riders can check their hair",
-        "To bounce light around and save electricity"
+        "To make the inside of the lift look bigger than it is",
+        "So that riders can check their hair before they arrive",
+        "To bounce light around the car and save electricity"
       ],
       "fact": "The European lift accessibility standard EN 81-70 requires a mirror in lift cars that are too narrow for a wheelchair to turn round. A passenger in a wheelchair has to reverse out, and the mirror lets them see what is behind them.",
       "difficulty": 3,
@@ -2268,7 +2291,8 @@
           "source_title": "Lift car requirements for EN 81-70:2021 — iKONIC Lifts",
           "quote": "Car types 1, 2 & 3 shall have a mirror to aid passengers in a wheel chair to see behind them."
         }
-      ]
+      ],
+      "round3": "r3-trivia-truth-02: 14-character lead (57 vs 43). Distractors lengthened; all three remain false."
     },
     {
       "id": "elevator-culture-etiquette-nearest-doors",
@@ -2565,16 +2589,16 @@
         "14 April",
         "31 March"
       ],
-      "fact": "Pi Day is 14 March because, written the American way, that is 3/14, the first digits of pi (3.14159...). Physicist Larry Shaw started it at the Exploratorium science museum in San Francisco in 1988, with the first party at 1:59 p.m., the next three digits of pi.",
+      "fact": "Pi Day is 14 March because, written the American way, that is 3/14, the first digits of pi (3.14159...). Physicist Larry Shaw started it at the Exploratorium science museum in San Francisco in 1988, and it is now celebrated all over the world.",
       "difficulty": 1,
       "sources": [
         {
-          "title": "Reed Magazine: In Memoriam, Larry Shaw 1961",
-          "url": "https://www.reed.edu/reed-magazine/in-memoriam/obituaries/2018/larry-shaw-1961.html",
-          "quote": "In 1988, Larry was working as a technical curator for the Exploratorium, a San Francisco museum, when he came up with the idea of honoring the influential constant with an annual party. ... The Exploratorium celebrated its first Pi Day on March 14 at 1:59."
+          "title": "Pi Day - Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Pi_Day",
+          "quote": "In 1988, the earliest known official or large-scale celebration of Pi Day was organized by Larry Shaw at the San Francisco Exploratorium, where Shaw worked as a physicist, with staff and public marching around one of its circular spaces, then consuming fruit pies."
         },
         {
-          "title": "piday.org",
+          "title": "Pi Day - piday.org",
           "url": "https://www.piday.org/",
           "quote": "Pi Day is celebrated on March 14th (3/14) around the world."
         }
@@ -2597,7 +2621,8 @@
           "source_title": "Pi Day - Wikipedia",
           "quote": "In 1988, the earliest known official or large-scale celebration of Pi Day was organized by Larry Shaw at the San Francisco Exploratorium"
         }
-      ]
+      ],
+      "round3": "r3-trivia-truth-01/-06: the Reed Magazine citation was titled 'In Memoriam, Larry Shaw 1961' and pointed at /obituaries/. screens.js renders sources[].title verbatim on the fact card and as the Fact Book's link text, so the gate that keeps death words off the child's reward screen was reading past the only line that carried one; the round-1 refute check saw the obituary and cleared it on the grounds that the FACT text carried no death content, which is the seam. Replaced with the Wikipedia Pi Day article (fetched; quote verbatim) and a retitled piday.org ('piday.org' rendered as 'Source: piday.org (piday.org)'). The '1:59 p.m.' detail was supported only by the removed obituary, so it left the card with it rather than standing uncited. Wikipedia having moved into sources, the refute lens moves to the Exploratorium's own Pi Day history page."
     },
     {
       "id": "math-numbers-googol",
@@ -3287,7 +3312,8 @@
           "source_title": "Burj Khalifa - Wikipedia",
           "quote": "rising and descending at up to 10 m/s (33 ft/s)"
         }
-      ]
+      ],
+      "round3": "r3-math-07: declared maths.exact = false. The number band checked magnitude only (maths.max 10 <= 100), so a division with a decimal quotient (10 / 4 = 2.5 floors) reached Office Block and Skyscraper, whose own tables state 'division always exact'. Unchanged text; the item now serves only where the ladder has no ceiling left."
     },
     {
       "id": "math-everyday-nines-fingers",
@@ -3407,5 +3433,22 @@
       ]
     }
   ],
-  "round1": "Eleven items were corrected on 2026-09-08 after hostile review round 1 (r1-trivia-truth-01..07, r1-math-10). Each item carries a round1 block with the reason and the text it replaced; nothing was deleted without being recorded here. Item count unchanged: 67 in, 67 out."
+  "round1": "Eleven items were corrected on 2026-09-08 after hostile review round 1 (r1-trivia-truth-01..07, r1-math-10). Each item carries a round1 block with the reason and the text it replaced; nothing was deleted without being recorded here. Item count unchanged: 67 in, 67 out.",
+  "round3": {
+    "date": "2026-09-08",
+    "what": "Hostile review round 3. Eleven items amended: one citation that put a memorial title and an obituary link on the child's fact card, one decimal-quotient item that outran the level band it was served in, one answer that pointed below its own citation, two facts carrying specifics no shipped source covered, one source title that rendered as the domain twice, and six items whose answer was the longest option by 10 to 39 characters. Every quote added here was fetched from the URL it is attributed to.",
+    "items": [
+      "elevator-culture-elevator-pitch",
+      "elevator-culture-mirror-wheelchair",
+      "elevator-engineering-buffers-in-the-pit",
+      "elevator-engineering-door-close-button",
+      "elevator-engineering-lift-vs-elevator",
+      "elevator-engineering-regenerative-drive",
+      "elevator-history-colosseum-capstans",
+      "elevator-records-bailong-outdoor-elevator",
+      "elevator-records-deepest-mine-mponeng",
+      "math-everyday-floors-per-second",
+      "math-numbers-pi-day"
+    ]
+  }
 }

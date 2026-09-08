@@ -3,7 +3,7 @@
 // that changes within a mode — GO's disabled state, the lit floor, a choice's result — is patched
 // in place, so a button never vanishes under a finger mid-tap.
 import { label } from '../elevator.js'
-import { isPassengerFloor } from '../trivia.js'
+import { isPassengerFloor, CHOICE_LETTERS } from '../trivia.js'
 import { repair } from '../explain.js'
 import { BLANK, fmt } from '../math.js'
 import { STABLE } from '../state.js'
@@ -15,7 +15,9 @@ const busy = (state) => !STABLE.has(state.phase) && state.phase !== 'lobby'
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 
 const OPS = { '+': 'add', '−': 'sub', '×': 'mul', '÷': 'div', '▲': 'up', '▼': 'down' }
-export const LETTERS = ['A', 'B', 'C']
+// One definition, in src/trivia.js, so the fact card can name the answer by the same letter the
+// display band does (r3-autism-fit-01).
+export const LETTERS = CHOICE_LETTERS
 
 // The equation as spans: colour-coded, shape-distinct operators; the blank shows what was typed.
 export function equationHTML(text, typed, done) {
@@ -58,6 +60,9 @@ function modeOf(state) {
 function tagFloors(state) {
   const r = state.ride
   const out = []
+  // The same gate arrive() applies before it offers a passenger: with no bank loaded there is
+  // nobody to tag (r3-code-hostile-04).
+  if (!state.pool || !state.pool.length) return out
   for (let f = 1; f <= 9; f++) if (isPassengerFloor(f, state.settings.passengers) && !(r && r.passengersDone.includes(f))) out.push(f)
   return out
 }
@@ -203,7 +208,13 @@ function patchTrivia(container, state) {
 function floorName(f) {
   return f === 0 ? 'Ground floor' : f === 10 ? 'Roof' : f === -1 ? 'Pit' : `Floor ${f}`
 }
-const OP_GLOSS = { up: '▲ means go up: add.', down: '▼ means go down: take away.' }
+// ▲ AND ▼ ARE OPERATORS ON THE NUMBER, NOT INSTRUCTIONS TO THE CAR (r3-math-04).
+// The old gloss read `▼ means go down: take away.` while a correct answer sends the car UP one
+// floor — and the only time the car obeys a ▼ is the fall onto the spikes. Same glyphs, opposite
+// referents, on the screen the child reads before answering. The operators stay (DESIGN §86 ships
+// them as the elevator-native form, and dropping ▼ would leave ▲ with the identical clash), but the
+// sentence now says what moves: the NUMBER. The rules card's own line was changed to match.
+const OP_GLOSS = { up: '▲ is add: the number goes up.', down: '▼ is take away: the number goes down.' }
 function opGloss(p) { return (p && OP_GLOSS[p.kind]) || '' }
 function doorsLine(state) {
   const open = state.car.doors === 'open' || state.car.doors === 'opening'
@@ -239,13 +250,20 @@ export function createDisplay(questionEl, messageEl) {
       // child who has just met the glyph is looking, and yields to any real message.
       case 'keypad': set(equationHTML(r.problem.text, r.typed), '', state.message || (r.retrying ? 'Same sum. Ride back up.' : opGloss(r.problem))); break
       case 'moving': set(r && r.problem ? equationHTML(r.problem.text, '', r.problem.answer) + '<span class="tick"> ✓</span>' : 'Going up', r && r.problem ? '' : 'text', ''); break
-      case 'falling': set(r && r.problem ? equationHTML(r.problem.text, '', r.problem.answer) : '', '', ''); break
+      // THE 1.2 s BEFORE THE FALL WAS THE REWARD DISPLAY MINUS A TICK (r3-elevator-feel-01).
+      // `moving` (a CORRECT answer) draws exactly this string plus a green ✓, and `.blank.filled`
+      // had no rule of its own, so the true answer arrived in the same blue, on the same underline,
+      // as the digits the child had just typed: the wrong 7 silently became a 10 and the car
+      // dropped, with an empty message band. No cross and no red — the fall carries no punishing
+      // copy anywhere (BRIEF §7) — but the true answer now has its own ink (`.truth`), and the band
+      // says whose answer the vanished one was.
+      case 'falling': set(r && r.problem ? equationHTML(r.problem.text, '', r.problem.answer) : '', 'truth', r && r.typedWrong ? `you pressed ${esc(r.typedWrong).replace('-', '−')}` : ''); break
       case 'pit': case 'repair': set('Safety brake on.', 'text small', 'Nobody is hurt. Nothing is lost.'); break
       case 'trivia': set('A passenger asks:', 'text small', ''); break
       case 'fact': {
         const t = state.trivia
         if (t && t.result === 'right') set('That is right.', 'text small', '+2 bacon')
-        else set(`The answer is ${t ? LETTERS[t.answer] : ''}.`, 'text small', '')
+        else set(`The answer is ${t ? LETTERS[t.answer] : ''}.`, 'text small', t ? t.choices[t.answer] : '')
         break
       }
       case 'descending': set('Going down', 'text', ''); break

@@ -86,7 +86,22 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
    motivated it AND removes pinch-zoom, over exactly the screens with the smallest text (the Fact
    Book's sources, the Grown-ups notes, the save code). index.html deliberately leaves user scaling
    on; this is the one place that was quietly taking it away again. */
-.page { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 16px 24px; touch-action: pan-y pinch-zoom; overscroll-behavior: contain; }
+.page {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 16px 24px;
+  touch-action: pan-y pinch-zoom; overscroll-behavior: contain;
+  /* A `.page` THAT OVERFLOWS MUST SAY SO. The same four-layer cue `.sheet .body` was given, for the
+     same reason and by the same mechanism (the two `local` gradients paint over the two `scroll`
+     shadows as the content reaches each end; nothing at all when the page fits). The roof card at
+     568 x 276 drew the picnic, the tray line and the bonus and then clean paper, with `Next building`
+     and `Lobby` both 0 px on screen and nothing saying the card continued - a finished-looking dead
+     end at the reward moment (r3-mobile-ux-1); the lobby's own `Ride` is a 26 px sliver at the same
+     size (r3-mobile-ux-3), and se1 portrait hides the roof's `Lobby` outright (r3-mobile-ux-5). */
+  background:
+    linear-gradient(var(--paper) 40%, rgba(244, 241, 234, 0)) top / 100% 20px no-repeat local,
+    linear-gradient(rgba(244, 241, 234, 0), var(--paper) 60%) bottom / 100% 20px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(43, 43, 43, 0.20), rgba(43, 43, 43, 0)) top / 100% 11px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(43, 43, 43, 0.20), rgba(43, 43, 43, 0)) bottom / 100% 11px no-repeat scroll;
+}
 /* The way out of a long page is reachable at ANY scroll position: the header bar pins itself.
    (Grown-ups is 2100–2350 px tall; its Lobby button used to scroll away at the top.) The negative
    margins and top: -12px cancel .page's own padding so the bar spans the width and pins flush. */
@@ -188,10 +203,27 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 #question .blank { display: inline-block; min-width: 0.6em; border-bottom: 4px solid var(--go); color: var(--go); }
 #question .blank.empty::after { content: "▮"; color: #b9c6d4; }
 #question .tick { color: var(--sage-deep); }
+/* THE PANEL'S OWN NUMBER, NOT THE CHILD'S. `.blank.filled` had no rule of its own, so the true
+   answer shown for the 1.2 s before a fall arrived in the same blue on the same underline as the
+   digits the child had just typed - the reward display minus one small green tick. Ink and a solid
+   rule in --ink: no cross, no red, nothing punishing (BRIEF item 7), just visibly the machine's own
+   writing rather than the child's (r3-elevator-feel-01). */
+#question.truth .blank.filled { color: var(--ink); border-bottom-color: var(--ink); }
 #message { min-height: 20px; font-size: calc(var(--body) / 18 * 16); line-height: 1.25; color: var(--ink-soft); text-align: center; }
 #message:empty { display: none; }
 
+/* When the panel is the band that yields (a short landscape or a short portrait window) it is the
+   only scroller on the screen, and at 568 x 232 the bottom row - the 0 key and GO - hangs 26 px
+   below the fold at rest with nothing saying to drag inside it. Same cue as `.sheet .body` and
+   `.page`; inert whenever the panel fits, which is every other geometry (r3-elevator-feel-05). */
 .panel { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: var(--cell); gap: var(--gap); padding: var(--gap); background: var(--paper); }
+.ride .panel {
+  background:
+    linear-gradient(var(--paper) 40%, rgba(244, 241, 234, 0)) top / 100% 16px no-repeat local,
+    linear-gradient(rgba(244, 241, 234, 0), var(--paper) 60%) bottom / 100% 16px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(43, 43, 43, 0.20), rgba(43, 43, 43, 0)) top / 100% 9px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(43, 43, 43, 0.20), rgba(43, 43, 43, 0)) bottom / 100% 9px no-repeat scroll;
+}
 .panel .cell { display: flex; align-items: center; justify-content: center; min-height: var(--cell); min-width: 48px; border-radius: 12px; font-size: calc(var(--body) / 18 * 26); font-weight: 700; font-variant-numeric: tabular-nums; position: relative; }
 .panel .key { background: #fff; border: 3px solid var(--line); box-shadow: 0 3px 0 #b9b3a4; }
 .panel .key:active:not(:disabled) { box-shadow: 0 1px 0 #b9b3a4; transform: translateY(2px); }
@@ -206,7 +238,10 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .panel .spacer { background: transparent; }
 .panel .floor { background: transparent; }
 .panel .floor .face { width: min(54px, calc(var(--cell) - 2px)); height: min(54px, calc(var(--cell) - 2px)); border-radius: 50%; border: 3px solid var(--line); background: #fff; display: flex; align-items: center; justify-content: center; font-size: calc(var(--body) / 18 * 24); box-shadow: 0 0 0 0 rgba(232, 176, 74, 0); transition: box-shadow 200ms ease, background 200ms ease; }
-.panel .floor:disabled .face { color: #9a968c; border-color: #b5b0a3; background: #f2efe8; }
+/* 2.57:1 at 24 px/700 - formally exempt (WCAG 1.4.3 excludes disabled controls) and semantically
+   right for an unlit call button, but this is the surface a lift-loving child stares at most. The
+   dimming cue stays in the ring and the fill; the DIGIT now reads at 4.6:1 (r3-autism-fit-04). */
+.panel .floor:disabled .face { color: #6F6B62; border-color: #b5b0a3; background: #f2efe8; }
 .panel .floor.target .face { border-color: #9A7A2A; }
 .panel .floor.target .face { animation: pulse 1s ease-in-out infinite; }
 /* `color` too: a lit button is always disabled, so without this the digit inherits the disabled
@@ -215,7 +250,12 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .panel .floor.lit .face { animation: none; background: var(--amber); color: var(--ink); box-shadow: 0 0 0 6px rgba(232, 176, 74, 0.45); border-color: #9A7A2A; }
 .panel .floor .tag { position: absolute; top: 2px; right: 22px; width: 22px; height: 22px; border-radius: 50%; background: var(--go); color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; }
 .panel .door-key { font-size: calc(var(--body) / 18 * 24); letter-spacing: -2px; }
-.panel .bell { font-size: calc(var(--body) / 18 * 17); letter-spacing: 1px; }
+/* Bigger text raises --body to 21 px, so the bell's two lines (the emoji over RULES) needed 47 px of
+   a 42 px content box at 320 wide and the word sat half off the bottom of the key - the one setting
+   whose whole job is legibility, clipping the label it enlarged. The type is NOT reduced (that is
+   the setting undoing itself, and the drive checks that every panel key grows with it): the two
+   lines are set solid instead, which buys the 5 px (r3-code-hostile-05). */
+.panel .bell { font-size: calc(var(--body) / 18 * 17); letter-spacing: 1px; line-height: 1; }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 176, 74, 0); background: #fff; } 50% { box-shadow: 0 0 0 6px rgba(232, 176, 74, 0.45); background: #FFF0CC; } }
 
 /* trivia mode: the question over two rows, three lettered choices; after a choice the right one
@@ -224,6 +264,19 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
    the ≤ 90 / ≤ 40 caps), so trivia rows are sized by their text, not by the cell: the question is
    exactly as tall as it needs and each choice grows past its 48 px floor rather than clipping. */
 .panel[data-mode="trivia"] { grid-auto-rows: minmax(var(--cell), auto); }
+/* TRIVIA ROWS ARE SIZED BY THEIR TEXT, so this is the one mode whose height the layout cannot
+   predict: the bank's longest question with the three longest choices, at Bigger text on a 320 px
+   phone, runs 54 px past the fold, and `overflow-y: visible` meant the third answer could not be
+   scrolled to. `0 1 auto` changes nothing while the panel fits (every real item in the bank does,
+   measured over all 1 206 presentations); when it does not, the panel is the band that yields and
+   scrolls inside its own box, exactly as it already does in short landscape (r3-mobile-ux-7). */
+@media (orientation: portrait) {
+  /* `minmax(--cell, auto)` distributes the panel's height equally across the four rows once the
+     panel is allowed to shrink, which clips the question rather than scrolling it; `min-content`
+     sizes each row to its own wrapped text and lets the panel be the thing that scrolls. The 48 px
+     floor is unaffected: it lives on `.panel .cell`. */
+  .ride .panel[data-mode="trivia"] { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; align-content: start; grid-auto-rows: min-content; }
+}
 .panel .tq { grid-column: span 3; display: flex; align-items: center; justify-content: center; text-align: center; font-size: clamp(calc(var(--body) / 18 * 14), 4.6vw, calc(var(--body) / 18 * 17.5)); line-height: 1.25; padding: 2px 4px; font-weight: 600; }
 .panel .choice { grid-column: span 3; display: flex; align-items: center; justify-content: flex-start; gap: 10px; background: #fff; border: 3px solid var(--line); border-radius: 12px; font-size: clamp(calc(var(--body) / 18 * 16), 4.6vw, calc(var(--body) / 18 * 18)); font-weight: 600; line-height: 1.2; padding: 6px 10px; min-height: var(--cell); height: auto; text-align: left; white-space: normal; box-shadow: 0 3px 0 #b9b3a4; transition: background 200ms ease, opacity 200ms ease; }
 .panel .choice .letter { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); font-size: 14px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
@@ -238,6 +291,10 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .panel .card { grid-column: span 3; grid-row: span 4; display: flex; flex-direction: column; text-align: center; background: #fff; border: 3px solid var(--line); border-radius: 14px; padding: 6px 12px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .panel .card .inner { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .panel .card .big { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: calc(var(--body) / 18 * 34); font-weight: 700; }
+/* On a missing-number sum the card's headline reads `1 + 2 = 3` with the recovered 2 in the same
+   weight and colour as the 1 and the 3, while the clause under it says `so [blank] is 3 - 1` - the
+   child has to map the blank back to a position. The clause's own teal names it instead (r3-math-08). */
+.panel .card .big .blank.filled { color: var(--op-add); border-bottom-color: var(--op-add); }
 .panel .card .small { font-size: calc(var(--body) / 18 * 16); color: var(--ink-soft); }
 .panel .card .worked { font-family: var(--mono); font-size: calc(var(--body) / 18 * 17); line-height: 1.3; overflow-wrap: anywhere; }
 .panel .card .worked.long { font-size: calc(var(--body) / 18 * 15); }
@@ -287,6 +344,11 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .roof .picnic-wrap { position: relative; width: min(300px, 80vw); }
 .roof .picnic { display: block; width: 100%; height: auto; }
 .roof .gain { font-size: calc(var(--body) / 18 * 24); font-weight: 700; margin: 6px 0; }
+/* The roof card's two controls are the last thing in a `.page` 532 px tall, so on every landscape
+   phone and on se1 portrait they sat below the fold. Sticky pins them to the bottom of the scroller
+   whenever the card overflows and does nothing at all when it fits - no markup change, and the card
+   still scrolls to read the rest (r3-mobile-ux-1, r3-mobile-ux-5). */
+.roof .page > .stack { position: sticky; bottom: 0; z-index: 3; background: var(--paper); padding: 6px 0 2px; }
 /* the drift stays inside the picnic band: never over the text or the buttons */
 .roof .drift { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .roof .drift svg { position: absolute; width: 44px; height: 22px; animation: drift 2s ease-out forwards; }
@@ -325,13 +387,15 @@ html.reduced * { transition-duration: 0ms !important; }
 /* ---------- short viewports and landscape ---------- */
 /* Two short-viewport tiers. They shrink the display band and the gaps — never a tap target —
    and trim the Rules card to one screen. The landscape block below comes last and still wins. */
-@media (max-height: 620px) {
-  :root { --display: 72px; --gap: 4px; }
-  #question { font-size: calc(var(--body) / 18 * 34) }
-  #question .op-mul { font-size: 0.8em }  /* × stays smaller and thinner: the shape, not the colour, carries the difference */
-  #question.text { font-size: calc(var(--body) / 18 * 24) }
-  #question.small { font-size: calc(var(--body) / 18 * 19) }
-  #message { font-size: calc(var(--body) / 18 * 15); min-height: 18px; line-height: 1.2 }
+/* THE RULES CARD'S OWN COMPACTION BAND, WIDER THAN THE RIDE'S.
+   The tier below starts at 620 px, so a viewport of 621-661 px took the FULL-size Rules type with no
+   room for it: at 360 x 640 - a 360 x 720 dp Android in Chrome, and what `display: standalone` hands
+   an installed Home Screen icon - the body needed 584 px in 562 and sliced `There is no clock.`
+   through its last line, which is the one sentence on the card doing the anxiety work. Measured, the
+   card needs 662 px to fit at full size, and at 320 wide it never does; the compaction is therefore
+   applied to `.rules` alone up to 700 px, leaving the ride's own budget untouched (r3-mobile-ux-2).
+   The `--tall` phone profiles, the only ones that reach this band, are now in the gate. */
+@media (max-height: 700px) {
   .rules .body { padding: 4px 12px 6px }
   .rules h1 { font-size: calc(var(--body) / 18 * 20); margin: 0 0 4px }
   .rules .pics { gap: 6px; margin: 4px 0 }
@@ -345,6 +409,15 @@ html.reduced * { transition-duration: 0ms !important; }
   /* The line that goes first: it restates the two "Right" pictures directly above it. The "Wrong:"
      paragraph (the spikes and the brake) is the sensory-risk item and stays at every size. */
   .rules p.detail { display: none }
+}
+@media (max-height: 620px) {
+  :root { --display: 72px; --gap: 4px; }
+  #question { font-size: calc(var(--body) / 18 * 34) }
+  #question .op-mul { font-size: 0.8em }  /* × stays smaller and thinner: the shape, not the colour, carries the difference */
+  #question.text { font-size: calc(var(--body) / 18 * 24) }
+  #question.small { font-size: calc(var(--body) / 18 * 19) }
+  #message { font-size: calc(var(--body) / 18 * 15); min-height: 18px; line-height: 1.2 }
+  /* the Rules card's own compaction is the 700 px tier above: one source of truth, not two */
 }
 @media (max-height: 500px) {
   :root { --display: 60px; }
@@ -381,10 +454,24 @@ html.reduced * { transition-duration: 0ms !important; }
    putting a key off screen. */
 @media (max-height: 500px) and (orientation: landscape) {
   :root { --gap: 3px; --display: 56px; --cell: clamp(48px, calc((var(--vh) - var(--panel-chrome)) / 5), 56px); }
+  /* THE MENU SCREENS HAD NO LANDSCAPE LAYOUT AT ALL while the ride had a whole grid. On an SE 1
+     turned sideways the lobby hero (doors, title, lunchbox) took the first 250 px of a 276 px
+     viewport and left `Ride` — the one button that starts the game — as a 26 px unlabelled blue
+     sliver at the bottom edge (r3-mobile-ux-3). The art is the part with no words on it, so it is
+     the part that yields; the title and the total stay. */
+  .lobby-head { padding: 6px 0 4px; gap: 2px; }
+  .lobby-head .title-art { width: min(150px, 34vw); }
+  .lobby-head h1 { font-size: calc(var(--body) / 18 * 22); margin: 0; }
   /* the left column may shrink below the top bar's natural width (the level name ellipsises), so nothing ever overflows the viewport */
   .ride.active { display: grid; grid-template-columns: minmax(0, 1fr) minmax(288px, 320px); grid-template-rows: var(--topbar) var(--display) 1fr; grid-template-areas: 'top panel' 'display panel' 'shaft panel'; }
   .ride .topbar { grid-area: top; min-width: 0; gap: 2px; padding: 0 2px; }
   .ride .topbar .tb { padding: 0 4px; }
+  /* The panel column takes 288-320 px of a 568 px viewport, so the five top-bar items share ~250 px
+     and every one of them was squeezed to its 48 px minimum with its ink spilling ~5 px past it -
+     the `y` of `Lobby` sitting on the first step pip. The same answer the 340 px rule already gives:
+     the level is named on the lobby chip, the picker and Grown-ups, so the chip drops its name here
+     and the labels fit at full size (r3-mobile-ux-4). */
+  .ride .topbar .chip .lname { display: none; }
   .ride .shaft { grid-area: shaft; min-height: 0; }
   .ride .display { grid-area: display; }
   /* the keys sit at the BOTTOM of the column, where the thumb is, exactly as they do in portrait;

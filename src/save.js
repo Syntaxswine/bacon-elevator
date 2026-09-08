@@ -7,7 +7,7 @@ export const SAVE_KEY = 'bacon-elevator.save.v1'
 // `writes` is the record's own monotone write counter: main.js refuses to overwrite a record whose
 // counter has moved past the one this tab last wrote, which is what stops a second tab holding an
 // older snapshot from zeroing the lunchbox the moment it is backgrounded.
-const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'plaques']
+const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'struggleRun', 'plaques']
 
 export function serialize(state) {
   const out = {}
@@ -46,6 +46,7 @@ export function migrate(obj) {
   s.pinnedStep = Math.max(1, Math.min(3, int(obj.pinnedStep, 1)))
   s.rulesSeen = bool(obj.rulesSeen, false)
   s.step3Run = Math.max(0, int(obj.step3Run, 0))
+  s.struggleRun = Math.max(0, int(obj.struggleRun, 0))
   s.plaques = [...new Set(strArr(obj.plaques))]   // an older save may hold the same plaque many times
   const st = isObj(obj.settings) ? obj.settings : {}
   s.settings = {
@@ -138,6 +139,7 @@ function migrateRide(r) {
     draws: clampInt(r.draws, 0, MAX_COUNT, 0),
     ctx: isObj(r.ctx) ? r.ctx : null,
     lastKind: oneOf(r.lastKind, ['elevator', 'math'], null),
+    lastRetry: bool(r.lastRetry, false),
     fallFloor: clampInt(r.fallFloor, 0, 10, 0),
     roofCard: roofCardOf(r.roofCard),
     inFlight,
