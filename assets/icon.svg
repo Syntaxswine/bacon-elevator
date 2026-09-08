@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Bacon Elevator app icon: an elevator car with its doors open, bacon inside. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b3140"/>
+      <stop offset="1" stop-color="#171a24"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- shaft frame -->
+  <rect x="116" y="76" width="280" height="360" rx="18" fill="#3b4256" stroke="#5a6480" stroke-width="10"/>
+  <!-- indicator -->
+  <rect x="196" y="98" width="120" height="40" rx="8" fill="#0e1117" stroke="#5a6480" stroke-width="4"/>
+  <text x="256" y="128" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="30" font-weight="700" fill="#ffb454" text-anchor="middle">▲ 12</text>
+  <!-- open doors -->
+  <rect x="134" y="156" width="46" height="262" fill="#8a94ad"/>
+  <rect x="332" y="156" width="46" height="262" fill="#8a94ad"/>
+  <!-- car interior -->
+  <rect x="180" y="156" width="152" height="262" fill="#f4e9d8"/>
+  <!-- bacon strip (wavy) -->
+  <path d="M212 232 C232 204, 252 260, 272 232 S312 204, 300 232 L300 348 C280 376, 260 320, 240 348 S200 376, 212 348 Z" fill="#c8452b"/>
+  <path d="M222 244 C240 222, 256 266, 274 244 S300 226, 290 244 L290 336 C272 358, 256 314, 240 336 S212 358, 222 336 Z" fill="#f2a58c" opacity="0.9"/>
+  <path d="M232 256 C244 244, 256 272, 268 256 S288 244, 280 256 L280 324 C268 340, 256 308, 244 324 S224 340, 232 324 Z" fill="#c8452b" opacity="0.85"/>
+</svg>
