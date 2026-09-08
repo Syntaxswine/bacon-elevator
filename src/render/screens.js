@@ -152,6 +152,15 @@ function noticeHTML(extras = {}) {
   const out = []
   if (extras.storageFailed) out.push('<p class="muted small" id="storagemsg">This browser is not keeping the score. Bacon will be here until the tab closes, then it starts again. Grown-ups &rarr; Save code copies it out.</p>')
   if (extras.adopted) out.push('<p class="muted small" id="adoptedmsg">Another tab of the game had newer bacon, so this one caught up with it.</p>')
+  // A SAVE THAT WILL NOT PARSE USED TO RESET THE LUNCHBOX IN SILENCE (r4-autism-fit-5). migrate()
+  // falls back to initialState() for unreadable JSON, so the game booted as a brand-new save with
+  // no console error and nothing on any screen — while the neighbouring failure, a REFUSED write,
+  // has explained itself since round 2. The unreadable text is kept aside under its own key so a
+  // grown-up still has something to paste at Grown-ups → Save code.
+  if (extras.saveUnreadable) out.push('<p class="muted small" id="saveerrmsg">The saved lunchbox could not be read, so this is a fresh start. A grown-ups save code, if you have one, can put it back.</p>')
+  // The confirmation of a two-tap reset, which used to be written to the Grown-ups screen the same
+  // dispatch navigated away from (r4-code-hostile-05).
+  if (extras.lobbyMsg) out.push(`<p class="muted small" id="lobbymsg" aria-live="polite">${esc(extras.lobbyMsg)}</p>`)
   return out.join('')
 }
 
@@ -171,7 +180,9 @@ export function lobby(state, extras = {}) {
       </svg>
       <h1>Bacon Elevator</h1>
       <div class="total" aria-label="lunchbox total">${LUNCH} <span id="lunchbox-total">${state.lunchbox}</span> ${BACON()}</div>
-      ${state.ride ? `<p class="muted small">A building is waiting at floor ${esc(floorLabel(state.ride.floor))} with ${state.ride.tray} bacon on the tray.</p>` : ''}
+      ${/* The tray minus what it has already given the lunchbox: after a mid-building Lobby tap the
+            old line counted the same bacon twice, once here and once in the total above it. */''}
+      ${state.ride ? `<p class="muted small">A building is waiting at floor ${esc(floorLabel(state.ride.floor))} with ${Math.max(0, state.ride.tray - (state.ride.banked || 0))} bacon on the tray.</p>` : ''}
 
       ${noticeHTML(extras)}
     </div>
@@ -193,7 +204,12 @@ export function lobby(state, extras = {}) {
            band of its own: the lobby now has four places to go and one Ride button, and Ride must
            stay the tall one. -->
       <div class="row spread">
-        <button class="btn ${state.settings.sound ? 'on' : ''}" data-sound data-tap aria-pressed="${state.settings.sound ? 'true' : 'false'}" aria-label="Sound ${state.settings.sound ? 'on' : 'off'}">♪ Sound ${state.settings.sound ? 'on' : 'off'}</button>
+        ${/* LABEL, THEN STATE (r4-autism-fit-4). The visible text was the CURRENT state on a control
+              shaped like a command, so a child reading `♪ Sound off` and tapping it got sound ON —
+              the opposite of what the words said. Grown-ups has always used label + switch
+              (`Sound` with an [Off] pill); the lobby now uses the same idiom, so the words name the
+              thing and the pill names the state. */''}
+        <button class="btn sound-btn ${state.settings.sound ? 'on' : ''}" data-sound data-tap role="switch" aria-checked="${state.settings.sound ? 'true' : 'false'}" aria-label="Sound">♪ Sound<span class="pill">${state.settings.sound ? 'On' : 'Off'}</span></button>
         <button class="btn quiet" data-gear data-nav="grownups" data-tap aria-label="Grown-ups: tap twice">⚙ Grown-ups</button>
       </div>
       ${/* WHAT THE NEXT THING IS AND HOW FAR AWAY IT IS — on the screen the child starts from, not
@@ -214,7 +230,7 @@ export function lobby(state, extras = {}) {
 export function picker(state) {
   return `<div class="page">
     <div class="row spread"><h1>Pick a building</h1><button class="btn" data-nav="lobby" data-tap aria-label="Back to lobby">Lobby</button></div>
-    ${state.ride ? `<p class="muted small">The building waiting at floor ${esc(floorLabel(state.ride.floor))} is finished when you pick another one: its ${state.ride.tray} bacon go into the lunchbox and the next Ride starts a new building at G.</p>` : ''}
+    ${state.ride ? `<p class="muted small">The building waiting at floor ${esc(floorLabel(state.ride.floor))} is finished when you pick another one: its ${Math.max(0, state.ride.tray - (state.ride.banked || 0))} bacon go into the lunchbox and the next Ride starts a new building at G.</p>` : ''}
     <p class="muted small">The tag says how big the numbers are. The bar is the step inside the building.</p>
     <div class="level-list">
       ${LEVELS.map((l) => `<button class="btn level ${state.level === l.id ? 'current' : ''}" data-level="${l.id}" data-tap aria-label="${esc(l.name)}, ${esc(l.tag)}">${silhouette(l.id)}<span><span class="name">${esc(l.name)}</span><br><span class="tag">${esc(l.tag)}</span></span><span style="margin-left:auto">${stepbar(state.level === l.id ? state.step : (state.adaptive ? 1 : state.pinnedStep))}</span></button>`).join('')}
@@ -225,7 +241,10 @@ export function picker(state) {
 
 const PIC = {
   press: `<svg viewBox="0 0 120 84"><circle cx="60" cy="42" r="26" fill="#FFF0CC" stroke="#9A7A2A" stroke-width="4"/><text x="60" y="52" text-anchor="middle" font-size="28" font-weight="700" fill="#2B2B2B" font-family="system-ui">3</text></svg>`,
-  solve: `<svg viewBox="0 0 120 84"><text x="60" y="38" text-anchor="middle" font-size="24" font-weight="700" fill="#2B2B2B" font-family="ui-monospace, monospace">7 <tspan fill="#2F7A8C">+</tspan> 5 = <tspan fill="#4A7BAA">12</tspan></text><text x="60" y="70" text-anchor="middle" font-size="21" font-weight="700" fill="#2B2B2B" font-family="ui-monospace, monospace">6 <tspan fill="#2F7A8C">▲</tspan> 4 = <tspan fill="#4A7BAA">10</tspan></text></svg>`,
+  // THREE WORKED EXAMPLES, because the game asks three shapes. The first two put the blank at the
+  // end; `a + ▮ = c` moves it into the middle and arrives at Corner Shop step 3 — question 7 of a
+  // fresh save — and the card said nothing about it at all (r4-math-03).
+  solve: `<svg viewBox="0 0 120 84"><text x="60" y="26" text-anchor="middle" font-size="21" font-weight="700" fill="#2B2B2B" font-family="ui-monospace, monospace">7 <tspan fill="#2F7A8C">+</tspan> 5 = <tspan fill="#4A7BAA">12</tspan></text><text x="60" y="52" text-anchor="middle" font-size="19" font-weight="700" fill="#2B2B2B" font-family="ui-monospace, monospace">6 <tspan fill="#2F7A8C">▲</tspan> 4 = <tspan fill="#4A7BAA">10</tspan></text><text x="60" y="78" text-anchor="middle" font-size="19" font-weight="700" fill="#2B2B2B" font-family="ui-monospace, monospace">7 <tspan fill="#2F7A8C">+</tspan> <tspan fill="#4A7BAA">5</tspan> = 12</text></svg>`,
   up: `<svg viewBox="0 0 120 84"><rect x="40" y="26" width="40" height="46" rx="3" fill="#E9E4D8" stroke="#6B6B6B" stroke-width="3"/><path d="M60 6 l12 14 h-8 v6 h-8 v-6 h-8 z" fill="#6E9B6E" stroke="#4E7B4E" stroke-width="2"/><use href="#bacon" x="84" y="40" width="32" height="16"/></svg>`,
   fall: `<svg viewBox="0 0 120 84"><rect x="22" y="8" width="36" height="40" rx="3" fill="#E9E4D8" stroke="#6B6B6B" stroke-width="3"/><path d="M40 52 l-8 -10 h16 z" fill="#5B6B7A"/><path d="M26 78 l6 -14 l6 14 M38 78 l6 -14 l6 14 M50 78 l6 -14 l6 14" fill="#9A9A9A" stroke="#6B6B6B" stroke-width="2" stroke-linejoin="round"/><path d="M84 70 V20" stroke="#6E9B6E" stroke-width="5" stroke-linecap="round"/><path d="M72 32 l12 -14 l12 14" fill="none" stroke="#6E9B6E" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   // A faceless passenger inside the car, and the question mark that tags their floors.
@@ -234,18 +253,25 @@ const PIC = {
 
 export function rules(state) {
   const from = state.ride && state.screen === 'rules' ? 'Ride' : 'Ride'
+  const second = !!state.settings.secondTry
   return `<div class="sheet rules" role="dialog" aria-label="Rules">
     <div class="body">
       <h1>How it works</h1>
       <div class="pics">
         <div class="pic">${PIC.press}Press the lit button</div>
-        <div class="pic">${PIC.solve}Work out the sum. ▲ = add, ▼ = take away</div>
+        <div class="pic">${PIC.solve}Work out the sum. ▲ = add, ▼ = take away, ▮ = missing</div>
         <div class="pic">${PIC.up}Right: up one floor, bacon on the tray</div>
-        <div class="pic">${PIC.fall}Wrong: a fall, then back up</div>
+        <div class="pic">${PIC.fall}Wrong: ${second ? 'one more go, then a fall' : 'a fall, then back up'}</div>
         <div class="pic wide">${PIC.passenger}<span>A passenger may ask a question. <strong>A passenger's question never falls.</strong></span></div>
       </div>
       <p class="detail">Right: the doors close, the elevator goes up one floor${state.settings.sound ? ', one ding' : ''}, the bacon slides in.${state.settings.sound ? '' : ' Turn on ♪ for the ding.'}</p>
-      <p>Wrong: the panel shows the true sum, then the elevator falls onto the springy spikes. The safety brake catches it. A repair card shows the sum, and you answer it again.</p>
+      ${/* THE CARD MUST STATE THE RULE THAT ACTUALLY RUNS (r4-elevator-feel-02, r4-autism-fit-6).
+            `secondTry` ships ON, so the first wrong answer clears the entry and nothing falls — a
+            rule stated only on the Grown-ups toggle, a screen the child is never sent to, while the
+            card the child IS shown, unskippably, on the first Ride said "Wrong: a fall". Every other
+            promise on this card is exact; a rule-literal child tests this one on their first sum.
+            The card already varies on `settings.sound` one line up; this is the same mechanism. */''}
+      <p>${second ? 'Wrong: the entry clears and you try again. Miss it twice and the panel shows the true sum, then the elevator falls onto the springy spikes. The safety brake catches it.' : 'Wrong: the panel shows the true sum, then the elevator falls onto the springy spikes. The safety brake catches it. A repair card shows the sum, and you answer it again.'}</p>
       <p class="never">Bacon rides on the tray and goes into the lunchbox at the roof. <strong>Bacon is never lost. There is no clock.</strong></p>
     </div>
     <div class="foot"><button class="btn primary wide" data-continue data-tap aria-label="${from}">${from}</button></div>
@@ -265,8 +291,16 @@ export function roof(state) {
   const justReached = cg.reached.length ? cg.reached[cg.reached.length - 1] : null
   const fresh = justReached && state.records && state.records.floors - justReached.floors < 11 ? justReached : null
   const unlockedParts = info.unlocked.map((id) => PARTS.find((pp) => pp.id === id)).filter(Boolean)
-  const offerName = info.offer ? (LEVELS.find((l) => l.id === info.offer) || {}).name : null
+  const offerLevel = info.offer ? LEVELS.find((l) => l.id === info.offer) : null
+  const offerName = offerLevel ? offerLevel.name : null
   const taken = info.offerTaken ? (LEVELS.find((l) => l.id === info.offerTaken) || {}).name : null
+  // A PROMOTION AND A RESCUE WERE THE SAME SENTENCE (r4-math-05). `Try Megatall?` and `Try
+  // Skyscraper?` are the same eight words with the same two buttons, so after two ruinous buildings
+  // the way out read exactly like a reward, and neither card said what the child was agreeing to —
+  // the level's tag, which the picker has shown all along. Direction, then the tag.
+  const offerLine = offerLevel
+    ? `${info.dir === 'down' ? 'Back to' : 'Ready for'} ${esc(offerName)} — ${esc(offerLevel.tag)}?`
+    : ''
   // Six strips drift up for 2 s inside the picnic band only (never across the text or the buttons); none under reduced motion.
   const drift = Array.from({ length: 6 }, (_, i) => `<svg viewBox="0 0 64 32" style="left:${6 + i * 15}%;bottom:${6 + (i % 3) * 10}%;animation-delay:${i * 120}ms"><use href="#bacon"/></svg>`).join('')
   return `<div class="page">
@@ -281,7 +315,7 @@ export function roof(state) {
       </svg>
       <div class="drift" aria-hidden="true">${drift}</div>
     </div>
-    ${info.gained === null ? '' : `<p class="gain">Tray ${info.gained} → lunchbox</p>
+    ${info.gained === null ? '' : `<p class="gain">${info.midBanked ? `${info.gained} more bacon` : `Tray ${info.gained}`} → lunchbox</p>
     <p class="gain">+${info.bonus} roof bonus</p>`}
     <p class="total">${LUNCH} <span id="lunchbox-roof">${state.lunchbox}</span> ${BACON()}</p>
     ${unlockedParts.length ? `<div class="new-parts">${unlockedParts.map((pp) => `<span class="new-part">${partArt(pp.id)}<span><strong>New in the Workshop:</strong><br>${esc(pp.name)}</span></span>`).join('')}</div>` : ''}
@@ -290,8 +324,21 @@ export function roof(state) {
     ${next ? `<p class="muted" data-next-goal>${next.part ? `Next part at ${next.at} bacon: ${esc(next.part.name)} — ${next.at - state.lunchbox} more` : `Next plaque at ${next.at} bacon — ${next.at - state.lunchbox} more`}</p>` : ''}
     ${climbLine ? `<p class="muted" data-climb-goal>${esc(climbLine)}</p>` : ''}
     ${taken ? `<p><strong>Next building: ${esc(taken)}.</strong></p>` : ''}
-    ${offerName ? `<div class="row" style="justify-content:center"><span>Try ${esc(offerName)}?</span><button class="btn" data-offer="yes" data-tap aria-label="Yes, try ${esc(offerName)}">Yes</button><button class="btn primary" data-offer="stay" data-tap aria-label="Stay">Stay</button></div>` : ''}
-    <div class="stack" style="width:100%;max-width:360px;margin-top:12px">
+    ${info.help ? `<p class="muted small" data-roof-help>Corner Shop is the smallest building. A grown-up can make the numbers smaller still: Grown-ups → Custom numbers.</p>` : ''}
+  </div>
+  ${/* THE FOOT IS NOT INSIDE THE SCROLLER (r4-code-hostile-01, r4-autism-fit-1, r4-elevator-feel-01,
+        r4-mobile-ux-1). It used to be the last block of the `.page` with `position: sticky; bottom:
+        0` and an opaque paper background, so on every phone the project ships a profile for it
+        painted over the card it was pinned inside: the part unlock 100 % hidden at 320 x 454, the
+        lunchbox total sliced through its digits, both forward-goal lines covered, and — the worst
+        of it — the level offer drawn UNDER the two buttons, where a tap at the centre of `Yes`
+        dispatched `to-lobby` or `next-building` instead. The offer is the only in-game route up the
+        ladder (DESIGN §4), so it moves into the foot with the buttons where it cannot be covered,
+        and the body below scrolls with its own cue and nothing on top of it. Same two-band shape as
+        `.sheet .body` / `.sheet .foot`, which the Rules card and the fact card have always used. */''}
+  <div class="foot">
+    ${offerLine ? `<div class="offer"><p class="offerq" data-offer-q>${offerLine}</p><div class="row"><button class="btn" style="flex:1" data-offer="yes" data-tap aria-label="Yes, ${esc(offerName)}">Yes</button><button class="btn primary" style="flex:1" data-offer="stay" data-tap aria-label="Stay">Stay</button></div></div>` : ''}
+    <div class="stack">
       <button class="btn primary tall wide" data-next data-tap aria-label="Next building">Next building</button>
       <button class="btn wide" data-nav="lobby" data-tap aria-label="Lobby, ride down">Lobby</button>
     </div>
@@ -471,6 +518,20 @@ function stepper(key, label, val, delta, note) {
   return `<div class="setting"><span class="label">${esc(label)}${note ? `<small>${esc(note)}</small>` : ''}</span><span class="stepper"><button class="btn" data-setting="${key}" data-value="${val - delta}" data-tap aria-label="${esc(label)} down">−</button><span class="val" aria-live="polite">${val}</span><button class="btn" data-setting="${key}" data-value="${val + delta}" data-tap aria-label="${esc(label)} up">+</button></span></div>`
 }
 
+// The shapes the game asks, in the order the ladder teaches them, with the child's first-try
+// accuracy on each. Only shapes that have actually been asked appear.
+const KIND_NAME = { add: 'Adding  a + b', sub: 'Taking away  a − b', mul: 'Times  a × b', div: 'Sharing  a ÷ b', missAdd: 'The missing number  a + ▮ = c', missMul: 'The missing number  ▮ × b = c', up: 'Floor up  a ▲ b', down: 'Floor down  a ▼ b' }
+const KIND_ORDER = ['add', 'sub', 'up', 'down', 'missAdd', 'mul', 'div', 'missMul']
+export function byKindHTML(state) {
+  const bk = (state.history && state.history.byKind) || {}
+  const rows = KIND_ORDER.filter((k) => Array.isArray(bk[k]) && bk[k][0] > 0)
+  if (!rows.length) return ''
+  return `<div class="records" data-bykind>${rows.map((k) => {
+    const [asked, right] = bk[k]
+    return `<div class="rec"><span class="lab">${esc(KIND_NAME[k] || k)}</span><span class="val">${right} of ${asked} (${Math.round((100 * right) / asked)}%)</span></div>`
+  }).join('')}</div>`
+}
+
 export function grownups(state, extras = {}) {
   const s = state.settings
   const c = s.custom
@@ -512,6 +573,12 @@ export function grownups(state, extras = {}) {
       <div class="rec"><span class="lab">Floors ridden</span><span class="val">${(state.records || {}).floors || 0}</span></div>
       <div class="rec"><span class="lab">Passengers met</span><span class="val">${(state.records || {}).passengers || 0}</span></div>
     </div>
+    ${/* WHICH FORM IS FAILING, not merely how many falls (r4-math-01). history.byKind has been
+          recorded since round 1 and printed nowhere, so `51 %, 146 falls` was the alarm with no
+          diagnosis: a child stuck on one shape — the missing-number form is the one the game
+          teaches last — looked exactly like a child who is simply tired. Falls are not the measure
+          here; first-time accuracy per shape is, because that is what the ladder itself reads. */''}
+    ${byKindHTML(state)}
     <h2>Save code</h2>
     <p class="muted small">Copy this code to move your lunchbox to another phone. iOS may clear a web game's storage after 7 days if it is not added to the Home Screen.</p>
     <div class="code" id="savecode">${esc(encodeCode(state))}</div>
@@ -524,7 +591,14 @@ export function grownups(state, extras = {}) {
     <p class="muted small">Two taps, five seconds apart. Everything goes back to the start.</p>
     <button class="btn" data-reset data-tap aria-label="${resetLabel}">${resetLabel}</button>
     <p class="muted small" id="resetmsg" aria-live="polite">${esc(extras.resetMsg || '')}</p>
-    <p class="muted small" style="margin-top:20px">Version ${esc(extras.version || '')}${extras.build ? ` · ${esc(extras.build)}` : ''}</p>
+    ${/* ONLY THE CHILD COULD PULL A NEW BUILD IN (r4-deploy-pages-03). This line showed WHICH build
+          the phone is on and gave no way to act on it: the single route to a newer one was the
+          update chip on the lobby, which a child can dismiss with ✕ every session, and the
+          undocumented ?reset=1 hatch costs the lunchbox. When a worker is waiting the version line
+          is the button; otherwise it is the same sentence it always was. */''}
+    ${extras.updateWaiting
+      ? `<button class="btn wide" data-update data-tap style="margin-top:20px" aria-label="Load the new version">Load the new version · ${esc(extras.version || '')}${extras.build ? ` · ${esc(extras.build)}` : ''}</button><p class="muted small">The lunchbox is kept.</p>`
+      : `<p class="muted small" style="margin-top:20px">Version ${esc(extras.version || '')}${extras.build ? ` · ${esc(extras.build)}` : ''}</p>`}
   </div>`
 }
 

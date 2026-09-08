@@ -145,6 +145,15 @@ export function initialState(salt) {
     // SAME roof card offers LEVEL_ORDER[idx - 1]. An offer is not a silent difficulty change
     // (DESIGN §4): the child answers it, and `Stay` is still the primary button.
     struggleRun: 0,
+    // THE LADDER HAD NO MEMORY (r4-math-02). `step3Run` and `struggleRun` are both zeroed by the
+    // `offer` action whichever way the child answers, and nothing else recorded that this child had
+    // just been demoted — so two clean Skyscraper buildings re-offered Megatall, two ruinous
+    // Megatall buildings offered Skyscraper back, and the pair repeated every four buildings for
+    // ever: half of everything played in a band where the child answered nothing correctly.
+    // Measured over 24 buildings: 12 Megatall buildings, 10 questions and 10 falls each, 120 falls.
+    // One field. The level the child was demoted FROM needs UP_AGAIN clean buildings, not two,
+    // before it is offered again; a grown-up picking a level clears it.
+    demotedFrom: null,
     plaques: [],
     // runtime (not persisted)
     phase: 'lobby',
@@ -182,6 +191,13 @@ export function currentLevel(state) {
   return levelById(state.level) || LEVELS[0]
 }
 
+// How many clean step-3 buildings a level the child was demoted FROM needs before it is offered
+// again (an ordinary promotion needs two).
+export const UP_AGAIN = 4
+
+// The digit cap, in words, for the display band.
+const NUM_WORD = { 4: 'Four', 5: 'Five', 6: 'Six' }
+
 const T = (name, r) => ({ type: 'timeline', name, steps: r.timeline, duration: r.duration })
 const SAVE = { type: 'save' }
 const SOUND = (name) => ({ type: 'sound', name })
@@ -203,7 +219,7 @@ function ctxOf(state) {
 function newRide(state, seed) {
   return {
     seed: seed >>> 0, floor: 0, target: 1, cleared: [], tray: 0, banked: 0, phase: 'floor', problem: null, typed: '',
-    tries: 0, streak: 0, stepDowns: 0, comeback: [], passengersDone: [], retrying: false, typedWrong: '',
+    tries: 0, streak: 0, stepDowns: 0, comeback: [], passengersDone: [], retrying: false, typedWrong: '', ask: null,
     falls: 0, draws: 0, ctx: initialCtx(), lastKind: null, lastRetry: false, fallFloor: 0, roofCard: null, inFlight: null,
   }
 }
@@ -252,6 +268,23 @@ function askPassenger(state, rng) {
   return { fact, choices, answer, chosen: null, result: null }
 }
 
+// THE PASSENGER STANDING ON THE LANDING ASKS THE SAME THING WHEN YOU COME BACK (r4-code-hostile-03).
+// `ride-start` re-ran askPassenger() for a resumed `trivia` phase, drawing a FRESH fact with the
+// advanced rng: parking at the floor-4 passenger and tapping Ride again swapped the question, and a
+// reload swapped it a second time — a reroll of a question worth +2 bacon, and a world that changes
+// under a child who was told it would not (BRIEF §7). The drawn fact and the shuffled choice order
+// are persisted in the ride; this re-hydrates them and falls back to a fresh draw only if the id
+// has left the pool (a bank edit, a hand-written save).
+function resumeAsk(state, r) {
+  const a = r && r.ask
+  if (!a || typeof a.id !== 'string' || !Array.isArray(a.choices) || a.choices.length !== 3) return null
+  if (!Number.isInteger(a.answer) || a.answer < 0 || a.answer > 2) return null
+  const fact = state.pool.find((f) => f.id === a.id)
+  if (!fact || fact.answer !== a.choices[a.answer]) return null
+  return { fact, choices: a.choices.slice(), answer: a.answer, chosen: null, result: null }
+}
+const askOf = (t) => (t ? { id: t.fact.id, choices: t.choices.slice(), answer: t.answer } : null)
+
 // The car the reducer believes in while a timeline plays: the pre-ride car. `pending` holds the end
 // state; `ride.inFlight` persists enough of it for hydrate() to settle a save taken mid-timeline.
 function startTimeline(state, name, r, phase) {
@@ -273,7 +306,7 @@ function recordQuestion(state, problem, correct) {
   const ctx = afterAnswer(ctxOf(state), problem, correct)
   const comeback = ctx.comeback.filter((x) => x && x.due >= h.count - 40).slice(-12)
   const history = { ...h, ring: ctx.ring, count: h.count + 1, answered: h.answered + 1, correct: h.correct + (correct ? 1 : 0), byKind, skills: ctx.skills, comeback }
-  const ride = { ...state.ride, ctx: { lastAnswer: ctx.lastAnswer, sameSeen: ctx.sameSeen, kindRun: ctx.kindRun, count: ctx.count, lastComeback: ctx.lastComeback } }
+  const ride = { ...state.ride, ctx: { lastAnswer: ctx.lastAnswer, sameSeen: ctx.sameSeen, zeroSeen: ctx.zeroSeen, kindRun: ctx.kindRun, count: ctx.count, lastComeback: ctx.lastComeback } }
   return { ...state, history, ride }
 }
 
@@ -325,9 +358,25 @@ function arrive(state, rng) {
     // nine sums is a child who cannot do this band, and step 1 has no lower step to drop to.
     const struggleRun = (state.step === 1 && s.ride.falls >= 5) ? state.struggleRun + 1 : 0
     const idx = LEVEL_ORDER.indexOf(state.level)
-    const up = state.adaptive && step3Run >= 2 && idx >= 0 && idx < LEVEL_ORDER.length - 1 ? LEVEL_ORDER[idx + 1] : null
+    const nextUp = idx >= 0 && idx < LEVEL_ORDER.length - 1 ? LEVEL_ORDER[idx + 1] : null
+    // TWO CLEAN BUILDINGS IS NEW EVIDENCE ABOUT THIS LEVEL, NOT ABOUT THE ONE ABOVE (r4-math-02).
+    // Skyscraper step 3 serves division within 144, squares and TWO-digit ± — not one 3-digit sum —
+    // so it says nothing about Megatall, and the up-offer used to discard twenty questions of
+    // direct, freshly measured counter-evidence two buildings after collecting it. A level the
+    // child was demoted from is offered again only after UP_AGAIN clean buildings.
+    const needUp = nextUp && nextUp === state.demotedFrom ? UP_AGAIN : 2
+    const up = state.adaptive && step3Run >= needUp && nextUp ? nextUp : null
     const down = state.adaptive && !up && struggleRun >= 2 && idx > 0 ? LEVEL_ORDER[idx - 1] : null
     const next = up || down
+    // Which WAY the offer points. The roof card words a promotion and a rescue differently and the
+    // reducer needs it too, to know whether accepting is a demotion worth remembering (r4-math-05).
+    const dir = up ? 'up' : down ? 'down' : null
+    // AND AT THE BOTTOM OF THE LADDER THERE IS NOTHING TO OFFER (r4-math-01). `down` needs idx > 0,
+    // so at Corner Shop the documented rescue — "the ladder adapts DOWN as well as up" — cannot
+    // fire at all, and a child drowning there got no reaction of any kind. There is no smaller
+    // BUILDING; there is a smaller band, and it lives in Grown-ups. Saying so is information, not a
+    // silent difficulty change (DESIGN §4), and Grown-ups now names which form is failing.
+    const help = !!(state.adaptive && !next && idx === 0 && struggleRun >= 2)
     s = {
       ...s,
       lunchbox,
@@ -338,8 +387,12 @@ function arrive(state, rng) {
       struggleRun,
       // The roof summary lives in the ride, which IS persisted, so a reload at the roof shows the
       // real numbers instead of a fabricated "Tray 0 -> lunchbox".
-      ride: { ...s.ride, tray: s.ride.tray + ROOF_BONUS, banked: s.ride.tray + ROOF_BONUS, roofCard: { gained, bonus: ROOF_BONUS, unlocked, plaques, offer: next, offerTaken: null, lunchboxBefore: state.lunchbox } },
-      roof: { gained, bonus: ROOF_BONUS, unlocked, plaques, offer: next, lunchboxBefore: state.lunchbox },
+      // `midBanked` is what the tray had ALREADY given the lunchbox before the roof (a Lobby tap
+      // mid-building banks it). `gained` is the remainder, so a card headed "Tray N" contradicted
+      // the top bar's tray count on every banked building (r4-code-hostile-02); the card now says
+      // which of the two numbers it is printing.
+      ride: { ...s.ride, tray: s.ride.tray + ROOF_BONUS, banked: s.ride.tray + ROOF_BONUS, roofCard: { gained, bonus: ROOF_BONUS, unlocked, plaques, offer: next, dir, help, offerTaken: null, lunchboxBefore: state.lunchbox, midBanked: r.banked } },
+      roof: { gained, bonus: ROOF_BONUS, unlocked, plaques, offer: next, dir, help, lunchboxBefore: state.lunchbox, midBanked: r.banked },
     }
     s = stable(s, 'roof', { screen: 'roof' })
     effects.push(SOUND('roof'), SCREEN('roof'), SAVE)
@@ -349,7 +402,7 @@ function arrive(state, rng) {
     const trivia = askPassenger(s, rng)
     if (trivia) {
       s = { ...s, records: tally(s.records, { passengers: 1 }) }
-      s = stable({ ...s, trivia }, 'trivia', { ride: { lastKind: trivia.fact.kind, lastRetry: !!trivia.fact.fromRetry } })
+      s = stable({ ...s, trivia }, 'trivia', { ride: { lastKind: trivia.fact.kind, lastRetry: !!trivia.fact.fromRetry, ask: askOf(trivia) } })
       effects.push(SAVE)
       return { state: withDraws(s, rng), effects }
     }
@@ -416,8 +469,9 @@ export function reduce(state, action, rng) {
         const car = { ...initialCar(), floor: nr.floor }
         s = { ...s, ride: nr, car, hint: false, message: '', trivia: null, roof: null }
         if (nr.phase === 'trivia') {
-          const trivia = askPassenger(s, rng)
-          s = trivia ? stable({ ...s, trivia }, 'trivia') : stable({ ...s, ride: { ...nr, target: nextTarget(nr.floor) } }, 'floor')
+          const kept = resumeAsk(s, nr)
+          const trivia = kept || askPassenger(s, rng)
+          s = trivia ? stable({ ...s, trivia }, 'trivia', kept ? {} : { ride: { ask: askOf(trivia) } }) : stable({ ...s, ride: { ...nr, target: nextTarget(nr.floor) } }, 'floor')
         } else if (nr.phase === 'roof') {
           // gained === null means "an old save with no roof card": the screen omits those lines
           // rather than printing a number nobody earned.
@@ -448,7 +502,7 @@ export function reduce(state, action, rng) {
       }
       if (phase === 'fact' && r) {
         const done = r.passengersDone.includes(r.floor) ? r.passengersDone : r.passengersDone.concat(r.floor)
-        const s = stable({ ...state, trivia: null, ride: { ...r, passengersDone: done, target: nextTarget(r.floor) } }, 'floor')
+        const s = stable({ ...state, trivia: null, ride: { ...r, passengersDone: done, target: nextTarget(r.floor), ask: null } }, 'floor')
         return { state: s, effects: [SOUND('click'), SAVE] }
       }
       return same(state)
@@ -481,7 +535,11 @@ export function reduce(state, action, rng) {
       const digitsOnly = r.typed.replace('-', '')
       // The cap is the keypad's capability, derived from the problem on screen — never a bare 4,
       // which a 5-digit answer (a comeback, a legacy save) cannot be entered under.
-      if (digitsOnly.length >= typedCap(r.problem)) return same(state)
+      // A LIT, UNDIMMED KEY THAT DOES NOTHING IS A DEAD KEY (r4-math-07). Past the cap this returned
+      // `same(state)`: no click, no line, no change — while a tap on the wrong FLOOR button, the
+      // other dead key on this panel, answers in words for 1.4 s. The digits stay live (the child
+      // may still want to correct with ⌫), and the band says why nothing happened.
+      if (digitsOnly.length >= typedCap(r.problem)) return same({ ...state, message: `${NUM_WORD[typedCap(r.problem)] || 'That many'} numbers is enough.` })
       // A digit after a lone 0 REPLACES it. Refusing it is a dead key: no click, no change, and a
       // GO that then sends the 0 the child thought they had replaced.
       if (digitsOnly === '0') {
@@ -652,7 +710,13 @@ export function reduce(state, action, rng) {
       const accept = !!action.accept
       const card = { ...state.roof, offer: null, offerTaken: accept ? state.roof.offer : null }
       const s = { ...state, roof: card, ride: state.ride ? { ...state.ride, roofCard: state.ride.roofCard ? { ...state.ride.roofCard, offer: null, offerTaken: card.offerTaken } : null } : null, step3Run: 0, struggleRun: 0 }
-      if (accept) return { state: { ...s, level: state.roof.offer, step: 1, history: { ...s.history, comeback: [] } }, effects: [SOUND('click'), SAVE] }
+      if (accept) {
+        // Accepting a RESCUE records the level being left, so the ladder cannot recommend it again
+        // on the strength of two clean buildings at a level that never asked its arithmetic.
+        // Accepting the promotion back clears the note; the child has now earned it twice over.
+        const demotedFrom = state.roof.dir === 'down' ? state.level : (state.demotedFrom === state.roof.offer ? null : state.demotedFrom)
+        return { state: { ...s, level: state.roof.offer, step: 1, demotedFrom, history: { ...s.history, comeback: [] } }, effects: [SOUND('click'), SAVE] }
+      }
       return { state: s, effects: [SOUND('click'), SAVE] }
     }
 
@@ -669,7 +733,7 @@ export function reduce(state, action, rng) {
       let s = state
       if (phase === 'fact' && r) {
         const done = r.passengersDone.includes(r.floor) ? r.passengersDone : r.passengersDone.concat(r.floor)
-        s = stable({ ...s, trivia: null, ride: { ...r, passengersDone: done, target: nextTarget(r.floor) } }, 'floor')
+        s = stable({ ...s, trivia: null, ride: { ...r, passengersDone: done, target: nextTarget(r.floor), ask: null } }, 'floor')
       }
       s = bankOnLeave(s)
       s = { ...s, ride: s.ride ? { ...s.ride, phase: s.phase } : null, phase: 'lobby', screen: 'lobby', hint: false, pending: null }
@@ -688,9 +752,12 @@ export function reduce(state, action, rng) {
       }
       const step = state.adaptive ? (id === state.level ? state.step : 1) : Math.max(1, Math.min(3, state.pinnedStep))
       // A comeback must not cross a level change: a Corner Shop child is not handed `2 − 27` from
-      // a Megatall building.
-      const history = id === state.level ? s.history : { ...s.history, comeback: [] }
-      return { state: { ...s, history, level: id, step, step3Run: id === state.level ? s.step3Run : 0, struggleRun: id === state.level ? s.struggleRun : 0 }, effects: [SOUND('click'), SAVE] }
+      // a Megatall building. RE-PICKING THE SAME LEVEL CLEARS IT TOO (r4-math-01): the queue was
+      // the one thing a grown-up could not reach, so the documented escape from a jammed queue was
+      // "pick a different building, then pick this one back" — two taps, and undiscoverable.
+      // Picking a building is always a fresh start in it.
+      const history = { ...s.history, comeback: [] }
+      return { state: { ...s, history, level: id, step, demotedFrom: id === state.level ? s.demotedFrom : null, step3Run: id === state.level ? s.step3Run : 0, struggleRun: id === state.level ? s.struggleRun : 0 }, effects: [SOUND('click'), SAVE] }
     }
 
     case 'set-setting': {

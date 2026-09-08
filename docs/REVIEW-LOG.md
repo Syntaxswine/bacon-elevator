@@ -806,3 +806,122 @@ loosen it without a lead's ruling.
   legible braille cell on a 320 px phone. The part card shows it at readable size and that is where
   the rule is taught; if the car ever gets a bigger interior, redraw it there too.
 - **`settings.secondTry` is still `true` at every level** — round 1's open question, unchanged.
+
+## Round 4 — hostile review (2026-09-08)
+
+Thirty-one findings: **2 high, 8 medium, 21 low**. Ten of them — both highs and all eight mediums —
+carried three independent verifier reports each; the twenty-one lows were filed unverified. The
+severity census is the score, and it moved the wrong way from round 3 (0 high, 14 medium, 30 low):
+this round reopened the top of the scale, and both highs are earlier fixes that became defects.
+**Twenty-nine fixed, two skipped**, with reasons below.
+
+**Instruments before → after:** `npm test` 213 → **242 passing** (a new `test/round4.test.js`, 29
+cases, one per finding whose surface is not layout); `node tools/phone-drive.mjs` 100 → **105
+passing** (a new `roof-offer` scenario, once per phone). Every fix is pinned by one of those,
+or by an assertion added to the layout instrument, that fails without it.
+
+### The two highs are the same lesson twice
+
+Both `r4-code-hostile-01` and `r4-math-01` are earlier fixes that solved their finding and created a
+worse one, and in both cases **the instrument that pinned the fix could not see the trade**.
+
+- `.roof .page > .stack { position: sticky; bottom: 0 }` (round 3, for r3-mobile-ux-1/-5) put the
+  roof's two controls back on screen by pinning an opaque `--paper` block INSIDE the card's own
+  scroller. The gate that came with it, `onScreen: ROOF_CONTROLS`, asserts that those two buttons have
+  at least 44 px visible at rest — which is precisely what the sticky guarantees BY covering
+  everything else. The gate and the guarantee were the same statement, so it could never go red.
+  Verified: the part unlock 100 % hidden at 320 × 454, the lunchbox total sliced through its digits,
+  one or both forward-goal lines painted over at every shipped profile including the reference
+  390 × 664, and the level offer drawn UNDERNEATH the buttons — a real `page.mouse.click` at the
+  centre of `Yes` dispatching `to-lobby` on one profile and `next-building` on another.
+- The comeback queue's `+5 and +15` rule (DESIGN §4) is consulted in `math.js` before `stepOf()`, so
+  a due entry ignored the step's kind list and its ceiling. The measurement that certified the queue
+  after r2-math-01 — 0 back-to-back, no more than 55 % comebacks, at least 20 distinct sums in the
+  last 200 — cannot see this shape at all: the FRESH half of the draws supplies all the variety while
+  the comeback half collapses to three keys. One of the three verifiers named that gap in their own
+  report, and they were right; the discriminating metric is distinct COMEBACK keys, and
+  `test/round4.test.js` now counts exactly that.
+
+### Fixed
+
+| id | what changed, and why |
+| --- | --- |
+| r4-code-hostile-01 (high) | The roof card is the two-band shape `.sheet .body` / `.sheet .foot` has always used: a scrolling `.page` and a sibling `.foot` holding the level offer and the two controls. Nothing is pinned inside a scroller over content the child has not read. The offer moves into that foot, where it cannot be covered. Pinned by the new `roof-offer` drive scenario (`elementFromPoint` at the centre of `Yes` must return `Yes`, at four geometries, plus a real tap that must leave `state.level === 'hotel'`) and by a `.roof .page` occlusion sweep in `checkLayout` that samples three heights down every line of the card. |
+| r4-math-01 (high) | `inStepBand()`: a due comeback the current step cannot legally ask — wrong kind, or a number past that step's `max` — waits instead of firing. `MISS_RETIRE`: a key stops re-arming after three misses in a row while queued (it can return once the queue ages it out at 40 questions, which is a fresh question again). `set-level` now clears the queue even when the id is unchanged, so picking a building is always a fresh start in it. At `LEVEL_ORDER` index 0 the roof card says where the smaller numbers live (Grown-ups, Custom numbers) rather than staying silent, and Grown-ups prints `history.byKind` — recorded since round 1 and displayed nowhere, so a parent had the alarm and not the diagnosis. Reducer replay over 12 buildings: 0 of 144 comebacks out of band, and the queue keeps turning over. |
+| r4-autism-fit-1, r4-elevator-feel-01, r4-mobile-ux-1 (medium x3) | The same occluder as r4-code-hostile-01, reported against three different lines of the card. Same fix; the picnic drawing is also capped at `34vh` so the tray line, the total and the unlock sit above the fold on a 454 px screen, and on a short screen the foot's buttons drop to the 48 px floor and sit side by side so every control stays whole. |
+| r4-math-02 (medium) | One persisted field, `demotedFrom`, set when a rescue offer is accepted and cleared when the promotion back is taken or a grown-up picks a level. A level the child was just demoted from needs `UP_AGAIN` (4) clean buildings, not 2. Two clean Skyscraper buildings are evidence about Skyscraper — its step 3 serves no 3-digit sum at all — and the ladder used to discard twenty questions of direct counter-evidence about Megatall two buildings after collecting it. |
+| r4-math-03 (medium) | `OP_GLOSS` gains `missAdd` and `missMul`, built from the problem on screen, and the Rules card gains a third worked example with the blank in the middle. On a fresh save the blank-in-the-middle form arrives at question 7, BEFORE the first triangle — the first unfamiliar shape the child meets was the one the game explained last. |
+| r4-math-04 (medium) | Megatall step 1 is a bridge: 3-digit plus-or-minus a one- or two-digit number with at most one column regroup, plus the 2-digit rows the child proved at Skyscraper step 3. The old step 1 (two regroups) is step 2. It is the step `Try Megatall?` lands on AND the step a fall cannot leave, and it served **0 %** of its sums entirely under 100 — every other step in the game is 56 to 100 %. Now 16 %. Both promotion guards in `test/levels.test.js` and `test/round3.test.js` are one-sided (they forbid a promotion NARROWING, never hardening); the new test measures the under-100 share directly. |
+| r4-elevator-feel-02, r4-autism-fit-6 (medium, low) | The Rules card reads `settings.secondTry`. It ships ON, so the first wrong answer clears the entry and nothing falls — a rule stated only on a Grown-ups toggle while the card the child is shown, unskippably, on the first Ride said "Wrong: a fall". Every other promise on that card is exact, which is what made this one conspicuous. |
+| r4-mobile-ux-2, r4-autism-fit-2, r4-elevator-feel-03, r4-code-hostile-06 (medium, low x3) | Below 257 px of landscape height the keypad is FOUR columns — the 3 x 3 digit block untouched and in the same order, HINT / plus-minus / backspace in a right-hand column, 0 and GO on the last row — instead of five rows that need 258 px in a 232 px viewport. The keypad loses a row before it loses a key. `checkLayout`'s `go` rule now also asserts GO is whole on screen at rest; its old rule answered "is it reachable?", which is the right question for a settings page and the wrong one for the key that submits an answer. |
+| r4-math-05 (low) | The roof card carries `dir`. A promotion reads `Ready for Hotel — numbers to 20?`; a rescue reads `Back to Skyscraper — times tables?`. Both used to be the same eight words with no direction and no band, so after two ruinous buildings the way out was typographically identical to a reward. |
+| r4-math-06 (low) | A `zeroSeen` fuse, the same shape as the existing `sameSeen` one: serving an additive identity holds that shape off for four questions. Corner Shop step 1 goes 32.0 % to 16.4 %, step 2 19.7 % to 11.8 %. 0 stays a teaching point (levels.js says so); a third of every question is not teaching it. No extra rng draw, so this is deterministic and reads the same way the doubles fuse does. |
+| r4-math-07 (low) | Past the digit cap the keypad returned `same(state)` — no click, no line, on a lit and undimmed key, while a tap on the wrong FLOOR button, the other dead key on the same panel, answers in words for 1.4 s. The band now says `Four numbers is enough.` and clears on the next real keypress. |
+| r4-math-08 (low) | `TRIVIA_LIMITS` gains `denyConcepts`, and every one of the 27 maths items declares a `concept` (a rule, not a hand-picked id list). Corner Shop and Hotel no longer draw number theory or very large numbers: `Which of these numbers is NOT a prime number?` is difficulty 1 and 45 characters, so both existing gates passed it to a child on `numbers to 10`, in the negative form. The band is 18 items (was 20); it opens up again at Office Block. `withinBand()` is now one exported predicate — two tests were re-spelling three quarters of it and would have gone on measuring the old band. |
+| r4-math-09 (low) | The honeycomb question named its subject by itself (`shape of room ... into ... rooms`) and offered a regular octagon, which does not tile the plane at all and so is not a wrong ANSWER but a shape the question cannot be asked about. Reworded; the octagon is a rectangle. The fact and both citations are untouched. |
+| r4-math-10 (low) | `ADD_FLOOR = 6`: Custom's Largest stepper gets the floor that multiplication and division have had since r3-math-06. `Smallest 0, Largest 2` is reachable from Grown-ups and built a pool of three sums, the same one returning two questions later on 55 % of questions. The tag is still derived from the tables that were BUILT, so it reads `numbers 0 to 6`. |
+| r4-autism-fit-3 (low) | Disabled GO was white on pale blue at **1.74:1** — formally exempt, and semantically the same argument the unlit floor face already lost at 2.57:1, on the key the whole game turns on. The word is now ink-blue at 4.84:1 and turns white the moment a digit is typed; the "not yet" cue stays in the fill and the shadow. The drive's contrast sweep skips disabled controls by design, so this gets its own assertion. |
+| r4-autism-fit-4 (low) | The lobby's sound control read `Sound off` — the CURRENT state on a control shaped like a command, so a child reading it and tapping got sound ON. Now `Sound` plus an Off/On pill, the label-and-switch idiom Grown-ups has always used, with `role="switch"`. |
+| r4-autism-fit-5 (low) | An unreadable save and no save were the same thing to `migrate()`. The raw text is moved aside under `bacon-elevator.save.v1.unreadable` and both the lobby and Grown-ups say so, the way the refused-write path has since round 2. Contrived to trigger, and the cost when it happens is the whole lunchbox. |
+| r4-code-hostile-02 (low) | `gained` is the UNbanked remainder and the card called it `Tray`, so after a mid-building Lobby tap the reward card and the top bar printed two different numbers for the same tray. The card now says `8 more bacon` when something was banked mid-building, and the lobby's waiting line counts the same bacon once. |
+| r4-code-hostile-03 (low) | The drawn fact id and the shuffled choice order are persisted in the ride, and a resumed `trivia` phase re-hydrates them instead of drawing a fresh fact with the advanced rng. Parking at a passenger and coming back swapped the question; a reload swapped it again — a reroll of a question worth 2 bacon, and a world that changes under a child who was told it would not. |
+| r4-code-hostile-04 (low) | `plaques` is filtered against `PLAQUES` the way `unlocks` on the very next line is filtered against `PART_IDS`. Output was already escaped, so this is hygiene, not injection. |
+| r4-code-hostile-05 (low) | The reset confirmation was written to the Grown-ups screen that the same dispatch navigates away from. It is carried to the lobby's notice band, which already had the shape for it. |
+| r4-mobile-ux-3 (low) | `assets/apple-touch-icon.png` is rendered square and fully opaque (colour type 2, no alpha) with no baked-in corner radius: iOS ignores alpha, composites onto black and applies its own squircle, so a pre-rounded icon with transparent corners gets thin black wedges on the Home Screen — the one icon a parent following Add to Home Screen actually sees. `tools/make-icons.mjs` gates it the way it already gates the Android maskable pair. |
+| r4-mobile-ux-4 (low) | `env(safe-area-inset-bottom)` removed from `.sheet .foot` and `.rules .foot`. `#app` reserves it for every descendant, so it was being spent twice — 34 px off the scrolling body of the two cards that already clip their last line, on exactly the phones with the least room. |
+| r4-mobile-ux-5 (low) | `sw.js` precaches per file through `Promise.allSettled` and names what failed, instead of one `addAll()` that rejects as a unit: a single cancelled request left the install with NO cache at all and that visit with no offline copy. The drive treats a service-worker-initiated `requestfailed` as a warning with the path in it, so a real layout regression can never hide behind the flake. |
+| r4-mobile-ux-6 (low) | `404.html` gets the same `100vh` then `100dvh` pair the app uses. |
+| r4-deploy-pages-01 (low) | Documentation, because nothing outside the worker's scope can be cached: DESIGN now says to give the parent the URL WITH its trailing slash, and why the no-slash form is the browser's own offline error page. |
+| r4-deploy-pages-02 (low) | `.github/workflows/ci.yml`: `npm test` and `node tools/build-stamp.mjs --check` on every push to `main` and every PR. The stamp is the one gate that makes a content-only deploy reach a child who already has the game, and nothing but a human remembering to type `npm test` enforced it while Pages publishes whatever lands. Zero dependencies and zero build step, so there is nothing to install. |
+| r4-deploy-pages-03 (low) | When a worker is waiting, the Grown-ups version line IS the button (`Load the new version`), and it says the lunchbox is kept. Before this the only route to a new build was a chip a child can dismiss every session, or `?reset=1`, which costs the lunchbox. |
+| r4-trivia-truth-01 (low) | `data/trivia.json`'s `rule` string claimed both checkers fetched an independent source; for **32 of 67 items** the refuting lens re-read a document the item itself cites, and a refute lens pointed at an item's own primary citation re-confirms it. The rule string and `docs/TRIVIA.md` now say what the record shows, and `test/round4.test.js` re-derives the 32 from the file so the sentence cannot drift from it. No false fact resulted; the claim a future maintainer will trust must match the process that was run. |
+| r4-trivia-truth-02 (low) | Two stems printed another shipped item's exact answer: the Eiffel lifts' `103,000 km` (given in words instead, so the division the question asks for still works) and Otis's `by having the rope cut`, which is the whole answer to `elevator-culture-otis-1854-rope`. A generalised check over every ordered pair of items is in the test. |
+| r4-trivia-truth-03 (low) | `math-numbers-pi-day` cited Wikipedia FIRST with only piday.org behind it, against `docs/TRIVIA.md`'s own rule. A primary source leads — H. Res. 224, fetched from govinfo, whose quote carries the date the question asks for — Wikipedia is second and carries the Larry Shaw / 1988 / Exploratorium sentence, and piday.org is off the child's card entirely. The Exploratorium's own Pi Day history page answers 403 to an automated fetch, so it is cited as the refuting lens (a document the item does not itself cite) rather than as a shown source with a quote nobody re-read. All four content edits are recorded in `data/trivia-audit.json`'s new `round4` block with the text they replaced. |
+| r4-trivia-truth-04 (low) | The layout instrument's worst-case trivia fixture is read from `data/trivia.json` at drive time. Its comment claimed to be the longest question and the three longest choices (196 / 84 / 71 / 57) and had drifted: the 84-character choice belonged to an item whose answer was shortened to 52. Safe today, and a fixture that says it tracks the data while no longer doing so is one the next person will trust. |
+
+### Skipped, and why
+
+- **`r4-elevator-feel-04`** — ten of the eleven floor buttons are permanently dead and the car can
+  never be sent down. Filed by its own reporter as `opinion (design observation, but the measurement
+  is real)`, and its own text says "this is an observation about the ceiling on elevator play, not a
+  defect" and proposes a v2 mode. The measurement is correct and it is the design: `nextTarget()`
+  clamps the target to `floor + 1` because **maths moves the elevator** (BRIEF item 3), and a
+  free-ride mode is a new mechanic, not a fix. Handed on below.
+- **The suggested REMEDY in `r4-mobile-ux-2` / `r4-autism-fit-2` / `r4-elevator-feel-03` /
+  `r4-code-hostile-06`** — start the panel scrolled to its end. Not skipped as findings (all four are
+  fixed): the suggested fix is rejected because it moves the slice from GO onto backspace, the key a
+  child needs to repair a typo before a wrong answer drops the car. Four columns costs a row instead
+  of a key.
+
+### Two things the round found that no finding named
+
+- **`.rules .body` had no slack left.** Adding one sentence to the Rules card (the second-try rule the
+  child is entitled to) and one clause to a picture caption pushed it 66 px past the fold at
+  320 x 454, which the existing `noScroll` assertion caught immediately. The card is genuinely fuller
+  now — three question shapes and both wrong-answer rules — so the smallest tier buys the words back
+  out of the DRAWINGS, which repeat what the words say. It sits at exactly its budget again; the next
+  sentence added to that card needs a line removed with it.
+- **The roof's foot is a hard claim on the viewport.** Taking the controls out of the scroller is
+  right, but a foot is not free the way a sticky block was: two tall buttons plus an offer row are
+  240 px, more than a 232 px landscape window has at all. Below 460 px of height the buttons drop to
+  the 48 px floor and sit side by side. Any future addition to that foot has to pay the same way.
+
+### Handed on
+
+- **A discriminating metric for the comeback queue.** `test/math.test.js`'s r2-math-01 sweep measures
+  distinct keys over ALL draws, and the fresh half hides a comeback half that has collapsed. Round 4
+  added the missing measurement in `test/round4.test.js`; the older test should adopt it too.
+- **Both promotion guards are one-sided.** `test/levels.test.js` and `test/round3.test.js` forbid a
+  promotion NARROWING the question set and say nothing about one that hardens it, which is why a
+  12.5x jump in operand size sat there for four rounds. A two-sided guard — a ceiling on the jump as
+  well as a floor on the pool — would close the class rather than this instance.
+- **`settings.secondTry` is still `true` at every level** — round 1's open question, unchanged, and
+  now at least stated truthfully on the card the child reads.
+- **`shots/` is now a photograph of a layout that has changed.** The 500 committed screenshots were
+  taken before this round; the roof card, the short-landscape keypad and the Rules card all look
+  different now. They were deliberately NOT regenerated here — a partial refresh would leave the
+  directory a mix of two vintages, and a full `node tools/phone-drive.mjs --shots` run rewrites
+  nearly all of them, which is a commit of its own. Do that one next, on its own, and read them.
+- **The free-ride, or express-to-a-floor-you-have-already-reached, mode** from `r4-elevator-feel-04`
+  is the best unbuilt idea in this packet: it would give the car panel back its point without
+  weakening "maths moves the elevator". It needs a lead's ruling on the bacon price, not a fixer's.

@@ -121,7 +121,18 @@ async function main() {
         const errors = []
         page.on('console', (m) => { if (m.type() === 'error') errors.push('console.error: ' + m.text()) })
         page.on('pageerror', (e) => errors.push('pageerror: ' + (e && e.message ? e.message : String(e))))
-        page.on('requestfailed', (r) => errors.push('requestfailed: ' + r.url() + ' ' + (r.failure() && r.failure().errorText)))
+        // A SERVICE-WORKER PRECACHE FETCH THAT IS CANCELLED IS NOT A LAYOUT REGRESSION
+        // (r4-mobile-ux-5). The scenarios re-register the worker on every ?reset=1, so one of its
+        // own install fetches was occasionally aborted mid-flight and turned a green run red on a
+        // random phone — a false FAIL that a real defect could then hide behind. sw.js now
+        // precaches per file and fills the rest on demand, so this is a warning with the path in
+        // it; every request the PAGE makes still fails the run.
+        const warnings = []
+        page.on('requestfailed', (r) => {
+          const line = 'requestfailed: ' + r.url() + ' ' + (r.failure() && r.failure().errorText)
+          const fromWorker = !r.frame()
+          if (fromWorker) warnings.push(line); else errors.push(line)
+        })
         page.on('response', (r) => { if (r.status() >= 400) errors.push(`http ${r.status()}: ${r.url()}`) })
         await page.setUserAgent(phone.ua)
         await page.setViewport(pass.tall ? { ...phone.viewport, height: phone.device } : phone.viewport)
@@ -139,6 +150,7 @@ async function main() {
           try { await ctx.shot('FAIL') } catch {}
         }
         if (errors.length && sc.allowErrors !== true) { status = 'FAIL'; detail += (detail ? ' | ' : '') + errors.slice(0, 5).join(' | ') }
+        if (warnings.length) detail += (detail ? ' | ' : '') + `warn(${warnings.length}): ` + warnings.slice(0, 2).join(' | ')
         if (status === 'FAIL') failures++
         const ms = Date.now() - t0
         report.push({ phone: phone.name, scenario: sc.name + pass.suffix, status, ms, detail })

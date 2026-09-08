@@ -28,6 +28,7 @@ export function loadFacts(json) {
       id,
       kind: it.category === 'math' ? 'math' : 'elevator',
       difficulty: Number.isInteger(it.difficulty) ? it.difficulty : 2,
+      ...(typeof it.concept === 'string' && it.concept ? { concept: it.concept } : {}),
       ...(it.maths && Number.isFinite(+it.maths.max) ? { maths: { max: +it.maths.max, ...(it.maths.exact === false ? { exact: false } : {}) } } : {}),
       q: it.question.trim(),
       answer: String(it.answer).trim(),
@@ -90,14 +91,31 @@ export function makeChoices(fact, rng) {
 // and question length do not: at `numbers to 10` the bank could serve `8 capsules x 5 seats` and
 // `1, 1, 2, 3, 5, 8, 13 - what is next?` (8 + 13). The game bands its own sums level by level; the
 // maths it hands the same child through a passenger is banded by the same ladder.
+// `denyConcepts` bands the KIND OF MATHS a passenger asks, which difficulty, question length and
+// number size between them do not (r4-math-08). Every one of Corner Shop's ten maths items was
+// recall trivia and not one was arithmetic the child can do, which is fine — but the band also let
+// through `Which of these numbers is NOT a prime number?` (difficulty 1, 45 characters, so both
+// gates pass it) at `numbers to 10`, in the negative form, and `How many zeros come after the 1 in
+// a googol?`. The youngest two buildings get counting, shapes, notation and everyday maths; number
+// theory and the very large numbers wait for Office Block. An item with no `concept` is unbanded.
 export const TRIVIA_LIMITS = Object.freeze({
-  corner: { maxDifficulty: 1, maxQ: 130, maxNumber: 10 },
-  hotel: { maxDifficulty: 1, maxQ: 130, maxNumber: 20 },
+  corner: { maxDifficulty: 1, maxQ: 130, maxNumber: 10, denyConcepts: ['number-theory', 'large-numbers'] },
+  hotel: { maxDifficulty: 1, maxQ: 130, maxNumber: 20, denyConcepts: ['number-theory', 'large-numbers'] },
   office: { maxDifficulty: 2, maxQ: 160, maxNumber: 100 },
   sky: { maxDifficulty: 2, maxQ: 160, maxNumber: 144 },
   megatall: null,
   custom: null,
 })
+
+// ONE BAND PREDICATE, so a caller (or a test) cannot re-implement three quarters of it and drift.
+export function withinBand(fact, limits) {
+  if (!limits) return true
+  if (!(fact.difficulty <= limits.maxDifficulty)) return false
+  if (!(fact.q.length <= limits.maxQ)) return false
+  if (!withinNumberBand(fact, limits)) return false
+  if (Array.isArray(limits.denyConcepts) && fact.concept && limits.denyConcepts.includes(fact.concept)) return false
+  return true
+}
 
 // An item declares `maths: {max}` when answering it means doing arithmetic the child may not have
 // met. No declaration = no arithmetic to do, so no band applies.
@@ -122,7 +140,7 @@ export function withinNumberBand(fact, limits) {
 // one when `seen` was de-duplicated, and the ≥ 20 rule is about QUESTIONS, not distinct facts.
 export function pickFact(facts, seen = [], lastKind = null, rng, retry = [], limits = null, count = seen.length, lastWasRetry = false) {
   if (!facts || !facts.length) return null
-  const banded = limits ? facts.filter((f) => f.difficulty <= limits.maxDifficulty && f.q.length <= limits.maxQ && withinNumberBand(f, limits)) : facts
+  const banded = limits ? facts.filter((f) => withinBand(f, limits)) : facts
   const inBand = banded.length ? banded : facts
   const byId = new Map(inBand.map((f) => [f.id, f]))
   const due = retry.filter((r) => r && byId.has(r.id) && count - r.at >= 20)

@@ -230,7 +230,7 @@
     {
       "id": "elevator-history-otis-1854-safety-demo",
       "category": "elevator",
-      "question": "In which year did Elisha Otis show a crowd that his elevator safety brake worked, by having the rope cut while he stood safely on the platform?",
+      "question": "In which year did Elisha Otis show a crowd that his elevator safety brake worked?",
       "answer": "1854",
       "distractors": [
         "1839",
@@ -269,7 +269,13 @@
           "source_title": "The Technological Breakthrough in Our Midst That Allowed Buildings To Grow Tall - Village Preservation",
           "quote": "In May, 1854 at the World's Fair, he performed a dramatic demonstration of his Excelsior Elevator at the Crystal Palace in New York City, in which he rose high up into the air and had the rope cut."
         }
-      ]
+      ],
+      "round4": {
+        "why": "r4-trivia-truth-02: the stem printed the whole answer to elevator-culture-otis-1854-rope (`The rope holding up his platform`), and both are difficulty 2, so one child meets both from Office Block up. The clause is dropped; the year asked for is unchanged.",
+        "was": {
+          "question": "In which year did Elisha Otis show a crowd that his elevator safety brake worked, by having the rope cut while he stood safely on the platform?"
+        }
+      }
     },
     {
       "id": "elevator-history-haughwout-five-floors",
@@ -1704,7 +1710,7 @@
     {
       "id": "elevator-records-eiffel-lifts-around-the-world",
       "category": "math",
-      "question": "The Eiffel Tower's lifts together travel about 103,000 km every year, and Earth is about 40,000 km around. So the lifts travel about how many times around the world each year?",
+      "question": "The Eiffel Tower's lifts together travel a bit over a hundred thousand kilometres a year, and Earth is about 40,000 km around. About how many times around the world is that each year?",
       "answer": "About 2.5 times",
       "distractors": [
         "About 0.5 times",
@@ -1738,7 +1744,13 @@
           "source_title": "The Eiffel Tower's Lifts (official site)",
           "quote": "Two of the original elevators are still in service on the Eiffel Tower."
         }
-      ]
+      ],
+      "round4": {
+        "why": "r4-trivia-truth-02: the stem printed `103,000 km`, which is verbatim the answer to elevator-history-eiffel-lifts-distance, and both are in band at Megatall. The figure is given in words instead, so the division the question asks for still works and the other item keeps its answer.",
+        "was": {
+          "question": "The Eiffel Tower's lifts together travel about 103,000 km every year, and Earth is about 40,000 km around. So the lifts travel about how many times around the world each year?"
+        }
+      }
     },
     {
       "id": "elevator-records-space-elevator-orbit-height",
@@ -2593,14 +2605,14 @@
       "difficulty": 1,
       "sources": [
         {
+          "title": "H. Res. 224, 111th Congress: supporting the designation of Pi Day - U.S. Government Publishing Office",
+          "url": "https://www.govinfo.gov/content/pkg/BILLS-111hres224eh/html/BILLS-111hres224eh.htm",
+          "quote": "Whereas Pi can be approximated as 3.14, and thus March 14, 2009, is an appropriate day for 'National Pi Day'"
+        },
+        {
           "title": "Pi Day - Wikipedia",
           "url": "https://en.wikipedia.org/wiki/Pi_Day",
           "quote": "In 1988, the earliest known official or large-scale celebration of Pi Day was organized by Larry Shaw at the San Francisco Exploratorium, where Shaw worked as a physicist, with staff and public marching around one of its circular spaces, then consuming fruit pies."
-        },
-        {
-          "title": "Pi Day - piday.org",
-          "url": "https://www.piday.org/",
-          "quote": "Pi Day is celebrated on March 14th (3/14) around the world."
         }
       ],
       "verified": true,
@@ -2622,7 +2634,23 @@
           "quote": "In 1988, the earliest known official or large-scale celebration of Pi Day was organized by Larry Shaw at the San Francisco Exploratorium"
         }
       ],
-      "round3": "r3-trivia-truth-01/-06: the Reed Magazine citation was titled 'In Memoriam, Larry Shaw 1961' and pointed at /obituaries/. screens.js renders sources[].title verbatim on the fact card and as the Fact Book's link text, so the gate that keeps death words off the child's reward screen was reading past the only line that carried one; the round-1 refute check saw the obituary and cleared it on the grounds that the FACT text carried no death content, which is the seam. Replaced with the Wikipedia Pi Day article (fetched; quote verbatim) and a retitled piday.org ('piday.org' rendered as 'Source: piday.org (piday.org)'). The '1:59 p.m.' detail was supported only by the removed obituary, so it left the card with it rather than standing uncited. Wikipedia having moved into sources, the refute lens moves to the Exploratorium's own Pi Day history page."
+      "round3": "r3-trivia-truth-01/-06: the Reed Magazine citation was titled 'In Memoriam, Larry Shaw 1961' and pointed at /obituaries/. screens.js renders sources[].title verbatim on the fact card and as the Fact Book's link text, so the gate that keeps death words off the child's reward screen was reading past the only line that carried one; the round-1 refute check saw the obituary and cleared it on the grounds that the FACT text carried no death content, which is the seam. Replaced with the Wikipedia Pi Day article (fetched; quote verbatim) and a retitled piday.org ('piday.org' rendered as 'Source: piday.org (piday.org)'). The '1:59 p.m.' detail was supported only by the removed obituary, so it left the card with it rather than standing uncited. Wikipedia having moved into sources, the refute lens moves to the Exploratorium's own Pi Day history page.",
+      "round4": {
+        "why": "r4-trivia-truth-03: Wikipedia was the FIRST source, against docs/TRIVIA.md (\"Wikipedia only ever as a second source\"), with only piday.org behind it. A primary source now leads — H. Res. 224, fetched from govinfo, whose quote carries the date the question asks for — Wikipedia is second and carries the Larry Shaw / 1988 / Exploratorium sentence the fact states, and piday.org is gone from the card entirely. The refuting lens moves to the Exploratorium history page, a document the item does not itself cite.",
+        "was": {
+          "sources": [
+            {
+              "title": "Pi Day - Wikipedia",
+              "url": "https://en.wikipedia.org/wiki/Pi_Day"
+            },
+            {
+              "title": "Pi Day - piday.org",
+              "url": "https://www.piday.org/"
+            }
+          ],
+          "verification": []
+        }
+      }
     },
     {
       "id": "math-numbers-googol",
@@ -3019,12 +3047,12 @@
     {
       "id": "math-everyday-honeycomb-hexagon",
       "category": "math",
-      "question": "Which shape of room divides a flat surface into equal-sized rooms using the least total wall?",
+      "question": "Bees build hexagons. Which shape covers a flat surface in equal pieces using the least total wall?",
       "answer": "Regular hexagon",
       "distractors": [
         "Square",
         "Equilateral triangle",
-        "Regular octagon"
+        "Rectangle"
       ],
       "fact": "Maths has a rule called the honeycomb conjecture: if you divide a flat surface into rooms that are all the same size, no pattern uses less wall than a grid of regular hexagons. Thomas Hales proved it in 1999. Whether bees build hexagons for this reason is a separate question about bees, not maths.",
       "difficulty": 2,
@@ -3058,7 +3086,18 @@
           "source_title": "Honeycomb conjecture - Wikipedia",
           "quote": "a regular hexagonal grid or honeycomb has the least total perimeter of any subdivision of the plane into regions of equal area."
         }
-      ]
+      ],
+      "round4": {
+        "why": "r4-math-09: the stem defined its subject by itself (`shape of room ... into ... rooms`), and a regular octagon does not tile the plane at all, so it was not a wrong answer to the question but a shape the question cannot be asked about. Wording and one distractor only; the fact, the sources and both lenses are untouched.",
+        "was": {
+          "question": "Which shape of room divides a flat surface into equal-sized rooms using the least total wall?",
+          "distractors": [
+            "Square",
+            "Equilateral triangle",
+            "Regular octagon"
+          ]
+        }
+      }
     },
     {
       "id": "math-everyday-binary-digits",
@@ -3448,6 +3487,16 @@
       "elevator-records-bailong-outdoor-elevator",
       "elevator-records-deepest-mine-mponeng",
       "math-everyday-floors-per-second",
+      "math-numbers-pi-day"
+    ]
+  },
+  "round4": {
+    "date": "2026-09-08",
+    "what": "Hostile review round 4. Four items amended, no item added or removed (67 in, 67 out): one question that defined its subject by itself and carried a distractor that cannot tile a plane (r4-math-09), two stems that printed another shipped item's exact answer (r4-trivia-truth-02), and one item whose FIRST citation was Wikipedia with only a commercial site behind it (r4-trivia-truth-03). Every quote added here was fetched from the URL it is attributed to; the Exploratorium's own Pi Day history page answers 403 to an automated fetch, so it is cited as a verification lens (where the round-1 record shows it was read) and not as a shown source with a quote nobody re-read. Separately, the bank's `rule` string was corrected: it claimed both checkers fetched an independent source, and for 32 of 67 items the refuting lens re-read a document the item itself cites (r4-trivia-truth-01). Also added, and NOT a correction to any fact: a `concept` tag on all 27 maths items, which src/trivia.js uses to keep number theory and very large numbers out of the two youngest bands (r4-math-08).",
+    "items": [
+      "math-everyday-honeycomb-hexagon",
+      "elevator-history-otis-1854-safety-demo",
+      "elevator-records-eiffel-lifts-around-the-world",
       "math-numbers-pi-day"
     ]
   }

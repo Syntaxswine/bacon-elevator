@@ -12,7 +12,7 @@ const VERSION = '1.0.0'
 // the browser was /sw.js. A child who already had the game could not be reached by a correction at
 // all, and `Version 1.0.0` on the Grown-ups screen said the same on both builds, so nobody could
 // tell. The cache name is now a function of the CONTENT, not of a literal somebody has to remember.
-const BUILD = 'a2b844cc98cc'
+const BUILD = '5cf76f2de52c'
 const CACHE = 'be-' + VERSION + '-' + BUILD
 const ASSETS = [
   './', './index.html', './404.html', './manifest.webmanifest', './favicon.ico',
@@ -40,7 +40,22 @@ self.addEventListener('install', (event) => {
   //    reloaded itself mid-sum with no tap: measured, an unrequested navigation 3.1 s in, the
   //    child returned to the lobby. Nothing may move without the child's action.
   //    The message handler below still calls skipWaiting — that is the chip's own path.
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })))))
+  //
+  // 3. ONE ABORTED FETCH MUST NOT COST THE WHOLE CACHE (r4-mobile-ux-5). `addAll()` rejects as a
+  //    unit, so a single cancelled request — the drive's repeated ?reset=1 unregister/re-register
+  //    navigations produced one about one run in four — left the install with NO cache at all, and
+  //    the visit that installed it had no offline copy. Per-file puts through allSettled: whatever
+  //    was reachable is cached, the rest fills in on demand through the fetch handler below, and
+  //    the paths that failed are named in the console rather than swallowed.
+  event.waitUntil(caches.open(CACHE).then(async (c) => {
+    const results = await Promise.allSettled(ASSETS.map(async (u) => {
+      const res = await fetch(new Request(u, { cache: 'reload' }))
+      if (!res.ok) throw new Error(`${u}: HTTP ${res.status}`)
+      await c.put(u, res)
+    }))
+    const failed = results.map((r, i) => (r.status === 'rejected' ? ASSETS[i] : null)).filter(Boolean)
+    if (failed.length) console.warn('precache incomplete, will fill on demand:', failed.join(', '))
+  }))
 })
 
 self.addEventListener('activate', (event) => {

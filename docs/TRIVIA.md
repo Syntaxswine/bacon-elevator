@@ -30,6 +30,14 @@ independent readers before it was allowed in. An unverifiable fact is cut, not s
    injuries, accidents, entrapment or frightening content; reading age about 8–10). Default was
    *reject when in doubt*. Either checker could rescue an item with a small correction (an as-of
    year, a softer sentence, a better distractor); the corrected wording is what shipped.
+   **What the record actually shows (round 4, r4-trivia-truth-01).** The two lenses always read
+   different documents from ONE ANOTHER — `test/trivia.test.js` asserts exactly that and nothing
+   more — but for 32 of the 67 items the refuting lens re-read a document the item itself cites
+   rather than an outside one, and a refute lens pointed at an item's own primary citation
+   re-confirms it. `data/trivia.json`'s `rule` string used to claim "each fetching an independent
+   source" for both; it now says what the record shows. Nothing false reached the child (every one
+   of those items was independently re-checked in round 4's review), but the claim a future
+   maintainer will trust must match the process that was run.
 4. **Both must pass.** 70 of 72 passed. Rejected: the "Otis filed the first push-button patent in
    1892" claim (specialist history credits John H. Clark, 1886) and the "safety jaws stop the car
    within about 6.5 inches" claim (one manufacturer's illustrative figure; code stopping

@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { mulberry32 } from '../src/rng.js'
-import { loadFacts, isPassengerFloor, pickFact, makeChoices, domainOf, TRIVIA_LIMITS, withinNumberBand } from '../src/trivia.js'
+import { loadFacts, isPassengerFloor, pickFact, makeChoices, domainOf, TRIVIA_LIMITS, withinNumberBand, withinBand } from '../src/trivia.js'
 
 const shipped = JSON.parse(readFileSync(new URL('../data/trivia.json', import.meta.url), 'utf8'))
 
@@ -109,7 +109,9 @@ test('domainOf', () => {
 // at Corner Shop: 53 of 96 passengers above difficulty 1, 24 questions over 120 characters.
 // The band predicate, asked of the module that owns it. Re-spelling `difficulty <= … && q.length <= …`
 // here is how this test came to believe an item was available that pickFact had already excluded.
-const inBandOf = (f, limits) => f.difficulty <= limits.maxDifficulty && f.q.length <= limits.maxQ && withinNumberBand(f, limits)
+// …and since r4-math-08 the band also refuses a CONCEPT (number theory, very large numbers) at the
+// youngest two levels, so this is now the module's own predicate rather than a re-spelling of it.
+const inBandOf = (f, limits) => withinBand(f, limits)
 
 test('the fact pool is gated by level: Corner Shop never draws above its band', () => {
   const { facts } = loadFacts(shipped)
@@ -128,7 +130,9 @@ test('the fact pool is gated by level: Corner Shop never draws above its band', 
   }
   // the band is big enough to be a pool, not a loop
   const inBand = facts.filter((f) => inBandOf(f, limits))
-  assert.ok(inBand.length >= 20, `only ${inBand.length} items inside the Corner Shop band`)
+  // 18 since the concept band landed (was 20): `NOT a prime` and `a googol` wait for Office Block.
+  // Nine buildings of two passengers before anything can repeat, which is still a pool, not a loop.
+  assert.ok(inBand.length >= 16, `only ${inBand.length} items inside the Corner Shop band`)
   assert.ok(inBand.some((f) => f.kind === 'elevator') && inBand.some((f) => f.kind === 'math'), 'both kinds must be stocked')
 })
 
@@ -302,7 +306,7 @@ test('r2: a passenger never asks arithmetic above the level the child is on', ()
   // the band must still be a pool, not a loop
   for (const level of ['corner', 'hotel']) {
     const inb = facts.filter((f) => inBandOf(f, TRIVIA_LIMITS[level]))
-    assert.ok(inb.length >= 20, `${level}: ${inb.length} items left in the band`)
+    assert.ok(inb.length >= 16, `${level}: ${inb.length} items left in the band`)
     assert.ok(inb.some((f) => f.kind === 'elevator') && inb.some((f) => f.kind === 'math'), `${level}: both kinds must be stocked`)
   }
 })

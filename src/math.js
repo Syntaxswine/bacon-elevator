@@ -7,7 +7,7 @@ export const MINUS = '−'
 export const KINDS = ['add', 'sub', 'mul', 'div', 'missAdd', 'missMul', 'up', 'down']
 
 export function initialCtx() {
-  return { ring: [], lastAnswer: null, sameSeen: 0, kindRun: { kind: null, n: 0 }, comeback: [], count: 0, skills: {}, lastComeback: false }
+  return { ring: [], lastAnswer: null, sameSeen: 0, zeroSeen: 0, kindRun: { kind: null, n: 0 }, comeback: [], count: 0, skills: {}, lastComeback: false }
 }
 
 function fillCtx(ctx) {
@@ -21,6 +21,13 @@ function fillCtx(ctx) {
     // that age (r3-math-09). It now holds for five questions and burns down. A legacy save (or a
     // test) that writes `true` gets a full fuse; `false` gets none.
     sameSeen: Number.isInteger(c.sameSeen) ? Math.max(0, Math.min(20, c.sameSeen)) : (c.sameSeen ? SAME_FUSE : 0),
+    // The same fuse shape for the ADDITIVE IDENTITY (`0 + 2`, `4 − 0`, `0 ▲ 2`), whose answer is
+    // one of the two numbers already on the panel. 0 is a taught point at Corner Shop steps 1 and
+    // 2 and levels.js says so, but a third of every question drawn there was one of them (32.0 %
+    // at step 1, 19.7 % at step 2 over 20 000 draws) — more than a teaching point, and the first
+    // screen of a fresh save is drawn from it. Serving one holds the shape off for ZERO_FUSE
+    // questions, which caps it near one in six without a weight table or a second rng draw.
+    zeroSeen: Number.isInteger(c.zeroSeen) ? Math.max(0, Math.min(20, c.zeroSeen)) : 0,
     kindRun: c.kindRun && typeof c.kindRun === 'object' ? c.kindRun : { kind: null, n: 0 },
     comeback: Array.isArray(c.comeback) ? c.comeback : [],
     count: Number.isInteger(c.count) ? c.count : 0,
@@ -120,6 +127,41 @@ function finish(kind, a, b, extra = {}) {
 
 // How many questions an incidental a === b suppresses its own shape for.
 export const SAME_FUSE = 5
+// …and how many an additive identity suppresses ITS shape for (r4-math-06).
+export const ZERO_FUSE = 4
+// How many misses in a row a queued sum gets before the queue stops re-arming it.
+export const MISS_RETIRE = 3
+
+// A sum whose answer is already printed in the question: the additive identity in every form the
+// generator can draw it. `0 + 0` is refused outright by draw(); this is the throttle for the rest.
+export function isIdentity(p) {
+  if (!p) return false
+  if (p.kind === 'add' || p.kind === 'up') return p.a === 0 || p.b === 0
+  if (p.kind === 'sub' || p.kind === 'down') return p.b === 0
+  if (p.kind === 'missAdd') return p.a === 0
+  return false
+}
+
+// A COMEBACK IS BANDED BY THE STEP THAT SERVES IT, NOT BY THE STEP THAT DREW IT (r4-math-01).
+// makeProblem used to take a due entry before it read stepOf(), so the queue overrode both the
+// step's kind list and its ceiling: a child dropped to Corner Shop step 1 — tag `numbers to 10`,
+// kinds add/sub/▲/▼, max 5 — was served `9 + ▮ = 10`, a form step 1 never teaches, above its own
+// ceiling, on the screen whose own message band had just said "Smaller numbers for a bit."
+// Measured on a fresh default save: 189 of 191 comeback draws out of band, five falls per building
+// for every building after the second, for ever. A due entry that the current step cannot legally
+// ask simply waits (and ages out of the queue on its own, state.js recordQuestion), which is what
+// `+5 and +15` already promises for an entry that is not yet due.
+export function inStepBand(problem, entries) {
+  if (!problem || !Array.isArray(entries)) return false
+  const nums = [problem.a, problem.b, ...(Number.isInteger(problem.c) ? [problem.c] : []), problem.answer]
+  return entries.some((e) => {
+    if (e.kind !== problem.kind) return false
+    const max = e.max ?? Infinity
+    if (nums.some((n) => Math.abs(n) > max)) return false
+    if (problem.answer < 0 && !e.negatives) return false
+    return true
+  })
+}
 
 const digits = (n) => String(Math.abs(n)).split('').reverse().map(Number)
 function carries(a, b) {
@@ -254,11 +296,12 @@ export function makeProblem(level, step, ctx, rng) {
   //      question was a comeback and the pool collapsed to five sums with no new sum ever drawn
   //      again. A comeback may not follow a comeback, so the generator runs at least every other
   //      question whatever the accuracy, and a deferred entry simply fires one question later.
+  //   3. It may not leave the band of the step it is served at — see inStepBand (r4-math-01).
   const lastKey = c.ring.length ? c.ring[c.ring.length - 1] : null
-  const due = c.lastComeback ? null
-    : c.comeback.filter((x) => x && Number.isInteger(x.due) && x.due <= c.count && validProblem(x.problem) && x.problem.key !== lastKey).sort((x, y) => x.due - y.due)[0]
-  if (due) return { ...validProblem(due.problem), comeback: true }
   const entries = stepOf(level, step).kinds
+  const due = c.lastComeback ? null
+    : c.comeback.filter((x) => x && Number.isInteger(x.due) && x.due <= c.count && validProblem(x.problem) && x.problem.key !== lastKey && inStepBand(x.problem, entries)).sort((x, y) => x.due - y.due)[0]
+  if (due) return { ...validProblem(due.problem), comeback: true }
   // THE KIND-RUN GUARD IS ABOUT VARIETY, AND A STEP WITH ONE KIND HAS NONE TO OFFER.
   // `Custom → only ×` builds a single-kind step, so from question 4 `kindRun.n >= 3` was true for
   // ever and rejected all 50 attempts on 99 % of questions whatever the pool size — the ring, the
@@ -279,6 +322,7 @@ export function makeProblem(level, step, ctx, rng) {
     if (c.ring.includes(p.key)) continue
     if (c.lastAnswer !== null && p.answer === c.lastAnswer) continue
     if (c.sameSeen > 0 && p.a === p.b && !p.pair) continue   // a DECLARED double/square is the table, not a coincidence
+    if (c.zeroSeen > 0 && isIdentity(p)) continue            // the answer is already printed in the question
     if (multiKind && c.kindRun && c.kindRun.kind === p.kind && c.kindRun.n >= 3) continue
     // The FIRST sum a child ever sees is the game's whole first impression, and it is drawn with no
     // ring, no last answer and no same-seen latch to steer it: one fresh save in six opened on an
@@ -336,16 +380,25 @@ export function afterAnswer(ctx, problem, correct) {
   // sum's remediation. Serving now clears every DUE entry for that key (a not-yet-due +15 twin
   // survives, which is what §4's `+5 and +15` promises), and a fresh miss replaces the key's pair
   // outright instead of stacking a third and fourth copy on top of it.
+  //
+  // AND A KEY MAY NOT RE-ARM WITHOUT LIMIT (r4-math-01). Every miss deleted the key's pair and
+  // queued a fresh one, so a sum the child cannot yet do could never leave the queue: measured on
+  // a default save, three sums held all twelve slots for forty buildings and 194 falls. After
+  // MISS_RETIRE misses IN A ROW WHILE STILL QUEUED, the key is retired rather than re-queued — it
+  // is not banished, because the queue ages entries out after 40 questions (state.js
+  // recordQuestion) and a sum unseen that long is a fresh question again.
   let comeback = c.comeback.filter((x) => !(x && x.problem && x.problem.key === problem.key && x.due <= c.count))
   if (!correct) {
+    const misses = c.comeback.reduce((n, x) => (x && x.problem && x.problem.key === problem.key ? Math.max(n, x.misses || 1) : n), 0) + 1
     comeback = comeback.filter((x) => !(x && x.problem && x.problem.key === problem.key))
     const copy = { kind: problem.kind, a: problem.a, b: problem.b, ...(Number.isInteger(problem.c) ? { c: problem.c } : {}), ...(problem.pair ? { pair: true } : {}), answer: problem.answer, text: problem.text, key: problem.key }
-    comeback = comeback.concat({ problem: copy, due: c.count + 5 }, { problem: copy, due: c.count + 15 })
+    if (misses <= MISS_RETIRE) comeback = comeback.concat({ problem: copy, due: c.count + 5, misses }, { problem: copy, due: c.count + 15, misses })
   }
   return {
     ring,
     lastAnswer: problem.answer,
     sameSeen: (problem.a === problem.b && !problem.pair) ? SAME_FUSE : Math.max(0, c.sameSeen - 1),
+    zeroSeen: isIdentity(problem) ? ZERO_FUSE : Math.max(0, c.zeroSeen - 1),
     kindRun: c.kindRun.kind === problem.kind ? { kind: problem.kind, n: c.kindRun.n + 1 } : { kind: problem.kind, n: 1 },
     comeback,
     count: c.count + 1,

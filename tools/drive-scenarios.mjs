@@ -13,20 +13,25 @@
 import { solve } from '../src/math.js'
 import { customLevel } from '../src/levels.js'
 import { label } from '../src/elevator.js'
+import { readFileSync } from 'node:fs'
 
 const Q = '?drive=1&seed=7&fast=1'
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
 // THE BANK'S WORST CASE, forced into the real panel by the layout scenario. The trivia step shows
-// whatever fact seed 7 picks, which is why a clipped 196-character question could ship: this is the
-// longest question and the three longest choices in data/trivia.json (196 / 84 / 71 / 57 chars).
+// whatever fact seed 7 picks, which is why a clipped 196-character question could ship.
+//
+// DERIVED FROM THE BANK, NOT COPIED OUT OF IT (r4-trivia-truth-04). The literals here claimed in a
+// comment to be "the longest question and the three longest choices in data/trivia.json (196 / 84 /
+// 71 / 57)" and had drifted: the 84-character choice belonged to an item whose answer had since
+// been shortened to 52, so the fixture over-tested against a bank whose longest choice is 71 — safe
+// today, and a fixture that says it tracks the data while no longer doing so is one the next person
+// to add a longer choice will trust. It is now read from the file at drive time.
+const BANK = JSON.parse(readFileSync(new URL('../data/trivia.json', import.meta.url), 'utf8'))
+const longest = (xs, n) => xs.slice().sort((a, b) => b.length - a.length).slice(0, n)
 const WORST = {
-  q: 'A ‘space elevator’ would be a cable running from the ground up to a station in geostationary orbit, the orbit where a satellite stays above the same spot on Earth. About how high up is that orbit?',
-  choices: [
-    'A law says the doors must stay open for a few seconds so everyone has time to get in',
-    'A super-short speech to sell an idea, short enough for an elevator ride',
-    'So a wheelchair user can see behind them when backing out',
-  ],
+  q: longest(BANK.items.map((i) => i.question), 1)[0],
+  choices: longest(BANK.items.flatMap((i) => [String(i.answer), ...i.distractors]), 3),
 }
 
 // A slim, serialisable view of the live state (the pool is 67 facts; leave it behind).
@@ -425,6 +430,26 @@ async function checkLayout(page, name, opts = {}) {
         if (Math.abs(g.right - p.right) > 12 || bottomGap > 12) out.problems.push(`GO is not bottom-right: go ${Math.round(g.right)},${Math.round(g.bottom)} panel ${Math.round(p.right)},${Math.round(p.bottom)}${scrolls ? ` (scrolling, gap ${Math.round(bottomGap)})` : ''}`)
         const key7 = document.querySelector('button[data-key="7"]').getBoundingClientRect()
         if (g.width < key7.width * 1.8) out.problems.push('GO is not two cells wide')
+        // AND IT IS ON SCREEN AT REST (r4-mobile-ux-2, r4-autism-fit-2, r4-elevator-feel-03,
+        // r4-code-hostile-06). The bottomGap rule above asks "is it reachable?" — the right
+        // question for a key buried in a long settings page, the wrong one for the key that
+        // submits an answer. At 568 x 232 GO measured 25 px of 48 on screen, sliced through its own
+        // glyph, with nothing saying to drag inside the panel; the tap-target rule could not see it
+        // because it exempts anything inside a container that genuinely scrolls.
+        const shownGo = Math.max(0, Math.min(g.bottom, window.innerHeight) - Math.max(g.top, 0))
+        if (shownGo < g.height - 1) out.problems.push(`GO is ${Math.round(shownGo)} px of ${Math.round(g.height)} on screen at rest, in a ${window.innerHeight} px viewport`)
+        // …and the word GO is legible before a digit is typed (r4-autism-fit-3). The contrast sweep
+        // above skips disabled controls, which is why white on pale blue at 1.74:1 shipped on the
+        // one key the whole game turns on.
+        if (go.disabled) {
+          const cs = getComputedStyle(go)
+          const fg = lum(cs.color), bg = lum(cs.backgroundColor)
+          if (fg && bg !== null) {
+            const ratio = (Math.max(fg.L, bg.L) + 0.05) / (Math.min(fg.L, bg.L) + 0.05)
+            if (ratio < 4.5) out.problems.push(`disabled GO reads at ${ratio.toFixed(2)}:1 (${cs.color} on ${cs.backgroundColor})`)
+            out.goDisabled = `${ratio.toFixed(2)}:1`
+          }
+        }
       }
     }
     // a sheet that must be readable without scrolling (the Rules card at 360 × 640)
@@ -462,6 +487,49 @@ async function checkLayout(page, name, opts = {}) {
         if (n !== 6) out.problems.push(`${n} drifting strips, expected 6`)
         for (const svg of drift.querySelectorAll('svg')) { const r = svg.getBoundingClientRect(); if (r.bottom > w.bottom + 1 || r.left < w.left - 1 || r.right > w.right + 1) out.problems.push('a drifting strip starts outside the band') }
       }
+      // NOTHING ON THE REWARD CARD IS PAINTED OVER (r4-code-hostile-01, r4-autism-fit-1,
+      // r4-elevator-feel-01, r4-mobile-ux-1). The old `onScreen: ROOF_CONTROLS` rule asserted only
+      // that the two buttons had 44 px of themselves visible — which is exactly what the sticky
+      // block guaranteed BY covering the card — so the instrument certified its own occluder.
+      // elementFromPoint at three heights down every visible line of the card: the answer must be
+      // that line, or something inside it.
+      const covered = []
+      // Clipped to the SCROLLPORT, not to the viewport: a line the scroller has not scrolled to is
+      // below the fold (which the card's own scroll cue answers), and the pixel where it would be
+      // belongs to the foot. Occlusion is something painted over a line that IS on show.
+      const pageBox = document.querySelector('.roof .page').getBoundingClientRect()
+      for (const el of document.querySelectorAll('.roof .page p, .roof .page h1, .roof .page .new-part, .roof .foot [data-offer], .roof .foot .offerq')) {
+        const b = el.getBoundingClientRect()
+        if (b.width < 1 || b.height < 1) continue
+        const inPage = el.closest('.page')
+        const lo = (inPage ? Math.max(0, pageBox.top) : 0) + 2
+        const hi = (inPage ? Math.min(window.innerHeight, pageBox.bottom) : window.innerHeight) - 2
+        if (b.bottom <= lo || b.top >= hi) continue
+        for (const f of [0.25, 0.5, 0.75]) {
+          const y = b.top + b.height * f
+          if (y < lo || y >= hi) continue
+          const hit = document.elementFromPoint(Math.min(window.innerWidth - 1, Math.max(0, b.left + b.width / 2)), y)
+          if (hit && (hit === el || el.contains(hit) || hit.contains(el))) continue
+          covered.push(`${el.tagName.toLowerCase()}.${el.className || el.getAttribute('data-offer')} "${el.textContent.trim().slice(0, 34)}" is covered by ${hit ? hit.tagName.toLowerCase() + (hit.className ? '.' + String(hit.className).split(' ')[0] : '') : 'nothing'}`)
+          break
+        }
+      }
+      if (covered.length) out.problems.push(...covered.slice(0, 3))
+      out.roofLines = `${document.querySelectorAll('.roof .page p').length} lines, none covered`
+    }
+    // THE LEVEL OFFER IS THE ONLY IN-GAME ROUTE UP THE LADDER (DESIGN §4), so its two buttons get
+    // the treatment the panel's keys get: whole on screen, and the tap at their centre reaches them.
+    if (opts.offer) {
+      for (const sel of ['[data-offer="yes"]', '[data-offer="stay"]']) {
+        const el = document.querySelector('.roof ' + sel)
+        if (!el) { out.problems.push(`${sel}: the roof card carries no offer`); continue }
+        const b = el.getBoundingClientRect()
+        const shown = Math.max(0, Math.min(b.bottom, window.innerHeight) - Math.max(b.top, 0))
+        if (shown < b.height - 1) out.problems.push(`${sel}: ${Math.round(shown)} px of ${Math.round(b.height)} on screen at rest`)
+        const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)
+        if (!(hit && (hit === el || el.contains(hit)))) out.problems.push(`${sel}: a tap at its centre reaches ${hit ? hit.outerHTML.slice(0, 50) : 'nothing'}`)
+      }
+      out.offer = 'yes/stay whole and hit-testable'
     }
     return out
   }, opts)
@@ -1176,11 +1244,13 @@ scenarios.push(
       await waitScreen(page, 'roof')
       await check('roof', { roof: true })
       // THE REWARD SCREEN'S OWN CONTROLS, at the turn where they were 0 px on screen and at the
-      // smallest portrait phone the project ships a profile for.
+      // smallest portrait phone the project ships a profile for — and, since r4, whether the card
+      // they are pinned beside is still readable. `onScreen` alone was satisfied BY the occluder.
       const ROOF_CONTROLS = ['.roof [data-next]', '.roof [data-nav="lobby"]']
       await check('roof-portrait', { roof: true, onScreen: ROOF_CONTROLS })
       await turn(568, 276); await check('roof-568x276', { roof: true, onScreen: ROOF_CONTROLS })
       await turn(640, 304); await check('roof-640x304', { roof: true, onScreen: ROOF_CONTROLS })
+      await turn(568, 232); await check('roof-568x232', { roof: true, onScreen: ROOF_CONTROLS })
       await page.setViewport(portrait); await wait(150)
       await tap(page, '.roof [data-nav="lobby"]')
       await waitPhaseIn(page, ['descending'], 3000)
@@ -1199,8 +1269,12 @@ scenarios.push(
       await tap(page, '[data-level="megatall"]')
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
       await tap(page, '[data-nav="ride"]'); await waitScreen(page, 'ride'); await waitPhaseIn(page, ['floor'])
-      const pm = await press(page)
-      expect(Math.max(pm.a, pm.b) >= 100, 'Megatall step 1 should ask a 3-digit sum: ' + pm.text)
+      // Megatall step 1 is a BRIDGE since r4-math-04: every row still puts a 3-digit number on the
+      // panel, but the second operand may be one or two digits, so this rides on until the card
+      // under test is genuinely a 3-digit one rather than asserting the first draw is.
+      let pm = await press(page)
+      for (let i = 0; i < 6 && !(Math.max(pm.a, pm.b) >= 100); i++) { await enter(page, pm.answer); await waitPhaseIn(page, ['floor', 'trivia', 'roof']); if ((await slim(page)).phase === 'trivia') await answerTrivia(page, true); pm = await press(page) }
+      expect(Math.max(pm.a, pm.b) >= 100, 'Megatall should ask a 3-digit sum: ' + pm.text)
       await enter(page, pm.answer + 1); await enter(page, pm.answer + 1)
       await waitPhaseIn(page, ['repair'])
       const rm = await check('repair-megatall', { ride: true, card: true })
@@ -1795,6 +1869,50 @@ async function seedSave(page, patch) {
     localStorage.setItem('bacon-elevator.save.v1', JSON.stringify({ ...obj, ...patch, writes: 1000000 }))
   }, patch)
 }
+
+// THE LEVEL OFFER, ON THE CARD, AT EVERY GEOMETRY (r4-code-hostile-01).
+// No scenario had ever reached a roof card carrying an offer — the layout run plays one building
+// from a fresh save, and the offer needs two clean step-3 buildings — so the one control DESIGN §4
+// gives the adaptive ladder was drawn by code no instrument had looked at. It was rendered
+// UNDERNEATH the sticky button block: invisible, and a real tap at the centre of `Yes` dispatched
+// `to-lobby` on one phone profile and `next-building` on another. This seeds the second clean
+// building (step 3, one clean building already banked), rides it, and then asks the question the
+// old `onScreen` rule could not: is the button under the pixel the child aims at?
+scenarios.push({
+  name: 'roof-offer',
+  async run(ctx) {
+    const { page, shot } = ctx
+    await load(ctx)
+    await seedSave(page, { level: 'corner', step: 3, adaptive: true, step3Run: 1, rulesSeen: true, lunchbox: 40 })
+    await load(ctx, '')
+    await startRide(page)
+    for (let guard = 0; guard < 30; guard++) {
+      const s = await slim(page)
+      if (s.phase === 'roof') break
+      if (s.phase === 'trivia') { await answerTrivia(page, true); continue }
+      await rideOne(page)
+    }
+    await waitScreen(page, 'roof')
+    const s = await slim(page)
+    expect(s.roof && s.roof.offer === 'hotel', `the roof card carries no offer: ${JSON.stringify(s.roof)}`)
+    const txt = await page.$eval('.screen.roof', (e) => e.innerText)
+    expect(/Ready for Hotel/.test(txt), 'the offer does not say which way it points: ' + txt.slice(0, 120))
+    expect(/numbers to 20/.test(txt), 'the offer does not name the band it is offering')
+    await shot('offer')
+    const portrait = ctx.phone.viewport
+    const turn = async (w, h) => { await page.setViewport({ ...portrait, width: w, height: h, isLandscape: true }); await wait(180) }
+    await checkLayout(page, 'offer-portrait', { roof: true, offer: true, onScreen: ['.roof [data-next]', '.roof [data-nav="lobby"]'] })
+    for (const [w, h] of [[568, 276], [640, 304], [568, 232]]) { await turn(w, h); await checkLayout(page, `offer-${w}x${h}`, { roof: true, offer: true }) }
+    await page.setViewport(portrait); await wait(150)
+    // …and the tap actually promotes, rather than ending the building under a covered button.
+    await tap(page, '.roof [data-offer="yes"]')
+    const after = await slim(page)
+    expect(after.screen === 'roof', 'answering the offer left the roof: ' + after.screen)
+    const lvl = await page.evaluate(() => window.__bacon.state().level)
+    expect(lvl === 'hotel', `Yes did not promote: level is ${lvl}`)
+    return `offer reached, whole and hit-testable at 4 geometries; Yes -> ${lvl}`
+  },
+})
 
 scenarios.push({
   name: 'workshop',

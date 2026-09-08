@@ -16,7 +16,6 @@ const svg = await readFile(join(ROOT, 'assets', 'icon.svg'), 'utf8')
 const SIZES = [
   { file: 'assets/icon-192.png', px: 192 },
   { file: 'assets/icon-512.png', px: 512 },
-  { file: 'assets/apple-touch-icon.png', px: 180 },
   { file: 'assets/favicon-32.png', px: 32 },
 ]
 
@@ -44,6 +43,16 @@ const MASKABLE = [
   { file: 'assets/icon-maskable-512.png', px: 512 },
 ]
 
+// THE APPLE TOUCH ICON IS SQUARE AND OPAQUE (r4-mobile-ux-3). It used to be screenshotted with
+// `omitBackground` like the `rel=icon` PNGs, so it shipped a pre-rounded plate with fully
+// transparent corners (measured: pixel (0,0) at alpha 0). iOS ignores alpha, composites the icon
+// onto BLACK, and then applies its own squircle — whose curvature is not the PNG's 112/512 radius —
+// so the Home Screen icon a parent gets from `Add to Home Screen` carries thin black wedges around
+// its edge. Full-bleed background, no baked-in radius, let iOS do the masking. Unlike the Android
+// maskable pair this needs no safe-circle inset: the squircle crops far less than a circle of
+// radius 0.8, and the art already sits inside the plate's own rounded rect.
+const APPLE = { file: 'assets/apple-touch-icon.png', px: 180 }
+
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-first-run', '--disable-gpu'] })
 try {
   const page = await browser.newPage()
@@ -53,6 +62,13 @@ try {
     const png = await page.screenshot({ type: 'png', omitBackground: true, clip: { x: 0, y: 0, width: s.px, height: s.px } })
     await writeFile(join(ROOT, s.file), png)
     console.log(`${s.file} ${png.length} bytes`)
+  }
+  {
+    await page.setViewport({ width: APPLE.px, height: APPLE.px, deviceScaleFactor: 1 })
+    await page.setContent(`<!doctype html><html><body style="margin:0">${svg.replace(PLATE, FLAT).replace(/width="512" height="512"/, `width="${APPLE.px}" height="${APPLE.px}"`)}</body></html>`)
+    const png = await page.screenshot({ type: 'png', omitBackground: false, clip: { x: 0, y: 0, width: APPLE.px, height: APPLE.px } })
+    await writeFile(join(ROOT, APPLE.file), png)
+    console.log(`${APPLE.file} ${png.length} bytes`)
   }
   for (const s of MASKABLE) {
     await page.setViewport({ width: s.px, height: s.px, deviceScaleFactor: 1 })
@@ -88,6 +104,11 @@ try {
     const m = await measure(maskableSvg, s.px, false)
     console.log(`  gate ${s.file}: transparent ${m.transparentFraction}, reach ${m.reach}`)
     if (m.transparentFraction !== 0) throw new Error(`${s.file} has transparent pixels (${m.transparentFraction}); a maskable icon must be opaque edge to edge`)
+  }
+  {
+    const m = await measure(svg.replace(PLATE, FLAT), APPLE.px, false)
+    console.log(`  gate ${APPLE.file}: transparent ${m.transparentFraction}`)
+    if (m.transparentFraction !== 0) throw new Error(`${APPLE.file} has transparent pixels (${m.transparentFraction}); iOS composites those onto black`)
   }
   const reach = (await measure(maskableArtOnly, 512, true)).reach
   const unscaled = (await measure(svg.replace(PLATE, ''), 512, true)).reach

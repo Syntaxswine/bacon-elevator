@@ -104,12 +104,15 @@ test('r1-code-hostile-09: counters are range-checked, not merely type-checked', 
 })
 
 test('r1-code-hostile-05: the roof card round-trips, and garbage in it does not', () => {
-  const card = { gained: 6, bonus: 3, unlocked: ['dotmatrix'], plaques: [], offer: 'hotel', offerTaken: null, lunchboxBefore: 12 }
+  // `dir`, `help` and `midBanked` joined the card in round 4 (r4-math-05, r4-math-01,
+  // r4-code-hostile-02): a card that round-trips without them prints the wrong sentence on reload.
+  const card = { gained: 6, bonus: 3, unlocked: ['dotmatrix'], plaques: [], offer: 'hotel', dir: 'up', help: false, offerTaken: null, lunchboxBefore: 12, midBanked: 3 }
   const r = parse(JSON.stringify({ v: 1, ride: { phase: 'roof', floor: 10, target: 10, roofCard: card } }))
   assert.deepEqual(r.ride.roofCard, card)
   const bad = parse(JSON.stringify({ v: 1, ride: { phase: 'roof', floor: 10, target: 10, roofCard: { gained: 1e308, bonus: -4, offer: 'moon', unlocked: 'x' } } }))
   assert.equal(bad.ride.roofCard.gained, 1e9); assert.equal(bad.ride.roofCard.bonus, 0); assert.equal(bad.ride.roofCard.offer, null)
   assert.deepEqual(bad.ride.roofCard.unlocked, [])
+  assert.equal(bad.ride.roofCard.dir, null); assert.equal(bad.ride.roofCard.help, false); assert.equal(bad.ride.roofCard.midBanked, 0)
 })
 
 test('a mid-timeline save keeps its phase: hydrate settles it, the invariant does not pre-empt it', () => {

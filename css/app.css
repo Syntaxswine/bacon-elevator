@@ -121,6 +121,9 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .btn.sage { background: var(--sage-fill); border-color: var(--sage-edge); color: #fff; }
 .btn.quiet { background: transparent; border-color: transparent; font-weight: 500; }
 .btn.on { background: var(--sage-fill); border-color: var(--sage-edge); color: #fff; }
+/* The lobby's sound control: the words are the label, the pill is the state (r4-autism-fit-4). */
+.btn.sound-btn .pill { display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; margin-left: 8px; border-radius: 999px; border: 2px solid var(--line); background: var(--paper); color: var(--ink); font-size: calc(var(--body) / 18 * 15); font-weight: 700; }
+.btn.sound-btn.on .pill { border-color: #fff; background: #fff; color: var(--sage-edge); }
 .btn:active:not(:disabled) { transform: translateY(1px); filter: brightness(0.96); }
 .btn:disabled { opacity: 0.5; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
@@ -282,7 +285,12 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .panel .key { background: #fff; border: 3px solid var(--line); box-shadow: 0 3px 0 #b9b3a4; }
 .panel .key:active:not(:disabled) { box-shadow: 0 1px 0 #b9b3a4; transform: translateY(2px); }
 .panel .key.go { grid-column: span 2; background: var(--go); border-color: var(--go-deep); color: #fff; box-shadow: 0 3px 0 var(--go-deep); font-size: calc(var(--body) / 18 * 28); letter-spacing: 2px; }
-.panel .key.go:disabled { background: #b9c6d4; border-color: #9aaabb; box-shadow: 0 3px 0 #9aaabb; color: #fff; opacity: 1; }
+/* THE WORD `GO` MUST STILL BE READABLE BEFORE IT IS ARMED (r4-autism-fit-3). White on this pale
+   blue is 1.74:1 — formally exempt (WCAG 1.4.3 excludes disabled controls) and the same reasoning
+   the unlit floor face already lost at 2.57:1, on the key the whole game turns on and the one a
+   child looks at while deciding what it is. The `not yet` cue stays in the fill, the border and the
+   shadow; the WORD is ink-blue at 4.84:1 and turns white the moment a digit is typed. */
+.panel .key.go:disabled { background: #b9c6d4; border-color: #9aaabb; box-shadow: 0 3px 0 #9aaabb; color: #3f4f60; opacity: 1; }
 /* One `cannot act` look for the whole panel — the same three colours the disabled floor face uses,
    so there is no red, no cross and no washed-out glyph the contrast reader would then fail.
    The door keys were already disabled and still drew as live white keys. */
@@ -374,7 +382,11 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
     radial-gradient(farthest-side at 50% 0, rgba(43, 43, 43, 0.20), rgba(43, 43, 43, 0)) top / 100% 11px no-repeat scroll,
     radial-gradient(farthest-side at 50% 100%, rgba(43, 43, 43, 0.20), rgba(43, 43, 43, 0)) bottom / 100% 11px no-repeat scroll;
 }
-.sheet .foot { flex: 0 0 auto; padding: 8px 12px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--paper); border-top: 2px solid #cfc9bb; }
+/* NO SECOND HOME-INDICATOR INSET. `#app` already reserves env(safe-area-inset-bottom) for every
+   descendant, so adding it again here spent the inset twice — 34 px of the scrolling body given up
+   on exactly the phones with the least of it, on the two cards that already clip their last line
+   (r4-mobile-ux-4). The flat 8 px is the padding; the inset is #app's job. */
+.sheet .foot { flex: 0 0 auto; padding: 8px 12px; background: var(--paper); border-top: 2px solid #cfc9bb; }
 .sheet .foot .btn { min-height: 60px; }
 .fact .q { font-weight: 700; font-size: calc(var(--body) / 18 * 19); margin: 0 0 8px; }
 .fact .verdict { font-size: calc(var(--body) / 18 * 18); margin: 4px 0; }
@@ -395,17 +407,45 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 /* ---------- roof ---------- */
 .roof { align-items: center; text-align: center; }
 .roof .page { width: 100%; display: flex; flex-direction: column; align-items: center; }
-.roof .picnic-wrap { position: relative; width: min(300px, 80vw); }
+.roof .picnic-wrap { position: relative; }
 .roof .picnic { display: block; width: 100%; height: auto; }
 .roof .gain { font-size: calc(var(--body) / 18 * 24); font-weight: 700; margin: 6px 0; }
-/* The roof card's two controls are the last thing in a `.page` 532 px tall, so on every landscape
-   phone and on se1 portrait they sat below the fold. Sticky pins them to the bottom of the scroller
-   whenever the card overflows and does nothing at all when it fits - no markup change, and the card
-   still scrolls to read the rest (r3-mobile-ux-1, r3-mobile-ux-5). */
-.roof .page > .stack { position: sticky; bottom: 0; z-index: 3; background: var(--paper); padding: 6px 0 2px; }
+/* THE ROOF'S CONTROLS SIT BESIDE THE SCROLLER, NOT INSIDE IT.
+   Round 3 pinned them with `position: sticky; bottom: 0` + an opaque `--paper` background INSIDE
+   the `.page`, which fixed "both buttons 0 px on screen" (r3-mobile-ux-1, r3-mobile-ux-5) and
+   created an occluder: at 320 x 454 the `New in the Workshop:` unlock was 100 % covered and the
+   lunchbox total sliced through its digits; at 375 x 553, 360 x 560, 390 x 664 and 393 x 727 one or
+   both forward-goal lines were painted over; and the level offer rendered UNDERNEATH the two big
+   buttons, so a real tap at the centre of `Yes` dispatched `to-lobby` or `next-building`
+   (r4-code-hostile-01, r4-autism-fit-1, r4-elevator-feel-01, r4-mobile-ux-1). The same two-band
+   shape `.sheet .body` / `.sheet .foot` has always used: the body scrolls with its own four-layer
+   cue, the foot is a sibling that overlaps nothing, and the controls stay on screen at every
+   geometry — which was the whole point of the sticky. */
+.roof .foot { flex: 0 0 auto; width: 100%; padding: 8px 12px; background: var(--paper); border-top: 2px solid #cfc9bb; }
+.roof .foot .stack { width: 100%; max-width: 360px; margin: 0 auto; }
+.roof .foot .offer { width: 100%; max-width: 360px; margin: 0 auto 8px; }
+.roof .foot .offer .offerq { margin: 0 0 6px; font-size: calc(var(--body) / 18 * 17); font-weight: 700; }
+/* The picnic is the one block on the card that can yield. At 320 x 454 a fixed 300 px drawing took
+   102 px of a 454 px screen and pushed the reward text under the fold on arrival; capping it
+   against the viewport height puts the tray line, the total and the unlock above it again. */
+.roof .picnic-wrap { width: min(300px, 80vw, 34vh); }
+.roof .page { padding-bottom: 12px; }
+/* A SHORT SCREEN GETS A SHORT FOOT. Out of the scroller the foot is a hard claim on the viewport,
+   and the reward card's two tall buttons plus an offer row are 240 px — more than a 232 px
+   landscape window has. The buttons drop to the 48 px floor and sit side by side, which keeps
+   every control whole and on screen (the whole point of taking them out of the scroller) and
+   leaves the card itself something to scroll. */
+@media (max-height: 460px) {
+  .roof .foot { padding: 6px 10px; }
+  .roof .foot .btn, .roof .foot .btn.tall { min-height: 48px; font-size: calc(var(--body) / 18 * 18); }
+  .roof .foot .stack { flex-direction: row; gap: 8px; }
+  .roof .foot .stack .btn { flex: 1; width: auto; }
+  .roof .foot .offer { margin-bottom: 6px; }
+  .roof .foot .offer .offerq { font-size: calc(var(--body) / 18 * 15); margin-bottom: 4px; }
+}
 /* the drift stays inside the picnic band: never over the text or the buttons */
 .roof .drift { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.roof .drift svg { position: absolute; width: 44px; height: 22px; animation: drift 2s ease-out forwards; }
+.roof .drift svg { position: absolute; width: min(44px, 18%); height: 22px; animation: drift 2s ease-out forwards; }   /* the band narrows with the picnic on a short screen; the strips narrow with it */
 @keyframes drift { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-70px); opacity: 0; } }
 
 /* update chip */
@@ -458,7 +498,7 @@ html.reduced * { transition-duration: 0ms !important; }
   .rules .pic.wide svg { width: 64px; height: 44px }
   .rules p { font-size: calc(var(--body) / 18 * 15); margin: 4px 0; line-height: 1.3 }
   .rules p.never { font-size: calc(var(--body) / 18 * 16); margin-top: 6px }
-  .rules .foot { padding: 6px 10px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)) }
+  .rules .foot { padding: 6px 10px }   /* the inset is #app's, spent once (r4-mobile-ux-4) */
   .rules .foot .btn { min-height: 52px }
   /* The line that goes first: it restates the two "Right" pictures directly above it. The "Wrong:"
      paragraph (the spikes and the brake) is the sensory-risk item and stays at every size. */
@@ -480,11 +520,14 @@ html.reduced * { transition-duration: 0ms !important; }
   #question.small { font-size: calc(var(--body) / 18 * 17) }
   #message { font-size: calc(var(--body) / 18 * 14); min-height: 16px }
   .rules h1 { font-size: calc(var(--body) / 18 * 18); margin: 0 0 2px }
-  .rules .pic { font-size: calc(var(--body) / 18 * 12.5) }
-  .rules .pic svg { height: 28px }
-  .rules .pic.wide svg { width: 44px; height: 28px }
-  .rules .pics { gap: 5px; margin: 2px 0 }
-  .rules p { font-size: calc(var(--body) / 18 * 14) }
+  /* The card now teaches three question shapes and both wrong-answer rules, so the smallest tier
+     buys the extra words back out of the DRAWINGS, which repeat what the words say. */
+  .rules .body { padding: 2px 10px 4px }
+  .rules .pic { font-size: calc(var(--body) / 18 * 12.5); padding: 3px }
+  .rules .pic svg { height: 22px }
+  .rules .pic.wide svg { width: 38px; height: 22px }
+  .rules .pics { gap: 3px; margin: 2px 0 }
+  .rules p { font-size: calc(var(--body) / 18 * 14); margin: 3px 0 }
   .rules .foot .btn { min-height: 48px }
 }
 /* A SHORT PORTRAIT WINDOW (a floating or split-screen window, never a phone held upright): under
@@ -508,6 +551,7 @@ html.reduced * { transition-duration: 0ms !important; }
    putting a key off screen. */
 @media (max-height: 500px) and (orientation: landscape) {
   :root { --gap: 3px; --display: 56px; --cell: clamp(48px, calc((var(--vh) - var(--panel-chrome)) / 5), 56px); }
+
   /* THE MENU SCREENS HAD NO LANDSCAPE LAYOUT AT ALL while the ride had a whole grid. On an SE 1
      turned sideways the lobby hero (doors, title, lunchbox) took the first 250 px of a 276 px
      viewport and left `Ride` — the one button that starts the game — as a 26 px unlabelled blue
@@ -535,4 +579,35 @@ html.reduced * { transition-duration: 0ms !important; }
   #question.text { font-size: calc(var(--body) / 18 * 24); }
   .panel .tq { font-size: calc(var(--body) / 18 * 16); }
   .panel .card .big { font-size: calc(var(--body) / 18 * 28); }
+}
+
+/* THE KEYPAD LOSES A ROW BEFORE IT LOSES A KEY (r4-mobile-ux-2, r4-autism-fit-2,
+   r4-elevator-feel-03, r4-code-hostile-06).
+   Five rows of 48 px keys plus their gaps need 258 px. An SE-1-class phone in landscape with both
+   Safari bars hands the page 232, so the panel scrolled and the BOTTOM row — the 0 key and GO — sat
+   25 px of 48 on screen at rest, sliced through the middle of its own glyph, with nothing saying to
+   drag inside the panel. `align-content: safe end` positions the content but sets no scroll offset,
+   so the overflow always came off the END, i.e. off the one control that submits an answer.
+   Scrolling the panel to its end was the obvious fix and simply moves the slice onto ⌫, the key
+   that repairs a typo before a wrong answer drops the car.
+   Four columns instead: the 3 x 3 digit block is untouched and in the same order, HINT / ± / ⌫
+   move to a right-hand column, and 0 + GO take the last row. Four rows of 48 px need 207 px, so
+   nothing scrolls and nothing is cut. Placement is by DOM position, which keypad() in
+   src/render/panel.js emits in one fixed order: HINT, ±, ⌫, 789, 456, 123, 0, GO. */
+@media (orientation: landscape) and (max-height: 257px) {
+  .panel[data-mode="keypad"] { grid-template-columns: repeat(4, 1fr); }
+  .panel[data-mode="keypad"] > *:nth-child(1) { grid-area: 2 / 4 }   /* HINT */
+  .panel[data-mode="keypad"] > *:nth-child(2) { grid-area: 3 / 4 }   /* ± (or its spacer) */
+  .panel[data-mode="keypad"] > *:nth-child(3) { grid-area: 1 / 4 }   /* ⌫ */
+  .panel[data-mode="keypad"] > *:nth-child(4) { grid-area: 1 / 1 }
+  .panel[data-mode="keypad"] > *:nth-child(5) { grid-area: 1 / 2 }
+  .panel[data-mode="keypad"] > *:nth-child(6) { grid-area: 1 / 3 }
+  .panel[data-mode="keypad"] > *:nth-child(7) { grid-area: 2 / 1 }
+  .panel[data-mode="keypad"] > *:nth-child(8) { grid-area: 2 / 2 }
+  .panel[data-mode="keypad"] > *:nth-child(9) { grid-area: 2 / 3 }
+  .panel[data-mode="keypad"] > *:nth-child(10) { grid-area: 3 / 1 }
+  .panel[data-mode="keypad"] > *:nth-child(11) { grid-area: 3 / 2 }
+  .panel[data-mode="keypad"] > *:nth-child(12) { grid-area: 3 / 3 }
+  .panel[data-mode="keypad"] > *:nth-child(13) { grid-area: 4 / 1 }  /* 0 */
+  .panel[data-mode="keypad"] .key.go { grid-area: 4 / 2 / 4 / 5 }
 }

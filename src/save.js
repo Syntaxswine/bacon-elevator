@@ -1,5 +1,5 @@
 // Save serialisation. Pure: tolerates garbage, migrates v0, and makes the BE1- share code.
-import { initialState, SETTINGS_DEFAULTS, normaliseRide } from './state.js'
+import { initialState, SETTINGS_DEFAULTS, normaliseRide, PLAQUES } from './state.js'
 import { validProblem } from './math.js'
 import { SLOT_IDS, slotPartIds, defaultPart, PART_IDS } from './parts.js'
 
@@ -13,7 +13,7 @@ export const SAVE_KEY = 'bacon-elevator.save.v1'
 // a grown-up is told they may have to copy BY HAND without bound, which is the bug round 2 fixed
 // once already (facts.seen, measured at 1 727 characters over twelve buildings). Four integers do
 // not grow. test/save.test.js holds encodeCode under 9 000 characters at a large reachable state.
-const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'struggleRun', 'plaques', 'records']
+const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'struggleRun', 'demotedFrom', 'plaques', 'records']
 
 export function serialize(state) {
   const out = {}
@@ -53,7 +53,12 @@ export function migrate(obj) {
   s.rulesSeen = bool(obj.rulesSeen, false)
   s.step3Run = Math.max(0, int(obj.step3Run, 0))
   s.struggleRun = Math.max(0, int(obj.struggleRun, 0))
-  s.plaques = [...new Set(strArr(obj.plaques))]   // an older save may hold the same plaque many times
+  s.demotedFrom = oneOf(obj.demotedFrom, LEVEL_IDS, null)
+  // PLAQUES ARE THRESHOLDS, and every other field here is range-checked against the set it comes
+  // from — `unlocks` against PART_IDS on the very next line. This took any string of any length, so
+  // a hand-edited BE1- code hung `<b>200</b> bacon` and a 120-character one on the Lobby wall
+  // (escaped, so no markup ran; a hygiene gap, not an injection). Same treatment as unlocks.
+  s.plaques = [...new Set(strArr(obj.plaques))].filter((x) => PLAQUES.includes(Number(x)))
   const st = isObj(obj.settings) ? obj.settings : {}
   s.settings = {
     sound: bool(st.sound, SETTINGS_DEFAULTS.sound),
@@ -116,7 +121,9 @@ export function migrate(obj) {
     skills: isObj(h.skills) ? Object.fromEntries(Object.entries(h.skills).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.map((x) => (x ? 1 : 0)).slice(-8)])) : {},
     // The comeback queue lives here now (it could not mature inside one building). Same validator
     // the live problem gets: makeProblem hands a due entry straight to the renderer.
-    comeback: (Array.isArray(h.comeback) ? h.comeback : []).map((x) => (isObj(x) ? { problem: validProblem(x.problem), due: clampInt(x.due, 0, MAX_COUNT, -1) } : null)).filter((x) => x && x.problem && x.due >= 0).slice(-12),
+    // `misses` is how many times in a row this key has been missed while queued; the retirement
+    // rule in math.js afterAnswer reads it, so it has to survive a reload with the entry.
+    comeback: (Array.isArray(h.comeback) ? h.comeback : []).map((x) => (isObj(x) ? { problem: validProblem(x.problem), due: clampInt(x.due, 0, MAX_COUNT, -1), misses: clampInt(x.misses, 1, 99, 1) } : null)).filter((x) => x && x.problem && x.due >= 0).slice(-12),
   }
   s.facts.retry = s.facts.retry.map((r) => ({ id: r.id, at: Math.max(0, Math.min(s.history.count, r.at)) }))
   s.ride = migrateRide(obj.ride)
@@ -159,6 +166,8 @@ function migrateRide(r) {
     falls: clampInt(r.falls, 0, 999, 0),
     draws: clampInt(r.draws, 0, MAX_COUNT, 0),
     ctx: isObj(r.ctx) ? r.ctx : null,
+    // The passenger's drawn question, so a park or a reload puts the SAME one back on the landing.
+    ask: askOf(r.ask),
     lastKind: oneOf(r.lastKind, ['elevator', 'math'], null),
     lastRetry: bool(r.lastRetry, false),
     fallFloor: clampInt(r.fallFloor, 0, 10, 0),
@@ -171,6 +180,13 @@ function migrateRide(r) {
   return inFlight ? out : normaliseRide(out)
 }
 
+function askOf(a) {
+  if (!isObj(a) || typeof a.id !== 'string' || !a.id) return null
+  if (!Array.isArray(a.choices) || a.choices.length !== 3 || !a.choices.every((c) => typeof c === 'string')) return null
+  const answer = clampInt(a.answer, 0, 2, -1)
+  return answer < 0 ? null : { id: a.id, choices: a.choices.slice(), answer }
+}
+
 const LEVEL_IDS = ['corner', 'hotel', 'office', 'sky', 'megatall']
 function roofCardOf(c) {
   if (!isObj(c)) return null
@@ -180,8 +196,11 @@ function roofCardOf(c) {
     unlocked: strArr(c.unlocked),
     plaques: strArr(c.plaques),
     offer: oneOf(c.offer, LEVEL_IDS, null),
+    dir: oneOf(c.dir, ['up', 'down'], null),
+    help: bool(c.help, false),
     offerTaken: oneOf(c.offerTaken, LEVEL_IDS, null),
     lunchboxBefore: clampInt(c.lunchboxBefore, 0, MAX_BACON, 0),
+    midBanked: clampInt(c.midBanked, 0, MAX_BACON, 0),
   }
 }
 

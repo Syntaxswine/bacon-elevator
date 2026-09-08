@@ -11,7 +11,7 @@ import { mulberry32 } from '../src/rng.js'
 import { LEVELS, LEVEL_ORDER, customLevel } from '../src/levels.js'
 import { makeProblem, afterAnswer, initialCtx, SAME_FUSE } from '../src/math.js'
 import { lunchboxMilestone, PARTS, PLAQUES } from '../src/state.js'
-import { loadFacts, pickFact, withinNumberBand, TRIVIA_LIMITS, CHOICE_LETTERS } from '../src/trivia.js'
+import { loadFacts, pickFact, withinNumberBand, withinBand, TRIVIA_LIMITS, CHOICE_LETTERS } from '../src/trivia.js'
 import { factSheet, rules, lobby, roof } from '../src/render/screens.js'
 import { fresh, makeRng, startRide, answer, run, FACTS } from './_helpers.js'
 
@@ -348,7 +348,9 @@ test('r3-code-hostile-06: a child who gets every fact wrong still meets new fact
       retry = retry.filter((x) => x.id !== f.id).concat({ id: f.id, at: count })  // every one answered WRONG
       count += 2
     }
-    const band = limits ? FACTS.filter((f) => f.difficulty <= limits.maxDifficulty && f.q.length <= limits.maxQ && withinNumberBand(f, limits)).length : FACTS.length
+    // The module's own band predicate, never a re-spelling of it: the band grew a fourth clause in
+    // round 4 (concepts, r4-math-08) and a copy here would have gone on measuring the old one.
+    const band = limits ? FACTS.filter((f) => withinBand(f, limits)).length : FACTS.length
     assert.ok(distinct.size >= band - 1, `${level}: ${distinct.size} distinct facts out of ${band} in band after 400 passengers`)
   }
 })

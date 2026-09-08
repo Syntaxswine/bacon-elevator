@@ -20,6 +20,9 @@
 
 const K = (kind, weight, o = {}) => ({ kind, weight, ...o })
 
+// The smallest ceiling Custom will build a +/- table under: below it the pool is a handful of sums.
+export const ADD_FLOOR = 6
+
 export const LEVELS = [
   {
     id: 'corner', name: 'Corner Shop', short: 'Shop', tag: 'numbers to 10',
@@ -71,8 +74,18 @@ export const LEVELS = [
   {
     id: 'megatall', name: 'Megatall', short: 'Mega', tag: 'big numbers, and below zero',
     steps: [
-      { kinds: [K('add', 3, { a: [100, 899], b: [100, 899], max: 999, regroups: 2 }), K('sub', 3, { a: [100, 999], b: [100, 899], max: 999, regroups: 2 })] },
-      { kinds: [K('mul', 3, { a: [11, 99], b: [2, 9], max: 900 }), K('add', 2, { a: [100, 899], b: [100, 899], max: 999, regroups: 2 })] },
+      // STEP 1 IS A BRIDGE, NOT THE DEEP END (r4-math-04). It used to be 3-digit ± with up to two
+      // regroups and NOTHING ELSE: mean largest operand 595.9 against Skyscraper step 3's 47.5, a
+      // 12.5x jump where the other three promotions in the game are 1.7x, 4.6x and 1.07x, and 0 %
+      // of its draws had every number under 100 (every other step in the game is 56-100 %). It is
+      // also the step `Try Megatall?` lands on (`offer` forces step 1) AND the step a fall cannot
+      // leave (adaptStep floors at 1), so a child who accepted had no easier content anywhere in
+      // the building. Every row still puts a 3-digit number on the panel — that is what the
+      // building is FOR — but the second operand is one or two digits and at most one column
+      // regroups, and the 2-digit ± rows the child proved at Skyscraper step 3 come with them. The
+      // old step 1 is now step 2, where the ceiling and the second regroup arrive together.
+      { kinds: [K('add', 3, { a: [100, 899], b: [11, 89], max: 999, regroups: 1 }), K('sub', 3, { a: [110, 999], b: [11, 89], max: 999, regroups: 1 }), K('add', 2, { a: [100, 899], b: [2, 9], max: 999, regroups: 1 }), K('sub', 2, { a: [101, 999], b: [2, 9], max: 999, regroups: 1 }), K('add', 1, { a: [11, 89], b: [11, 89], max: 100, regroup: true }), K('sub', 1, { a: [11, 99], b: [11, 89], max: 100, regroup: true })] },
+      { kinds: [K('add', 3, { a: [100, 899], b: [100, 899], max: 999, regroups: 2 }), K('sub', 3, { a: [100, 999], b: [100, 899], max: 999, regroups: 2 }), K('mul', 2, { a: [11, 99], b: [2, 9], max: 900 })] },
       { kinds: [K('mul', 2, { a: [11, 99], b: [11, 99], max: 9999, mult10: true }), K('div', 2, { q: [11, 99], b: [2, 9], max: 999 }), K('sub', 2, { a: [2, 50], b: [2, 50], max: 50, negatives: true })] },
     ],
   },
@@ -99,7 +112,12 @@ export function levelById(id) {
 // ops-×, 100-to-120 setting could serve), never left with a single legal pair.
 export function customLevel({ ops = ['add', 'sub'], min = 0, max = 20, negatives = false } = {}) {
   min = Math.max(0, Math.floor(+min || 0))
-  max = Math.max(min + 2, Math.min(9999, Math.floor(+max || 10)))
+  // The Largest stepper's own floor. `Smallest 0, Largest 2` is reachable from Grown-ups and built
+  // a pool of THREE sums — the same sum back two questions later on 55 % of questions, ten floors
+  // of a building drawn from three (r4-math-10). × and ÷ have had a factor floor since r3-math-06
+  // for the same reason; this is the ± family's, and the tag below is derived from the tables that
+  // were actually built, so it says `numbers 0 to 6` rather than repeating the knob.
+  max = Math.max(min + 2, ADD_FLOOR, Math.min(9999, Math.floor(+max || 10)))
   const sumLo = Math.max(0, Math.min(min, Math.floor(max / 4)))
   const facHi = Math.max(5, Math.min(12, Math.floor(Math.sqrt(max))))   // no honest table under 5 × 5
   const facLo = 2                                                       // min cannot bind a factor

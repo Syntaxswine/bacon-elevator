@@ -58,7 +58,20 @@ if (params.get('reset') === '1') {
 }
 
 // ---- state ---------------------------------------------------------------------------------
-let state = parse(storage.getItem(SAVE_KEY))
+// A STORED SAVE THAT WILL NOT PARSE IS NOT THE SAME THING AS NO SAVE (r4-autism-fit-5). migrate()
+// answers both with a fresh initialState(), so a truncated or hand-mangled record booted the game
+// at lunchbox 0 with no console error and nothing on any screen — while a REFUSED WRITE, the
+// neighbouring failure, has explained itself since round 2. The unreadable text is moved aside
+// (never deleted, and never left where the next save would overwrite it) and both the lobby and
+// Grown-ups say what happened, so a grown-up knows to reach for a save code.
+const RAW_SAVE = storage.getItem(SAVE_KEY)
+const BROKEN_KEY = SAVE_KEY + '.unreadable'
+let state = parse(RAW_SAVE)
+let saveUnreadable = false
+if (!state && typeof RAW_SAVE === 'string' && RAW_SAVE.trim()) {
+  saveUnreadable = true
+  storage.setItem(BROKEN_KEY, RAW_SAVE.slice(0, 20000))
+}
 if (!state) {
   let salt = 0
   try { salt = crypto.getRandomValues(new Uint32Array(1))[0] } catch { salt = (Date.now() * 2654435761) >>> 0 }
@@ -118,7 +131,7 @@ const display = createDisplay(document.getElementById('question'), document.getE
 const hintBox = document.getElementById('hint')
 const sheetBox = document.getElementById('sheet')
 const carEl = document.getElementById('car')
-const ui = { partCard: null, resetArmedAt: 0, gearAt: 0, codeMsg: '', resetMsg: '', transient: null, factVisible: false, factTimer: 0, prevPhase: null, lastMotion: '', storageFailed: false, adopted: '', inertTimer: 0, build: '' }
+const ui = { partCard: null, resetArmedAt: 0, gearAt: 0, codeMsg: '', resetMsg: '', transient: null, factVisible: false, factTimer: 0, prevPhase: null, lastMotion: '', storageFailed: false, adopted: '', inertTimer: 0, build: '', saveUnreadable, updateWaiting: false, lobbyMsg: '' }
 
 // ---- drive log (only under ?drive=1) ----------------------------------------------------
 // events: timeline step names and the car's motion transitions, in the order they happened;
@@ -233,6 +246,8 @@ function scopeOf(st) {
 }
 function dispatch(action) {
   if (DRIVE) actions.push(action.type)
+  // The reset confirmation is a one-screen notice, not a permanent line.
+  if (ui.lobbyMsg && action.type !== 'reset') ui.lobbyMsg = ''
   const before = scopeOf(state)
   const r = reduce(state, action, rngFor(state))
   state = r.state
@@ -321,7 +336,7 @@ function render() {
     if (name !== state.screen && name !== 'ride' && sec.firstChild) sec.innerHTML = '' // no stale markup (or duplicate ids) behind the live screen
   }
   const s = state.screen
-  const notices = { storageFailed: ui.storageFailed, adopted: ui.adopted }
+  const notices = { storageFailed: ui.storageFailed, adopted: ui.adopted, saveUnreadable: ui.saveUnreadable, lobbyMsg: ui.lobbyMsg }
   if (s === 'lobby') sections.lobby.innerHTML = screens.lobby(state, notices)
   else if (s === 'picker') sections.picker.innerHTML = screens.picker(state)
   else if (s === 'rules') sections.rules.innerHTML = screens.rules(state)
@@ -329,7 +344,7 @@ function render() {
   else if (s === 'factbook') sections.factbook.innerHTML = screens.factbook(state)
   else if (s === 'workshop') sections.workshop.innerHTML = screens.workshop(state, { partCard: ui.partCard })
   else if (s === 'logbook') sections.logbook.innerHTML = screens.logbook(state)
-  else if (s === 'grownups') sections.grownups.innerHTML = screens.grownups(state, { version: VERSION, build: ui.build, codeMsg: ui.codeMsg, resetMsg: ui.resetMsg, resetArmed: ui.resetArmedAt > 0, ...notices })
+  else if (s === 'grownups') sections.grownups.innerHTML = screens.grownups(state, { version: VERSION, build: ui.build, codeMsg: ui.codeMsg, resetMsg: ui.resetMsg, resetArmed: ui.resetArmedAt > 0, updateWaiting: ui.updateWaiting, ...notices })
   // the ride screen is persistent: update in place
   const r = state.ride
   document.getElementById('tray').textContent = String(r ? r.tray : 0)
@@ -338,7 +353,12 @@ function render() {
   document.getElementById('levelname').textContent = lvl.short || lvl.name
   const sb = document.getElementById('stepbar')
   sb.dataset.step = String(state.step); sb.setAttribute('aria-label', `step ${state.step} of 3`)
-  for (const b of app.querySelectorAll('[data-sound]')) { b.setAttribute('aria-pressed', state.settings.sound ? 'true' : 'false'); b.setAttribute('aria-label', state.settings.sound ? 'Sound on' : 'Sound off') }
+  // The ride's speaker is an icon with no words, so its LABEL carries the state; the lobby's is a
+  // switch whose visible words are the label and whose pill is the state (r4-autism-fit-4).
+  for (const b of app.querySelectorAll('[data-sound]')) {
+    if (b.getAttribute('role') === 'switch') { b.setAttribute('aria-checked', state.settings.sound ? 'true' : 'false'); continue }
+    b.setAttribute('aria-pressed', state.settings.sound ? 'true' : 'false'); b.setAttribute('aria-label', state.settings.sound ? 'Sound on' : 'Sound off')
+  }
   shaft.setReduced(reducedMotion())
   // The shaft measures itself only once it is on screen: at boot the ride section is display:none (0 × 0).
   if (s === 'ride' && lastScreen !== 'ride') shaft.resize()
@@ -545,7 +565,12 @@ app.addEventListener('click', (e) => {
   if (d.reset !== undefined) {
     const now = Date.now()
     if (ui.resetArmedAt && now - ui.resetArmedAt >= 5000 && now - ui.resetArmedAt <= 30000) {
-      ui.resetArmedAt = 0; ui.resetMsg = 'Everything is back to the start.'
+      // THE CONFIRMATION WAS WRITTEN TO A SCREEN THE SAME DISPATCH NAVIGATES AWAY FROM
+      // (r4-code-hostile-05): `reset` emits SCREEN('lobby'), so #resetmsg no longer existed by the
+      // time it rendered and a parent's two-tap destructive action was confirmed by nothing but a
+      // lobby reading 0. The lobby's notice band already has the right shape for it.
+      ui.resetArmedAt = 0; ui.resetMsg = ''
+      ui.lobbyMsg = 'Everything is back to the start.'
       cancelTimeline(); rng = null
       dispatch({ type: 'reset' })
       return
@@ -680,7 +705,7 @@ if (globalThis.caches && caches.keys) {
 if ('serviceWorker' in navigator && params.get('nosw') !== '1') {
   window.addEventListener('load', () => {
     resetDone.then(() => navigator.serviceWorker.register('./sw.js')).then((reg) => {
-      const offer = (w) => { waitingWorker = w; pendingWorker = w; showChipIfAtRest() }
+      const offer = (w) => { waitingWorker = w; pendingWorker = w; ui.updateWaiting = true; showChipIfAtRest(); if (state.screen === 'grownups') render() }
       if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting)
       reg.addEventListener('updatefound', () => {
         const w = reg.installing

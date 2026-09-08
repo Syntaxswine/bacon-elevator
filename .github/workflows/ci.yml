@@ -1,0 +1,27 @@
+# THE BUILD STAMP IS THE GATE A CONTENT-ONLY DEPLOY DEPENDS ON (r4-deploy-pages-02).
+# The browser's service-worker update check compares sw.js's BYTES and nothing else, so a change to
+# data/trivia.json, css/app.css or any src module that does not also move sw.js's BUILD reaches no
+# phone that already has the game: no worker installs, no cache is replaced, and the cache-first
+# handler never asks the network again. sw.js's own comment records that this happened on three of
+# the last four deploys. test/version.test.js goes red until `node tools/build-stamp.mjs` has been
+# run — and nothing but a human remembering to type `npm test` enforced it, while Pages publishes
+# whatever lands on main. This is that gate, run by the deploy.
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Zero runtime dependencies and zero build step (BRIEF §2): there is nothing to install.
+      # `npm test` is `node --test test/`, and it carries the stamp assertion.
+      - run: npm test
+      # Said again, on its own, so a red run names THIS cause rather than one of 200 assertions.
+      - run: node tools/build-stamp.mjs --check

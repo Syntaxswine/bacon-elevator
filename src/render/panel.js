@@ -214,8 +214,21 @@ function floorName(f) {
 // referents, on the screen the child reads before answering. The operators stay (DESIGN §86 ships
 // them as the elevator-native form, and dropping ▼ would leave ▲ with the identical clash), but the
 // sentence now says what moves: the NUMBER. The rules card's own line was changed to match.
-const OP_GLOSS = { up: '▲ is add: the number goes up.', down: '▼ is take away: the number goes down.' }
-function opGloss(p) { return (p && OP_GLOSS[p.kind]) || '' }
+//
+// AND THE BLANK MOVES (r4-math-03). `a + ▮ = c` arrives at Corner Shop step 3 — question 7 of a
+// fresh save, BEFORE the first ▲ — with nothing anywhere to say what the box in the middle is: the
+// band was empty, the Rules card's two worked examples both put the blank at the end, and the one
+// sentence that explains the form (explain.js's inverse clause) is on the Repair card, i.e. after
+// two wrong answers and a fall. The other two invented forms are glossed twice over. This is the
+// same one line, in the same place, for the form the game explains last.
+const OP_GLOSS = {
+  up: () => '▲ is add: the number goes up.',
+  down: () => '▼ is take away: the number goes down.',
+  missAdd: (p) => `▮ is the missing number: ${fmt(p.a)} and how many more make ${fmt(totalOf(p))}?`,
+  missMul: (p) => `▮ is the missing number: how many ${fmt(p.b)}s make ${fmt(totalOf(p))}?`,
+}
+const totalOf = (p) => (Number.isInteger(p.c) ? p.c : p.kind === 'missMul' ? p.a * p.b : p.a + p.b)
+function opGloss(p) { return (p && OP_GLOSS[p.kind] ? OP_GLOSS[p.kind](p) : '') }
 function doorsLine(state) {
   const open = state.car.doors === 'open' || state.car.doors === 'opening'
   return `${floorName(state.car.floor)}. Doors ${open ? 'open' : 'closed'}.`

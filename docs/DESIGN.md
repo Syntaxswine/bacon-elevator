@@ -82,7 +82,47 @@ Base: Design 1 (judges 1 and 3). Grafts two or more judges named are in, rejects
    - **The forward line, extended.** `test/content-round.test.js` asserts that at EVERY lunchbox from 0 to 6 000 and every floor count from 0 to 20 000 at least one of the two ladders names a next thing with a distance — round 3's r3-elevator-feel-02 assertion widened so it can never go silent again. Both lines print on the lobby (below the buttons: two extra lines in the head put `Ride` at 36 px of 72 at 568 × 276, which is r3-mobile-ux-3 with new words in it), on the roof card, and in the Workshop.
    - **What was CUT from the winning proposal, and why.** The machine and pit slots (gearless, MRL, oil buffers, the overspeed governor) are not in this pass: they are new geometry in `render/shaft.js`, the one file that animates the fall, and both judges named them as the first cut. They land alone, behind the fall's own identity assertion. The twelve-building ROUTE is rejected outright — it terminates, it rotates the world under the child on the screen that carries the maths, and amendment 12 already ruled on it. Renaming the levels from building names to maths bands is rejected: it takes away names the child has had for a week, and the tag beside each name is already the band. `pin a building` is rejected as a second navigation concept. `history.missed` (the child's last ten wrong presses, persisted) is rejected as the only new state whose content is their failures.
 
-15. **Everything else** in the sections below is the spec. Where two sentences below still conflict, the Module contract (§12) and the Verification plan (§13) win, then §2 Core loop, then the rest.
+15. **Round 4, hostile review (2026-09-08) — binding.**
+   - **The roof card's controls sit BESIDE the scroller, not inside it.** Amendment 13's sticky
+     `.roof .page > .stack` fixed "both buttons 0 px on screen" and became an occluder: an opaque
+     `--paper` block at `z-index: 3` painted over the card it was pinned inside, hiding the part
+     unlock outright at 320 × 454, slicing the lunchbox total through its digits, covering one or
+     both forward-goal lines on every shipped phone profile, and — the worst of it — drawing the
+     level offer UNDERNEATH the two big buttons, where a real tap at the centre of `Yes` dispatched
+     `to-lobby` or `next-building`. The roof is now the two-band shape `.sheet .body` / `.sheet
+     .foot` has always used: a scrolling `.page` and a sibling `.foot` holding the offer and the two
+     controls. Nothing may be pinned INSIDE a scroller over content the child has not read.
+   - **The offer moves into that foot, and it says which way it points.** `Try Hotel?` read
+     identically whether it was a promotion or a rescue and never named the band; it is now
+     `Ready for Hotel — numbers to 20?` / `Back to Skyscraper — times tables?`, with `Stay` still
+     the primary button. The roof card carries `dir`, and `tools/drive-scenarios.mjs`'s
+     `roof-offer` scenario plays to a card that has one and asserts `elementFromPoint` at the
+     centre of `Yes` returns `Yes`, at four geometries.
+   - **A comeback is banded by the step that serves it.** `makeProblem` read the queue before
+     `stepOf()`, so a due entry ignored the step's kind list and its ceiling: `9 + ▮ = 10` at
+     Corner Shop step 1. A due entry the current step cannot legally ask waits (`inStepBand`), a
+     key stops re-arming after `MISS_RETIRE` misses in a row, and picking a building — the same one
+     included — always clears the queue.
+   - **The ladder remembers a demotion.** One persisted field, `demotedFrom`: the level a rescue
+     took the child out of needs `UP_AGAIN` clean buildings, not two, before it is offered again.
+   - **Megatall step 1 is a bridge.** 3-digit ± one- or two-digit with at most one column regroup,
+     plus the 2-digit ± rows the child proved at Skyscraper step 3; the old step 1 (two regroups) is
+     step 2. It is the step a promotion lands on AND the step a fall cannot leave, and it served 0 %
+     of its sums entirely under 100.
+   - **The keypad loses a ROW before it loses a KEY.** Below 257 px of landscape height the keypad
+     is four columns — the 3 × 3 digit block untouched, HINT/±/⌫ in a right-hand column, 0 and GO on
+     the last row — instead of five rows that do not fit and a GO sliced in half at the fold.
+   - **`install` precaches per file, not with `addAll()`.** `cache: 'reload'` stays (amendment 10's
+     reason is unchanged); what changes is that one cancelled request no longer rejects the whole
+     install and leaves that visit with no offline cache at all. `Promise.allSettled` over individual
+     `cache.put`s, the failed paths named in the console, the rest filled on demand by the fetch
+     handler. `tools/phone-drive.mjs` treats a service-worker-initiated `requestfailed` as a warning,
+     so a real layout regression can never hide behind that flake.
+   - **The Rules card states the rule that actually runs.** It reads `settings.secondTry`, and it
+     shows a third worked example with the blank in the middle; the display band glosses `▮` the
+     way it already glosses ▲ and ▼.
+
+16. **Everything else** in the sections below is the spec. Where two sentences below still conflict, the Module contract (§12) and the Verification plan (§13) win, then §2 Core loop, then the rest.
 
 ## Concept
 
@@ -200,6 +240,14 @@ tools/ serve.js phone-drive.mjs headless-play.mjs facts-lint.mjs trivia-audit.mj
 ```
 
 Pure: `rng, levels, math, explain, elevator, trivia, state, save` — none references `window`, `document`, `localStorage`, `setTimeout` or `Date`; seed and now are injected. DOM: `main, storage, audio, render/*`. `state.reduce` returns `{state, effects}`; `main.js` alone dispatches from DOM events and plays effects and timelines off rAF. Save at `localStorage["bacon-elevator.save.v1"]` through `storage.js` (try/catch, in-memory fallback for Safari private mode); export/import as `BE1-` + base64.
+
+**Give the parent the URL WITH its trailing slash.** `https://<user>.github.io/bacon-elevator/`,
+never `…/bacon-elevator`. The no-slash form is answered by a 301 from Pages, and a redirect outside
+the worker's scope cannot be served from the cache: offline it is the browser's own error page,
+which a non-reading child cannot leave. Every practical entry point already carries the slash (the
+Home Screen icon uses `start_url "./"`, a bookmark of the loaded page keeps it, and `404.html`
+computes it), so this is the one hand-typed case — and it is documentation, not code: nothing
+outside the scope can be cached (r4-deploy-pages-01).
 
 PWA on the Pages subpath: manifest `start_url "./"`, `scope "./"`, `display standalone`, `orientation portrait`; `sw.js` registered as `./sw.js`, cache-first index (amendment 10 — the network-first index and `skipWaiting` this line used to specify are gone), cache-first relative assets, cache `be-<VERSION>-<BUILD>` (VERSION from `src/version.js`, BUILD a hash of the precached files), the worker WAITS for the chip's tap, older caches deleted on `activate`, a quiet `Update ready — tap to reload` chip; `?reset=1` clears save and caches. A navigation that is not the scope root is not the app: it goes to the network, so a mistyped path lands on `404.html` with a way back rather than on the shell's own blank page (amendment 13).
 

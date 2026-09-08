@@ -1,14 +1,14 @@
 {
   "version": 1,
   "built": "2026-09-08",
-  "rule": "Every item passed a CONFIRM checker and a hostile REFUTE checker, each fetching an independent source, except two declared items named in test/trivia.test.js; an unverifiable fact is cut, not softened. See docs/TRIVIA.md.",
+  "rule": "Every item passed a CONFIRM checker and a hostile REFUTE checker, except two declared items named in test/trivia.test.js; the two lenses always read different documents from one another, and for 32 items the refuting lens re-read a document the item itself cites rather than an outside one. An unverifiable fact is cut, not softened. See docs/TRIVIA.md.",
   "count": 67,
   "items": [
     {
       "id": "elevator-history-otis-1854-safety-demo",
       "category": "elevator",
       "difficulty": 2,
-      "question": "In which year did Elisha Otis show a crowd that his elevator safety brake worked, by having the rope cut while he stood safely on the platform?",
+      "question": "In which year did Elisha Otis show a crowd that his elevator safety brake worked?",
       "answer": "1854",
       "distractors": [
         "1839",
@@ -780,6 +780,7 @@
       "id": "elevator-records-fastest-elevator-metres-per-second",
       "category": "math",
       "difficulty": 2,
+      "concept": "everyday",
       "question": "Hitachi's lift in the Guangzhou CTF Finance Centre, the world's fastest in 2019, is rated at 1,260 metres per minute. How many metres per second is that?",
       "answer": "21 m/s",
       "distractors": [
@@ -973,6 +974,7 @@
       "id": "elevator-records-gateway-arch-tram-seats",
       "category": "math",
       "difficulty": 1,
+      "concept": "counting",
       "question": "Each Gateway Arch tram in St. Louis is a train of 8 little capsules with 5 seats each. How many people can ride in one tram?",
       "answer": "40",
       "distractors": [
@@ -1092,7 +1094,8 @@
       "id": "elevator-records-eiffel-lifts-around-the-world",
       "category": "math",
       "difficulty": 2,
-      "question": "The Eiffel Tower's lifts together travel about 103,000 km every year, and Earth is about 40,000 km around. So the lifts travel about how many times around the world each year?",
+      "concept": "everyday",
+      "question": "The Eiffel Tower's lifts together travel a bit over a hundred thousand kilometres a year, and Earth is about 40,000 km around. About how many times around the world is that each year?",
       "answer": "About 2.5 times",
       "distractors": [
         "About 0.5 times",
@@ -1624,6 +1627,7 @@
       "id": "math-numbers-zero-brahmagupta",
       "category": "math",
       "difficulty": 2,
+      "concept": "notation",
       "question": "In which century did the Indian mathematician Brahmagupta write down rules for doing sums with zero?",
       "answer": "The 7th century",
       "distractors": [
@@ -1661,6 +1665,7 @@
       "id": "math-numbers-one-not-prime",
       "category": "math",
       "difficulty": 1,
+      "concept": "number-theory",
       "question": "Which of these numbers is NOT a prime number?",
       "answer": "1",
       "distractors": [
@@ -1698,6 +1703,7 @@
       "id": "math-numbers-largest-known-prime-2026",
       "category": "math",
       "difficulty": 2,
+      "concept": "number-theory",
       "question": "As of 2026, about how many digits long is the largest known prime number?",
       "answer": "About 41 million digits",
       "distractors": [
@@ -1735,6 +1741,7 @@
       "id": "math-numbers-pi-memorised-record",
       "category": "math",
       "difficulty": 2,
+      "concept": "large-numbers",
       "question": "How many decimal places of pi did Rajveer Meena recite from memory in 2015 to set the Guinness World Record?",
       "answer": "70,000",
       "distractors": [
@@ -1767,6 +1774,7 @@
       "id": "math-numbers-pi-day",
       "category": "math",
       "difficulty": 1,
+      "concept": "notation",
       "question": "On which date is Pi Day celebrated every year?",
       "answer": "14 March",
       "distractors": [
@@ -1777,14 +1785,14 @@
       "fact": "Pi Day is 14 March because, written the American way, that is 3/14, the first digits of pi (3.14159...). Physicist Larry Shaw started it at the Exploratorium science museum in San Francisco in 1988, and it is now celebrated all over the world.",
       "sources": [
         {
+          "title": "H. Res. 224, 111th Congress: supporting the designation of Pi Day - U.S. Government Publishing Office",
+          "url": "https://www.govinfo.gov/content/pkg/BILLS-111hres224eh/html/BILLS-111hres224eh.htm",
+          "quote": "Whereas Pi can be approximated as 3.14, and thus March 14, 2009, is an appropriate day for 'National Pi Day'"
+        },
+        {
           "title": "Pi Day - Wikipedia",
           "url": "https://en.wikipedia.org/wiki/Pi_Day",
           "quote": "In 1988, the earliest known official or large-scale celebration of Pi Day was organized by Larry Shaw at the San Francisco Exploratorium, where Shaw worked as a physicist, with staff and public marching around one of its circular spaces, then consuming fruit pies."
-        },
-        {
-          "title": "Pi Day - piday.org",
-          "url": "https://www.piday.org/",
-          "quote": "Pi Day is celebrated on March 14th (3/14) around the world."
         }
       ],
       "verification": [
@@ -1795,7 +1803,7 @@
         },
         {
           "lens": "refute",
-          "source_title": "A Slice of Pi Day History | Exploratorium",
+          "source_title": "A Slice of Pi Day History - Exploratorium",
           "source_url": "https://www.exploratorium.edu/pi-day/pi-day-history"
         }
       ]
@@ -1804,6 +1812,7 @@
       "id": "math-numbers-googol",
       "category": "math",
       "difficulty": 1,
+      "concept": "large-numbers",
       "question": "How many zeros come after the 1 in a googol?",
       "answer": "100",
       "distractors": [
@@ -1841,6 +1850,7 @@
       "id": "math-numbers-perfect-28",
       "category": "math",
       "difficulty": 2,
+      "concept": "number-theory",
       "question": "6 is a perfect number because 1 + 2 + 3 = 6. What is the next perfect number after 6?",
       "answer": "28",
       "distractors": [
@@ -1873,6 +1883,7 @@
       "id": "math-numbers-palindrome",
       "category": "math",
       "difficulty": 1,
+      "concept": "notation",
       "question": "A palindromic number reads the same forwards and backwards. Which of these is a palindromic number?",
       "answer": "12321",
       "distractors": [
@@ -1905,6 +1916,7 @@
       "id": "math-numbers-roman-no-zero",
       "category": "math",
       "difficulty": 1,
+      "concept": "notation",
       "question": "Which number has no symbol of its own in Roman numerals?",
       "answer": "0",
       "distractors": [
@@ -1942,6 +1954,7 @@
       "id": "math-numbers-seconds-in-a-day",
       "category": "math",
       "difficulty": 1,
+      "concept": "counting",
       "question": "How many seconds are there in one day?",
       "answer": "86,400",
       "distractors": [
@@ -1974,6 +1987,7 @@
       "id": "math-numbers-chessboard-doubling",
       "category": "math",
       "difficulty": 3,
+      "concept": "large-numbers",
       "question": "In the old wheat-and-chessboard puzzle, 1 grain goes on square 1, 2 on square 2, 4 on square 3, doubling every square. How many digits long is the number of grains on all 64 squares?",
       "answer": "A 20-digit number",
       "distractors": [
@@ -2006,6 +2020,7 @@
       "id": "math-numbers-two-to-the-ten",
       "category": "math",
       "difficulty": 2,
+      "concept": "counting",
       "question": "If you start at 1 and double it 10 times, what number do you reach?",
       "answer": "1,024",
       "distractors": [
@@ -2041,6 +2056,7 @@
       "id": "math-everyday-manhole-round",
       "category": "math",
       "difficulty": 1,
+      "concept": "shapes",
       "question": "What is the classic reason manhole covers are made round rather than square?",
       "answer": "A round cover cannot fall through its own hole",
       "distractors": [
@@ -2078,6 +2094,7 @@
       "id": "math-everyday-360-degrees",
       "category": "math",
       "difficulty": 2,
+      "concept": "notation",
       "question": "Which ancient people counted in sixties, and are usually credited with giving us the 360-degree circle?",
       "answer": "The Babylonians",
       "distractors": [
@@ -2115,12 +2132,13 @@
       "id": "math-everyday-honeycomb-hexagon",
       "category": "math",
       "difficulty": 2,
-      "question": "Which shape of room divides a flat surface into equal-sized rooms using the least total wall?",
+      "concept": "shapes",
+      "question": "Bees build hexagons. Which shape covers a flat surface in equal pieces using the least total wall?",
       "answer": "Regular hexagon",
       "distractors": [
         "Square",
         "Equilateral triangle",
-        "Regular octagon"
+        "Rectangle"
       ],
       "fact": "Maths has a rule called the honeycomb conjecture: if you divide a flat surface into rooms that are all the same size, no pattern uses less wall than a grid of regular hexagons. Thomas Hales proved it in 1999. Whether bees build hexagons for this reason is a separate question about bees, not maths.",
       "sources": [
@@ -2152,6 +2170,7 @@
       "id": "math-everyday-binary-digits",
       "category": "math",
       "difficulty": 1,
+      "concept": "counting",
       "question": "How many different digits does a computer's binary counting system use?",
       "answer": "2",
       "distractors": [
@@ -2189,6 +2208,7 @@
       "id": "math-everyday-fibonacci-next",
       "category": "math",
       "difficulty": 1,
+      "concept": "counting",
       "question": "In the Fibonacci sequence 1, 1, 2, 3, 5, 8, 13, what number comes next?",
       "answer": "21",
       "distractors": [
@@ -2229,6 +2249,7 @@
       "id": "math-everyday-mobius-sides",
       "category": "math",
       "difficulty": 1,
+      "concept": "shapes",
       "question": "How many sides does a Möbius strip have?",
       "answer": "1",
       "distractors": [
@@ -2266,6 +2287,7 @@
       "id": "math-everyday-snowflake-symmetry",
       "category": "math",
       "difficulty": 1,
+      "concept": "counting",
       "question": "A classic symmetrical snowflake has how many arms or sides?",
       "answer": "6",
       "distractors": [
@@ -2303,6 +2325,7 @@
       "id": "math-everyday-counterweight-subtraction",
       "category": "math",
       "difficulty": 3,
+      "concept": "everyday",
       "question": "An empty elevator car weighs 1000 kg and its counterweight weighs 1500 kg. Then 300 kg of people get in. Now how much heavier is the counterweight than the car with the people inside?",
       "answer": "200 kg",
       "distractors": [
@@ -2338,6 +2361,7 @@
       "id": "math-everyday-floors-per-second",
       "category": "math",
       "difficulty": 2,
+      "concept": "everyday",
       "question": "The Burj Khalifa's fastest elevators climb 10 metres every second; if each floor were 4 metres tall, how many floors would they pass each second?",
       "answer": "2.5 floors",
       "distractors": [
@@ -2374,6 +2398,7 @@
       "id": "math-everyday-nines-fingers",
       "category": "math",
       "difficulty": 2,
+      "concept": "counting",
       "question": "To do 9 times 4 on your hands you hold up ten fingers and fold down the 4th finger from the left; fingers to its left are tens and fingers to its right are ones, so what answer do you get?",
       "answer": "36",
       "distractors": [
@@ -2406,6 +2431,7 @@
       "id": "math-everyday-equals-sign-1557",
       "category": "math",
       "difficulty": 2,
+      "concept": "notation",
       "question": "In what year did Robert Recorde first print the equals sign, =, in a maths book?",
       "answer": "1557",
       "distractors": [
@@ -2438,6 +2464,7 @@
       "id": "math-everyday-a4-fold-a5",
       "category": "math",
       "difficulty": 2,
+      "concept": "shapes",
       "question": "If you fold a sheet of A4 paper in half so its two short edges meet, what paper size is the folded sheet?",
       "answer": "A5",
       "distractors": [
