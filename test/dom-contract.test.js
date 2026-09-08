@@ -43,7 +43,15 @@ test('the CSS keeps the phone rules: dvh with a vh fallback, safe-area insets, t
   assert.match(css, /height: 100vh; height: 100dvh/)
   assert.match(css, /--vh: 100vh;/)
   assert.match(css, /@supports \(height: 100dvh\) \{ :root \{ --vh: 100dvh; \} \}/)
-  assert.match(css, /--cell: clamp\(48px, calc\(\(var\(--vh\) - 48px - 90px - 200px - 38px\) \/ 5\), 56px\)/, 'the panel cell shrinks so the shaft keeps 200 px')
+  // Not the literal clamp: a grep policing a spelling. These are the properties that keep every
+  // key on screen — the cell's 48 px floor, the shaft as the one yielding band, and the two
+  // short-viewport tiers that pay for it out of the display band rather than out of a tap target.
+  assert.match(css, /--cell: clamp\(48px,/, 'the panel cell never goes under 48 px')
+  assert.match(css, /\.shaft \{[^}]*min-height: 0;/, 'the shaft is the remainder: a hard min-height pushes the panel off the bottom')
+  assert.ok(!/\.shaft \{[^}]*min-height: [1-9]/.test(css), 'no hard minimum on the one growable band')
+  assert.match(css, /@media \(max-height: 620px\)/, 'the short-viewport tier')
+  assert.match(css, /@media \(max-height: 500px\)/, 'the floor-of-the-range tier')
+  assert.match(css, /\.panel\[data-mode="trivia"\] \{[^}]*grid-auto-rows: minmax\(var\(--cell\), auto\)/, 'trivia rows grow with their text')
   for (const side of ['top', 'right', 'bottom', 'left']) assert.match(css, new RegExp(`padding-${side}: env\\(safe-area-inset-${side}`), side)
   assert.match(css, /touch-action: manipulation/)
   assert.match(css, /overscroll-behavior: none/)

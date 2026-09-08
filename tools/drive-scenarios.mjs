@@ -16,6 +16,18 @@ import { label } from '../src/elevator.js'
 const Q = '?drive=1&seed=7&fast=1'
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// THE BANK'S WORST CASE, forced into the real panel by the layout scenario. The trivia step shows
+// whatever fact seed 7 picks, which is why a clipped 196-character question could ship: this is the
+// longest question and the three longest choices in data/trivia.json (196 / 84 / 71 / 57 chars).
+const WORST = {
+  q: 'A ‘space elevator’ would be a cable running from the ground up to a station in geostationary orbit, the orbit where a satellite stays above the same spot on Earth. About how high up is that orbit?',
+  choices: [
+    'A law says the doors must stay open for a few seconds so everyone has time to get in',
+    'A super-short speech to sell an idea, short enough for an elevator ride',
+    'So a wheelchair user can see behind them when backing out',
+  ],
+}
+
 // A slim, serialisable view of the live state (the pool is 67 facts; leave it behind).
 const slim = (page) => page.evaluate(() => {
   const s = window.__bacon.state()
@@ -146,6 +158,31 @@ async function rideTo(page, floor) {
   throw new Error('rideTo never arrived')
 }
 
+// Put the bank's worst-case trivia into the real panel, let the page re-measure (the shaft's
+// ResizeObserver, the camera pull-back and the .tiny rule are the page's own code paths, not
+// something an assertion may reason about), assert, then put back exactly what was there.
+async function worstCase(page, check, name) {
+  await page.evaluate((w) => {
+    const panel = document.getElementById('panel'), appEl = document.getElementById('app')
+    window.__worst = { mode: panel.dataset.mode, html: panel.innerHTML, phase: appEl.dataset.phase }
+    const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+    const LET = ['A', 'B', 'C']
+    panel.dataset.mode = 'trivia'
+    appEl.dataset.phase = 'trivia'
+    panel.innerHTML = `<div class="tq">${esc(w.q)}</div>` + w.choices.map((c, i) =>
+      `<button class="cell choice" data-choice="${i}" data-tap data-result="" aria-label="${LET[i]}: ${esc(c)}"><span class="letter" aria-hidden="true">${LET[i]}</span><span class="ctext">${esc(c)}</span></button>`).join('')
+  }, WORST)
+  await wait(220)
+  const r = await check(name, { ride: true, worstTrivia: true })
+  await page.evaluate(() => {
+    const panel = document.getElementById('panel'), appEl = document.getElementById('app')
+    panel.dataset.mode = window.__worst.mode; panel.innerHTML = window.__worst.html; appEl.dataset.phase = window.__worst.phase
+    delete window.__worst
+  })
+  await wait(220)
+  return r
+}
+
 // ---- layout instrument ------------------------------------------------------------------
 async function checkLayout(page, name, opts = {}) {
   const r = await page.evaluate((opts) => {
@@ -180,11 +217,73 @@ async function checkLayout(page, name, opts = {}) {
       if (size < 16 && el.matches('button')) out.problems.push(`focusable text under 16 px: ${el.textContent.trim().slice(0, 30)}`)
     }
     if (opts.ride) {
-      const sh = document.getElementById('shaft').getBoundingClientRect()
+      const shaftBox = document.getElementById('shaft')
+      const sh = shaftBox.getBoundingClientRect()
       out.shaft = Math.round(sh.height)
-      if (sh.height < 200) out.problems.push(`shaft ${Math.round(sh.height)} px < 200`)
+      const tb = document.querySelector('.ride .topbar').getBoundingClientRect()
+      const dp = document.querySelector('.ride .display').getBoundingClientRect()
       const panel = document.getElementById('panel').getBoundingClientRect()
-      if (panel.bottom > window.innerHeight + 1) out.problems.push('panel below the viewport')
+      out.budget = [tb, dp, sh, panel].map((r) => Math.round(r.height)).join('+') + '=' + Math.round(tb.height + dp.height + sh.height + panel.height) + ' of ' + window.innerHeight
+      // The shaft is the remainder, so 200 px is a PREFERENCE, not a floor. Re-derive what the
+      // budget allows it instead of re-asserting a constant the layout no longer promises.
+      const spare = window.innerHeight - tb.height - dp.height - panel.height
+      if (sh.height < Math.min(200, spare) - 1) out.problems.push(`shaft ${Math.round(sh.height)} px, budget allowed ${Math.round(Math.min(200, spare))}`)
+      const tiny = shaftBox.classList.contains('tiny')
+      if (sh.height > 0.5 && sh.height < 64 && !tiny) out.problems.push(`shaft is a ${Math.round(sh.height)} px sliver of cropped car`)
+      if (sh.height >= 64 && tiny) out.problems.push('the shaft is hidden but has room')
+      if (panel.bottom > window.innerHeight + 1) out.problems.push(`panel below the viewport by ${Math.round(panel.bottom - window.innerHeight)} px`)
+      const cell = document.querySelector('.panel .cell')
+      if (cell && cell.getBoundingClientRect().height < 48) out.problems.push(`panel cell under 48 px: ${Math.round(cell.getBoundingClientRect().height)}`)
+      // the ride's level chip must HOLD its label; an ellipsis is the layout giving up
+      const ln = document.getElementById('levelname')
+      if (ln && ln.clientWidth > 0 && ln.scrollWidth > ln.clientWidth + 1) out.problems.push(`level name ellipsised: "${ln.textContent}" needs ${ln.scrollWidth} px of ${ln.clientWidth}`)
+      // THE CROP GUARD: nothing visible is drawn cut in half by the shaft's edge. Partial OVERLAP,
+      // never containment - an SVG child scrolled out of the viewBox still reports a rect outside
+      // the shaft box, so a containment test flags four bacon plates on every phone.
+      for (const node of document.querySelectorAll('#shaft .sign, #shaft .spikes, #shaft .buffers, #shaft .plate')) {
+        if (getComputedStyle(node).visibility === 'hidden') continue
+        const r = node.getBoundingClientRect()
+        if (r.height < 0.5) continue
+        const seen = Math.min(r.bottom, sh.bottom) - Math.max(r.top, sh.top)
+        if (seen > 0.5 && seen < r.height - 0.5) out.problems.push(`the shaft crops "${node.textContent.trim() || node.getAttribute('class')}" mid-glyph: ${Math.round(seen)} of ${Math.round(r.height)} px`)
+      }
+    }
+    // The bank's worst case, already in the real panel (see worstCase below): the longest question
+    // and the three longest choices must be whole, inside their buttons and on screen.
+    if (opts.worstTrivia) {
+      const panel = document.getElementById('panel')
+      const tq = panel.querySelector('.tq')
+      if (!tq) out.problems.push('the worst-case trivia panel is not up')
+      else {
+        if (tq.scrollHeight > tq.clientHeight + 1) out.problems.push(`the longest question is clipped: ${tq.scrollHeight} > ${tq.clientHeight}`)
+        const hs = []
+        for (const b of panel.querySelectorAll('.choice')) {
+          const r = b.getBoundingClientRect(), t = b.querySelector('.ctext').getBoundingClientRect()
+          hs.push(Math.round(r.height))
+          if (t.top < r.top + 2 || t.bottom > r.bottom - 2) out.problems.push(`choice ${b.dataset.choice} text paints over its border: text ${Math.round(t.top)}-${Math.round(t.bottom)} in ${Math.round(r.top)}-${Math.round(r.bottom)}`)
+          if (r.bottom > window.innerHeight + 1) out.problems.push(`choice ${b.dataset.choice} below the viewport by ${Math.round(r.bottom - window.innerHeight)}`)
+          if (r.height < 48) out.problems.push(`choice ${b.dataset.choice} is ${Math.round(r.height)} px tall`)
+          if (parseFloat(getComputedStyle(b).fontSize) < 16) out.problems.push(`choice ${b.dataset.choice} text under 16 px`)
+        }
+        out.worst = `tq ${Math.round(tq.getBoundingClientRect().height)}px @${getComputedStyle(tq).fontSize}, choices ${hs.join('/')}`
+      }
+    }
+    // A long page's way out must be reachable at ANY scroll position, not only at the top.
+    if (opts.wayOut) {
+      const page = document.querySelector('.screen.active .page')
+      if (!page) out.problems.push('no scrollable page to leave')
+      else {
+        const was = page.scrollTop
+        page.scrollTop = page.scrollHeight
+        const exit = document.querySelector('.screen.active [data-nav="lobby"]')
+        if (!exit) out.problems.push('no way out on this page')
+        else {
+          const r = exit.getBoundingClientRect()
+          if (r.top < -1 || r.bottom > window.innerHeight + 1) out.problems.push(`the way out is off screen at the bottom of the page: top ${Math.round(r.top)}`)
+          out.wayOut = `page ${page.scrollHeight} px, Lobby at ${Math.round(r.top)}`
+        }
+        page.scrollTop = was
+      }
     }
     if (opts.go) {
       const go = document.querySelector('button[data-key="go"]')
@@ -583,8 +682,17 @@ scenarios.push(
     async run(ctx) {
       const { page, shot } = ctx
       await load(ctx)
-      const seen = []
-      const check = async (name, opts) => { const r = await checkLayout(page, name, opts); seen.push(name + (r.shaft ? `(shaft ${r.shaft})` : '')); await shot(name) }
+      const seen = [], bad = []
+      // One run must name everything wrong on this phone: a broken screen used to abort the
+      // scenario and hide every assertion after it (GO being unreachable went unreported because
+      // the Rules card failed first).
+      const check = async (name, opts) => {
+        let r = null
+        try { r = await checkLayout(page, name, opts) } catch (e) { bad.push(e.message) }
+        if (r) seen.push(name + (r.budget ? `(${r.budget})` : r.shaft ? `(shaft ${r.shaft})` : '') + (r.worst ? ` [worst: ${r.worst}]` : '') + (r.wayOut ? ` [${r.wayOut}]` : ''))
+        await shot(name)
+        return r
+      }
       await check('lobby')
       await tap(page, '[data-nav="picker"]'); await waitScreen(page, 'picker'); await check('picker')
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
@@ -592,7 +700,7 @@ scenarios.push(
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
       await tap(page, '[data-nav="factbook"]'); await waitScreen(page, 'factbook'); await check('factbook')
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
-      await tap(page, '[data-gear]'); await tap(page, '[data-gear]'); await waitScreen(page, 'grownups'); await check('grownups')
+      await tap(page, '[data-gear]'); await tap(page, '[data-gear]'); await waitScreen(page, 'grownups'); await check('grownups', { wayOut: true })
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
       await tap(page, '[data-nav="ride"]'); await waitScreen(page, 'rules')
       // the Rules card: five pictures and both sentences readable without scrolling, even at 360 × 640
@@ -602,6 +710,7 @@ scenarios.push(
       await check('floor', { ride: true })
       await tap(page, 'button[data-floor="1"]'); await waitPhaseIn(page, ['keypad'])
       await check('keypad', { ride: true, go: true })
+      await worstCase(page, check, 'worst-trivia')
       await tap(page, 'button[data-key="hint"]')
       expect(!(await page.$eval('#hint', (h) => h.hidden)), 'HINT should show')
       await check('hint', { ride: true, go: true })
@@ -645,9 +754,9 @@ scenarios.push(
       expect(Math.max(pm.a, pm.b) >= 100, 'Megatall step 1 should ask a 3-digit sum: ' + pm.text)
       await enter(page, pm.answer + 1); await enter(page, pm.answer + 1)
       await waitPhaseIn(page, ['repair'])
-      const rm = await checkLayout(page, 'repair-megatall', { ride: true, card: true })
-      seen.push(`repair-megatall(card ${rm.card.h}px: ${rm.card.worked})`)
-      await shot('repair-megatall')
+      const rm = await check('repair-megatall', { ride: true, card: true })
+      if (rm && rm.card) seen.push(`repair-megatall(card ${rm.card.h}px: ${rm.card.worked})`)
+      if (bad.length) throw new Error(bad.join(' ;; '))
       return seen.join(', ')
     },
   },

@@ -227,7 +227,7 @@ function render() {
   document.getElementById('tray').textContent = String(r ? r.tray : 0)
   document.getElementById('lunchbox').textContent = String(state.lunchbox)
   const lvl = currentLevel(state)
-  document.getElementById('levelname').textContent = lvl.name
+  document.getElementById('levelname').textContent = lvl.short || lvl.name
   const sb = document.getElementById('stepbar')
   sb.dataset.step = String(state.step); sb.setAttribute('aria-label', `step ${state.step} of 3`)
   for (const b of app.querySelectorAll('[data-sound]')) { b.setAttribute('aria-pressed', state.settings.sound ? 'true' : 'false'); b.setAttribute('aria-label', state.settings.sound ? 'Sound on' : 'Sound off') }

@@ -19,6 +19,14 @@ test('five levels in the design order, exactly 3 steps each, ≥ 1 kind per step
   }
 })
 
+test('every level carries a short chip label of at most 6 characters', () => {
+  for (const l of LEVELS) {
+    assert.ok(typeof l.short === 'string' && l.short.length > 0, `${l.id}: no short label`)
+    assert.ok(l.short.length <= 6, `${l.id}: short label "${l.short}" is ${l.short.length} characters`)
+  }
+  assert.ok(customLevel({}).short.length <= 6)
+})
+
 test('no single kind carries more than 60 % of a step by weight', () => {
   for (const l of LEVELS) l.steps.forEach((s, i) => {
     const total = s.kinds.reduce((x, k) => x + k.weight, 0)

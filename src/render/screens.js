@@ -96,7 +96,7 @@ export function rules(state) {
         <div class="pic">${PIC.fall}Wrong: a fall, then back up</div>
         <div class="pic wide">${PIC.passenger}<span>A passenger may ask a question. Falls only happen for wrong sums. <strong>A passenger's question never falls.</strong></span></div>
       </div>
-      <p>Right: the doors close, the elevator goes up one floor, one ding, the bacon slides in.</p>
+      <p class="detail">Right: the doors close, the elevator goes up one floor, one ding, the bacon slides in.</p>
       <p>Wrong: the panel shows the true sum, then the elevator falls onto the springy spikes. The safety brake catches it. A repair card shows the sum, and you answer it again.</p>
       <p class="never"><strong>Bacon is never lost. There is no clock.</strong></p>
     </div>

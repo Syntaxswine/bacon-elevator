@@ -53,7 +53,7 @@ export function createShaft(container, opts = {}) {
   const world = el('g', { class: 'world' })
   svg.appendChild(world)
   // building face + shaft
-  world.appendChild(el('rect', { x: 0, y: TOP, width: W, height: BOTTOM - TOP, fill: '#D9D4C7' }))
+  world.appendChild(el('rect', { x: -W, y: TOP, width: W * 3, height: BOTTOM - TOP, fill: '#D9D4C7' }))
   world.appendChild(el('rect', { x: 110, y: 0, width: 140, height: BOTTOM, fill: '#C6C0B1' }))
   world.appendChild(el('line', { x1: 119, y1: 0, x2: 119, y2: sillOf(-1) + 20, stroke: '#8A8578', 'stroke-width': 3 }))
   world.appendChild(el('line', { x1: 241, y1: 0, x2: 241, y2: sillOf(-1) + 20, stroke: '#8A8578', 'stroke-width': 3 }))
@@ -69,6 +69,14 @@ export function createShaft(container, opts = {}) {
   world.appendChild(el('circle', { cx: SHEAVE.x, cy: SHEAVE.y, r: 5, fill: '#6B6B6B' }))
   world.appendChild(el('rect', { x: 110, y: -2, width: 50, height: 6, fill: '#8A8578' }))
   world.appendChild(el('rect', { x: 200, y: -2, width: 50, height: 6, fill: '#8A8578' }))
+
+  // THE CROP GUARD. The camera keeps the car centred, so its edge falls wherever it falls; a glyph
+  // it would cut in half is hidden instead of shown as half a glyph (see scrollTo). Registration is
+  // by WORLD BAND, not by measuring: an SVG child scrolled out of the viewBox still reports a
+  // getBoundingClientRect on screen. It writes a CLASS, never the visibility attribute — the bacon
+  // plates already have a writer on that attribute (collected bacon) and two writers would fight.
+  const cropGuard = []
+  const guard = (node, top, bottom) => { cropGuard.push({ node, top, bottom }); return node }
 
   const landings = new Map()
   for (let f = 0; f <= 10; f++) {
@@ -114,6 +122,7 @@ export function createShaft(container, opts = {}) {
       g.appendChild(text(54, s - 84, 'ROOF', { 'font-size': 12, fill: '#55534E' }))
     }
     world.appendChild(g)
+    if (plate) guard(plate, sillOf(f) - 23, sillOf(f) + 3)
     landings.set(f, { g, lantern, glyph, lanternRect: lantern.firstChild, plate, waiter })
   }
 
@@ -124,10 +133,14 @@ export function createShaft(container, opts = {}) {
   pit.appendChild(el('rect', { x: 0, y: PIT_REST, width: 110, height: BOTTOM - PIT_REST, fill: '#B9B3A4', stroke: '#6B6B6B', 'stroke-width': 2 }))
   pit.appendChild(el('rect', { x: 0, y: pitTop, width: 110, height: PIT_REST - pitTop, fill: '#E4DFD3' }))
   pit.appendChild(el('rect', { x: 250, y: pitTop, width: 50, height: BOTTOM - pitTop, fill: '#CFC9BA' }))
-  pit.appendChild(el('rect', { x: 20, y: PIT_REST - 60, width: 60, height: 22, rx: 3, fill: '#fff', stroke: '#6B6B6B', 'stroke-width': 2 }))
-  pit.appendChild(text(50, PIT_REST - 44, 'PIT', { 'font-size': 14, fill: '#2B2B2B' }))
-  pit.appendChild(el('rect', { x: 10, y: PIT_REST - 98, width: 30, height: 20, rx: 3, fill: '#fff', stroke: '#6B6B6B', 'stroke-width': 2 }))
-  pit.appendChild(text(25, PIT_REST - 83, 'P', { 'font-size': 14, fill: '#2B2B2B' }))
+  const pitSign = el('g', { class: 'sign' })
+  pitSign.appendChild(el('rect', { x: 20, y: PIT_REST - 60, width: 60, height: 22, rx: 3, fill: '#fff', stroke: '#6B6B6B', 'stroke-width': 2 }))
+  pitSign.appendChild(text(50, PIT_REST - 44, 'PIT', { 'font-size': 14, fill: '#2B2B2B' }))
+  pit.appendChild(guard(pitSign, PIT_REST - 62, PIT_REST - 36))
+  const pPlate = el('g', { class: 'sign' })
+  pPlate.appendChild(el('rect', { x: 10, y: PIT_REST - 98, width: 30, height: 20, rx: 3, fill: '#fff', stroke: '#6B6B6B', 'stroke-width': 2 }))
+  pPlate.appendChild(text(25, PIT_REST - 83, 'P', { 'font-size': 14, fill: '#2B2B2B' }))
+  pit.appendChild(guard(pPlate, PIT_REST - 100, PIT_REST - 76))
   pit.appendChild(el('rect', { x: 110, y: BOTTOM - 12, width: 140, height: 12, fill: '#8A8578' }))
   const spring = (x, y0, y1, w = 8) => {
     const n = 5, seg = (y1 - y0) / n
@@ -136,10 +149,12 @@ export function createShaft(container, opts = {}) {
     d += ` L${x} ${y1}`
     return el('path', { d, fill: 'none', stroke: '#6B6B6B', 'stroke-width': 3, 'stroke-linejoin': 'round' })
   }
-  pit.appendChild(spring(132, BOTTOM - 46, BOTTOM - 12, 6))
-  pit.appendChild(spring(228, BOTTOM - 46, BOTTOM - 12, 6))
-  pit.appendChild(el('rect', { x: 124, y: BOTTOM - 52, width: 16, height: 6, fill: '#6B6B6B' }))
-  pit.appendChild(el('rect', { x: 220, y: BOTTOM - 52, width: 16, height: 6, fill: '#6B6B6B' }))
+  const buffers = el('g', { class: 'buffers' })
+  buffers.appendChild(spring(132, BOTTOM - 46, BOTTOM - 12, 6))
+  buffers.appendChild(spring(228, BOTTOM - 46, BOTTOM - 12, 6))
+  buffers.appendChild(el('rect', { x: 124, y: BOTTOM - 52, width: 16, height: 6, fill: '#6B6B6B' }))
+  buffers.appendChild(el('rect', { x: 220, y: BOTTOM - 52, width: 16, height: 6, fill: '#6B6B6B' }))
+  pit.appendChild(guard(buffers, BOTTOM - 54, BOTTOM - 10))
   const spikes = el('g', { class: 'spikes' })
   const SPIKE_BASE = BOTTOM - 12, SPIKE_H = 40
   for (let i = 0; i < 5; i++) {
@@ -152,7 +167,7 @@ export function createShaft(container, opts = {}) {
     one.appendChild(cone)
     spikes.appendChild(one)
   }
-  pit.appendChild(spikes)
+  pit.appendChild(guard(spikes, SPIKE_BASE - SPIKE_H - 2, SPIKE_BASE + 2))
   world.appendChild(pit)
 
   // ---- moving parts -----------------------------------------------------------------
@@ -219,7 +234,20 @@ export function createShaft(container, opts = {}) {
 
   function resize() {
     const r = container.getBoundingClientRect()
-    if (r.width > 0 && r.height > 0) vb = { w: W, h: Math.max(120, (W * r.height) / r.width) }
+    if (r.width > 0 && r.height > 0) {
+      // A short shaft cannot frame an 88-unit car at natural scale (82 px at 320 × 454 is 77 world
+      // units), so the camera pulls back — capped at MAX_PULL — until MIN_WORLD units are in frame.
+      // preserveAspectRatio is 'slice' and the box aspect is kept, so the visible world height is
+      // exactly vb.h.
+      const MIN_WORLD = 200, MAX_PULL = 2.4
+      const natural = (W * r.height) / r.width
+      if (natural >= MIN_WORLD) vb = { w: W, h: natural }
+      else { const w = Math.min(W * MAX_PULL, (W * MIN_WORLD) / natural); vb = { w, h: (w * r.height) / r.width } }
+    }
+    // Below 64 px the shaft would be an unreadable stripe of cropped car. It keeps its box (it is
+    // the flex spring, so no blank paper opens under the panel) and draws plain shaft wall instead.
+    // The class does not change the box height, so main.js's ResizeObserver cannot oscillate.
+    container.classList.toggle('tiny', r.height > 0 && r.height < 64)
     draw(anim ? anim.lastElapsed : null)
   }
 
@@ -303,8 +331,16 @@ export function createShaft(container, opts = {}) {
     const worldH = BOTTOM - TOP
     let y
     if (vb.h >= worldH) y = TOP - (vb.h - worldH) / 2
+    // in the pit the camera sits on the world's floor, so the whole spike row is in frame for the
+    // impact rather than cut across the middle of it
+    else if (carBottomY >= PIT_REST - 1) y = BOTTOM - vb.h
     else y = clamp(centre - vb.h / 2, TOP, BOTTOM - vb.h)
-    svg.setAttribute('viewBox', `0 ${y} ${W} ${vb.h}`)
+    svg.setAttribute('viewBox', `${(W - vb.w) / 2} ${y} ${vb.w} ${vb.h}`)
+    const camTop = y, camBot = y + vb.h
+    for (const o of cropGuard) {
+      const cut = (o.top < camTop && o.bottom > camTop) || (o.top < camBot && o.bottom > camBot)
+      if (o.node.classList.contains('cropped') !== cut) o.node.classList.toggle('cropped', cut)
+    }
   }
 
   function setSpikes(squash) {
