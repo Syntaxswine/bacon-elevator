@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { mulberry32 } from '../src/rng.js'
-import { loadFacts, isPassengerFloor, pickFact, makeChoices, domainOf } from '../src/trivia.js'
+import { loadFacts, isPassengerFloor, pickFact, makeChoices, domainOf, TRIVIA_LIMITS } from '../src/trivia.js'
 
 const shipped = JSON.parse(readFileSync(new URL('../data/trivia.json', import.meta.url), 'utf8'))
 
@@ -102,4 +102,122 @@ test('domainOf', () => {
   assert.equal(domainOf('https://www.otis.com/en/us/about'), 'otis.com')
   assert.equal(domainOf('http://mathworld.wolfram.com/x'), 'mathworld.wolfram.com')
   assert.equal(domainOf(''), '')
+})
+
+// r1-autism-fit-02: the picker knew the level existed and never asked it. A numbers-to-10 child was
+// served difficulty-3, 183-character kilogram subtractions — measured over seeds 1–8 × 6 buildings
+// at Corner Shop: 53 of 96 passengers above difficulty 1, 24 questions over 120 characters.
+test('the fact pool is gated by level: Corner Shop never draws above its band', () => {
+  const { facts } = loadFacts(shipped)
+  const limits = TRIVIA_LIMITS.corner
+  const rng = mulberry32(3)
+  let seen = [], last = null
+  for (let i = 0; i < 2000; i++) {
+    const f = pickFact(facts, seen, last, rng, [], limits)
+    assert.ok(f, 'the gate emptied the pool')
+    assert.ok(f.difficulty <= limits.maxDifficulty, `${f.id} is difficulty ${f.difficulty}`)
+    assert.ok(f.q.length <= limits.maxQ, `${f.id} asks ${f.q.length} characters`)
+    if (last && facts.some((x) => x.kind !== last && x.difficulty <= limits.maxDifficulty && x.q.length <= limits.maxQ && !seen.includes(x.id))) {
+      assert.notEqual(f.kind, last, 'the kinds stopped alternating inside the band')
+    }
+    seen = seen.concat(f.id); last = f.kind
+  }
+  // the band is big enough to be a pool, not a loop
+  const inBand = facts.filter((f) => f.difficulty <= limits.maxDifficulty && f.q.length <= limits.maxQ)
+  assert.ok(inBand.length >= 20, `only ${inBand.length} items inside the Corner Shop band`)
+  assert.ok(inBand.some((f) => f.kind === 'elevator') && inBand.some((f) => f.kind === 'math'), 'both kinds must be stocked')
+})
+
+test('a due retry above the level band is not served, and Megatall is ungated', () => {
+  const { facts } = loadFacts(shipped)
+  const rng = mulberry32(4)
+  const hard = facts.find((f) => f.difficulty === 3)
+  const retry = [{ id: hard.id, at: 0 }]
+  const seen = new Array(30).fill('x')
+  const got = pickFact(facts, seen, null, rng, retry, TRIVIA_LIMITS.corner)
+  assert.notEqual(got.id, hard.id, 'a fact met at Megatall came back after a drop to Corner Shop')
+  assert.equal(pickFact(facts, seen, null, rng, retry, TRIVIA_LIMITS.megatall).id, hard.id)
+  assert.equal(TRIVIA_LIMITS.megatall, null)
+})
+
+// ---- round 1, fixer 3: the bank's own gates ----------------------------------------------------
+
+const auditFile = JSON.parse(readFileSync(new URL('../data/trivia-audit.json', import.meta.url), 'utf8'))
+
+// r1-trivia-truth-01's ROOT CAUSE: the audit recorded a fix (cite Maine, not the Pennsylvania rule
+// it had itself called rotten) and the shipped item never received it. Nothing compared the two
+// files, so the record and the artefact could drift for ever.
+test('the audit record and the shipped bank say the same thing', () => {
+  const shownById = new Map(shipped.items.map((i) => [i.id, i]))
+  const auditById = new Map(auditFile.items.map((i) => [i.id, i]))
+  assert.equal(auditById.size, shownById.size, 'the audit holds a different number of items')
+  for (const [id, it] of shownById) {
+    const a = auditById.get(id)
+    assert.ok(a, `${id} is shipped with no audit record`)
+    for (const k of ['question', 'answer', 'fact']) assert.equal(a[k], it[k], `${id}: audit and bank disagree on ${k}`)
+    assert.deepEqual(a.distractors, it.distractors, `${id}: distractors`)
+    assert.deepEqual(a.sources.map((s) => s.url), it.sources.map((s) => s.url), `${id}: the audit and the bank cite different sources`)
+    assert.deepEqual(a.sources.map((s) => s.quote), it.sources.map((s) => s.quote), `${id}: the audit and the bank show different quotes`)
+  }
+})
+
+// r1-trivia-truth-07: the Fact card is read by a 7–12-year-old.
+test('every shown fact fits in one breath and every shown source carries its quote', () => {
+  for (const it of shipped.items) {
+    assert.ok(it.fact.length <= 360, `${it.id}: the fact is ${it.fact.length} characters`)
+    assert.ok(it.sources.length >= 1, `${it.id}: no source`)
+    for (const s of it.sources) {
+      assert.ok(/^https?:\/\//.test(s.url), `${it.id}: ${s.url}`)
+      assert.ok(s.quote && s.quote.trim().length > 10, `${it.id}: ${s.title} is cited with no quote`)
+    }
+  }
+})
+
+// r1-trivia-truth-06: pickFact prefers unseen items, so a child meets both halves of a leaking pair
+// inside one pool cycle and the "quiz" half becomes a memory check.
+test('no item gives away another item\'s answer, except the documented teach-then-quiz pair', () => {
+  // The Eiffel pair is deliberate: elevator-records-eiffel-lifts-around-the-world is an ARITHMETIC
+  // question (103,000 ÷ 40,000), and it cannot ask it without naming its inputs.
+  const ALLOWED = new Set(['elevator-records-eiffel-lifts-around-the-world -> elevator-history-eiffel-lifts-distance'])
+  const core = (a) => String(a).trim().replace(/^(About|Roughly|Around)\s+/i, '').trim()
+  const leaks = []
+  for (const a of shipped.items) {
+    const c = core(a.answer)
+    if (c.length < 4) continue
+    for (const b of shipped.items) {
+      if (a.id === b.id) continue
+      const hay = `${b.question} ${b.fact}`
+      let i = hay.indexOf(c)
+      while (i >= 0) {
+        const before = hay[i - 1] || ' ', after = hay[i + c.length] || ' '
+        if (!/[\d,]/.test(before) && !/[\d,]/.test(after)) {   // not a fragment of a longer number
+          const key = `${b.id} -> ${a.id}`
+          if (!ALLOWED.has(key)) leaks.push(`${key} ("${c}")`)
+          break
+        }
+        i = hay.indexOf(c, i + 1)
+      }
+    }
+  }
+  assert.deepEqual(leaks, [], `answer leakage between items: ${leaks.join(' | ')}`)
+})
+
+// The specific corrections, so a later edit cannot quietly undo them.
+test('the round-1 corrections are in the shipped bank', () => {
+  const get = (id) => shipped.items.find((i) => i.id === id)
+  const cert = get('elevator-engineering-inspection-certificate')
+  assert.ok(/Maine/.test(cert.fact), 'the fact talks about Maine')
+  assert.ok(cert.sources.some((s) => /legislature\.maine\.gov/.test(s.url)), 'a sentence about Maine law must show a Maine source')
+  assert.ok(!cert.sources.some((s) => /pacodeandbulletin/.test(s.url)), 'the Pennsylvania rule the audit rejected is still cited')
+  const thirteen = get('elevator-culture-thirteenth-floor')
+  assert.ok(/condominium/.test(thirteen.fact) && !/apartment/.test(thirteen.fact), 'the wording must match the population the study counted')
+  assert.ok(thirteen.sources.some((s) => /academic\.oup\.com/.test(s.url)), 'the 2024 count needs a shown source')
+  assert.ok(!/1990/.test(get('elevator-engineering-kone-monospace-1996').fact), 'the unsourceable Otis-1990 parenthetical is back')
+  assert.ok(!/minute and a half/.test(get('elevator-records-bailong-outdoor-elevator').fact), 'the ride time must not out-run its own citation')
+  const col = get('elevator-history-colosseum-capstans')
+  assert.ok(!col.sources.some((s) => /wikipedia/i.test(s.url)), 'a source whose quote contradicts the fact is still shipped')
+  const chess = get('math-numbers-chessboard-doubling')
+  assert.ok(!/quintillion|trillion/.test([chess.answer, ...chess.distractors].join(' ')), 'short-scale names are not answers a UK child can rely on')
+  assert.equal(chess.answer, 'A 20-digit number')
+  assert.equal(String(2n ** 64n - 1n).length, 20, 'the arithmetic behind the answer')
 })

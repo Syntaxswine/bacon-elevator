@@ -11,6 +11,7 @@
 // The URL is ?drive=1&seed=7&fast=1 (timescale 0.1); ?reset=1 clears the previous scenario's save.
 
 import { solve } from '../src/math.js'
+import { customLevel } from '../src/levels.js'
 import { label } from '../src/elevator.js'
 
 const Q = '?drive=1&seed=7&fast=1'
@@ -234,6 +235,11 @@ async function checkLayout(page, name, opts = {}) {
       if (panel.bottom > window.innerHeight + 1) out.problems.push(`panel below the viewport by ${Math.round(panel.bottom - window.innerHeight)} px`)
       const cell = document.querySelector('.panel .cell')
       if (cell && cell.getBoundingClientRect().height < 48) out.problems.push(`panel cell under 48 px: ${Math.round(cell.getBoundingClientRect().height)}`)
+      // the floor-mode spacer is a spacer: a lone bold `·` reads as a mystery button
+      const panelEl = document.getElementById('panel')
+      if (panelEl.dataset.mode === 'floor') for (const sp of panelEl.querySelectorAll('.spacer')) {
+        if (sp.textContent.trim()) out.problems.push(`the floor-mode spacer draws "${sp.textContent.trim()}"`)
+      }
       // the ride's level chip must HOLD its label; an ellipsis is the layout giving up
       const ln = document.getElementById('levelname')
       if (ln && ln.clientWidth > 0 && ln.scrollWidth > ln.clientWidth + 1) out.problems.push(`level name ellipsised: "${ln.textContent}" needs ${ln.scrollWidth} px of ${ln.clientWidth}`)
@@ -266,6 +272,16 @@ async function checkLayout(page, name, opts = {}) {
           if (parseFloat(getComputedStyle(b).fontSize) < 16) out.problems.push(`choice ${b.dataset.choice} text under 16 px`)
         }
         out.worst = `tq ${Math.round(tq.getBoundingClientRect().height)}px @${getComputedStyle(tq).fontSize}, choices ${hs.join('/')}`
+      }
+    }
+    // The hint's number line: one countable hop per unit, not one arc labelled `+ 5`.
+    if (opts.hops) {
+      const svg = document.querySelector('#hint svg')
+      if (!svg) out.problems.push('no hint number line')
+      else {
+        const arcs = [...svg.querySelectorAll('path')].filter((el) => (el.getAttribute('d') || '').includes('Q')).length
+        if (arcs !== opts.hops) out.problems.push(`the number line draws ${arcs} hop(s) for b = ${opts.hops}`)
+        out.hops = `${arcs} hops`
       }
     }
     // A long page's way out must be reachable at ANY scroll position, not only at the top.
@@ -539,7 +555,14 @@ scenarios.push({
     await waitPhaseIn(page, ['keypad'])
     s = await slim(page)
     const problem = s.ride.problem
-    const wrong = problem.answer + 1
+    // Enter the mistake this KIND actually invites, not always answer + 1. On a missing-number sum
+    // that means the operation swap (a + c, or c × b) — unless it lands within 2 of the answer, in
+    // which case it is an off-by and says nothing about the missing-number clause, so add 5 instead.
+    const missing = /^miss/.test(problem.kind)
+    const swapEntry = problem.kind === 'missAdd' ? problem.a + problem.c
+                    : problem.kind === 'missMul' ? problem.c * problem.b : null
+    const wrong = swapEntry !== null && Math.abs(swapEntry - problem.answer) > 2 ? swapEntry
+                : missing ? problem.answer + 5 : problem.answer + 1
     await enter(page, wrong)
     await wait(60)
     s = await slim(page)
@@ -555,6 +578,30 @@ scenarios.push({
     expect(await inFlight(page), 'inFlight() during the fall')
     expect((await attr(page, '#car', 'data-motion')) === 'falling', '#car[data-motion] should be falling')
     expect((await attr(page, '#indicator', 'data-arrow')) === 'down', 'indicator arrow should point down')
+    // DESIGN §2 wrong-answer step 2: `Button light out`. The panel used to read the PRE-fall car,
+    // so floor 7 glowed amber for the whole 3.6 s drop.
+    const litDuringFall = await page.$eval('#panel button[data-floor="7"]', (b) => b.classList.contains('lit'))
+    expect(!litDuringFall, 'the car call stays lit through the whole fall')
+    // …and a control that cannot act must show it. Measured before: Lobby and the bell were never
+    // given `disabled` at all, and the two door keys were disabled and still drew as live keys.
+    const dead = await page.evaluate(() => {
+      const q = (sel) => document.querySelector(sel)
+      const nav = q('.ride .topbar [data-nav="lobby"]'), bell = q('#panel [data-bell]')
+      const open = q('#panel [data-door="open"]'), close = q('#panel [data-door="close"]')
+      const live = [...document.querySelectorAll('#panel .key')].find((k) => !k.disabled)
+      return {
+        nav: nav && nav.disabled, bell: bell && bell.disabled, open: open && open.disabled, close: close && close.disabled,
+        deadBg: close ? getComputedStyle(close).backgroundColor : null,
+        deadShadow: close ? getComputedStyle(close).boxShadow : null,
+        // `.panel .key` is the live look: white with the #b9b3a4 drop shadow. Every key on the panel
+        // is disabled during a fall, so there is no live key to compare against — compare with the
+        // declared live look instead, or the assertion passes vacuously.
+        liveBg: live ? getComputedStyle(live).backgroundColor : 'rgb(255, 255, 255)',
+      }
+    })
+    expect(dead.nav && dead.bell && dead.open && dead.close, `controls that cannot act still look live: ${JSON.stringify(dead)}`)
+    expect(dead.deadBg !== dead.liveBg && dead.deadBg !== 'rgb(255, 255, 255)', `a disabled key paints exactly like a live one: ${dead.deadBg}`)
+    expect(!/185, 179, 164/.test(dead.deadShadow || ''), `a disabled key keeps the live drop shadow: ${dead.deadShadow}`)
     const shown = await text(page, '#question')
     expect(shown.replace(/\s+/g, ' ') === problem.text.replace('▮', String(problem.answer)), `the true equation should show first: "${shown}"`)
     trays.push(await num(page, '#tray'))
@@ -580,6 +627,20 @@ scenarios.push({
     const cardText = await text(page, '.card')
     expect(!/[!✗]|wrong|oops/i.test(cardText), 'repair copy tone: ' + cardText)
     expect(!/\bno\b/i.test(cardText), 'repair copy tone (no): ' + cardText)
+    // EVERY CLAUSE IS TRUE OF THE MISTAKE IT IS SHOWN FOR. The drive always entered answer + 1, so
+    // it only ever exercised `offby` — which is how a missing-number card telling a child who added
+    // that `+ means add` shipped with an instrument on the same screen.
+    const clause = await text(page, '.card .clause')
+    expect(!(/ means /.test(clause) && /^miss/.test(problem.kind)),
+      `a missing-number card must never name the glyph the child already used: ${problem.text} -> "${clause}"`)
+    if (missing) {
+      // opswap and other both name the inverse move on a missing-number kind: the total is already
+      // printed, so making it again cannot be the move.
+      const want = problem.kind === 'missMul'
+        ? `${problem.c} is the total, so ▮ is ${problem.c} ÷ ${problem.b}`
+        : `${problem.c} is the total, so ▮ is ${problem.c} − ${problem.a}`
+      expect(clause === want, `repair clause for a missing-number swap: got "${clause}", want "${want}"`)
+    }
     await shot('repair')
     // Try again → the SAME sum
     await tap(page, 'button[data-continue]')
@@ -590,11 +651,25 @@ scenarios.push({
     expect(norm(await text(page, '#question')) === norm(problem.text), `display should show the same sum: "${await text(page, '#question')}" vs "${problem.text}"`)
     expect((await text(page, '#message')) === 'Same sum. Ride back up.', 'retry status line: ' + await text(page, '#message'))
     expect(await stripShown(page), 'the strip stays in the car at the retry keypad')
+    // WRONG AGAIN ON THE RETRY. No scenario ever missed twice, so the whole forfeit branch —
+    // reducer, renderer and copy — shipped with no instrument on it: the child rode up to a strip
+    // they could never collect, against `Bacon is never lost.` printed on the Rules card.
+    const nAgain = await evLen(page)
+    await enter(page, wrong)
+    await waitPhaseIn(page, ['repair'])
+    const againEvs = await evSince(page, nAgain)
+    expect(count(againEvs, 'fall-start') === 0 && !againEvs.includes('motion:falling'), 'a second wrong answer must not fall again: ' + againEvs.join(' '))
+    expect((await text(page, '.card .big')).replace(/\s+/g, ' ') === problem.text.replace('▮', String(problem.answer)), 'the card returns with the true equation')
+    trays.push(await num(page, '#tray'))
+    await tap(page, 'button[data-continue]')
+    await waitPhaseIn(page, ['keypad'])
     // the right answer rides express P → 7 with the strip collected, one ding
     const nExp = await evLen(page)
     await enter(page, problem.answer)
     await waitPhaseIn(page, ['moving'], 3000)
     expect((await attr(page, '#car', 'data-motion')) === 'hoisting', '#car[data-motion] should be hoisting on the recovery ride')
+    const litOnExpress = await page.$eval('#panel button[data-floor="7"]', (b) => b.classList.contains('lit'))
+    expect(litOnExpress, 'nothing is lit on the recovery express, where a real car shows the registered call')
     await shot('hoist')
     await waitPhaseIn(page, ['floor'])
     trays.push(await num(page, '#tray'))
@@ -740,6 +815,35 @@ scenarios.push(
       await rideTo(page, 4)
       s = await slim(page)
       expect(s.phase === 'floor' && s.ride.floor === 4, 'passengers never: floor 4 should be quiet')
+      // THE PICKER SAYS WHAT CHANGING BUILDING DOES. The reducer banks the tray — the kind thing —
+      // and no sentence anywhere said so, so the parked building simply vanished.
+      const parkedFloor = s.ride.floor, parkedTray = s.ride.tray
+      const lunchInRide = await num(page, '#lunchbox')   // read INSIDE the ride: leaving already banks
+      await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
+      await tap(page, '[data-nav="picker"]'); await waitScreen(page, 'picker')
+      const note = await text(page, '.picker .page')
+      expect(/lunchbox/.test(note) && note.includes(String(parkedFloor)), `the picker never says what picking another building does: "${note.slice(0, 160)}"`)
+      await tap(page, 'button[data-level="hotel"]')
+      await waitFor(page, () => window.__bacon.state().level === 'hotel', 'the Hotel level')
+      s = await slim(page)
+      expect(s.ride === null, 'the parked building should end when another is picked')
+      await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
+      expect(await num(page, '#lunchbox-total') === lunchInRide + parkedTray, `the parked tray did not reach the lunchbox: ${await text(page, '#lunchbox-total')} vs ${lunchInRide} + ${parkedTray}`)
+      // THE CUSTOM TAG NAMES WHAT THE TABLES CAN SHOW. It used to be composed from the raw knobs in
+      // two places, so `numbers 50 to 60` sat over a `15 ÷ 3`.
+      await tap(page, '[data-gear]'); await tap(page, '[data-gear]'); await waitScreen(page, 'grownups')
+      await tap(page, 'button[data-level="custom"]')
+      await tap(page, 'button[data-custom-op="div"]')
+      await tap(page, 'button[data-custom-op="add"]')
+      await tap(page, 'button[data-custom-op="sub"]')
+      for (let i = 0; i < 10; i++) await tap(page, '[data-setting="custom.max"][aria-label$="up"]')
+      for (let i = 0; i < 10; i++) await tap(page, '[data-setting="custom.min"][aria-label$="up"]')
+      const knobs = await page.evaluate(() => window.__bacon.state().settings.custom)
+      const honest = customLevel(knobs).tag
+      await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
+      const chipTag = await text(page, '.lobby-chip .tag, .level .tag, [data-nav="picker"] .tag').catch(() => null)
+      const shown = chipTag || (await page.evaluate(() => document.querySelector('.screen.active').textContent))
+      expect(shown.includes(honest), `the Lobby shows a tag the tables cannot honour: knobs ${JSON.stringify(knobs)} → "${honest}" not in "${String(shown).slice(0, 160)}"`)
       // a garbage save is tolerated. The game saves on pagehide and on visibilitychange (hidden); listeners run in
       // registration order per event, so garbage written by both of these lands after the game's own saves.
       await page.evaluate(() => {
@@ -790,7 +894,9 @@ scenarios.push(
       await worstCase(page, check, 'worst-trivia')
       await tap(page, 'button[data-key="hint"]')
       expect(!(await page.$eval('#hint', (h) => h.hidden)), 'HINT should show')
-      await check('hint', { ride: true, go: true })
+      const hp = (await slim(page)).ride.problem
+      const hops = ['add', 'sub', 'up', 'down'].includes(hp.kind) && hp.b >= 1 && hp.b <= 10 ? hp.b : 0
+      await check('hint', { ride: true, go: true, ...(hops ? { hops } : {}) })
       await tap(page, 'button[data-key="hint"]')
       // landscape under 500 px tall: two columns, nothing clipped, every target 48 px, shaft ≥ 200
       const portrait = ctx.phone.viewport
@@ -910,3 +1016,56 @@ scenarios.push(
     },
   },
 )
+
+// THE UNRECOVERABLE TRAP, in a real browser (r1-math-01). A Megatall sum whose answer is negative,
+// missed twice: the fall drops the step 3 → 2, and the panel used to derive its ± key from the
+// level AND STEP rather than from the problem it is showing. The child came back to a keypad that
+// could not express the answer to the sum on its own display — no escape, no message, for ever.
+scenarios.push({
+  name: 'fall-negative',
+  async run(ctx) {
+    const { page, shot } = ctx
+    await load(ctx)
+    await tap(page, '[data-nav="picker"]'); await waitScreen(page, 'picker')
+    await tap(page, 'button[data-level="megatall"]')
+    await waitFor(page, () => window.__bacon.state().level === 'megatall', 'the Megatall level')
+    await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
+    await startRide(page)
+    // play correctly until a negative-answer sum comes up (Megatall step 3 draws them)
+    let problem = null
+    for (let guard = 0; guard < 60 && !problem; guard++) {
+      const s = await slim(page)
+      if (s.phase === 'trivia') { await answerTrivia(page, true); continue }
+      if (s.phase === 'roof') { await tap(page, '[data-next]'); await waitPhaseIn(page, ['floor']); continue }
+      if (s.phase === 'floor') { await tap(page, `button[data-floor="${label(s.ride.target)}"]`); await waitPhaseIn(page, ['keypad']); continue }
+      if (s.phase !== 'keypad') throw new Error('fall-negative stuck at ' + s.phase)
+      if (s.ride.problem.answer < 0) { problem = s.ride.problem; break }
+      await enter(page)
+      await waitPhaseIn(page, ['floor', 'trivia', 'roof'])
+    }
+    expect(problem, 'no negative-answer sum in 60 Megatall questions')
+    const trayBefore = await num(page, '#tray')
+    const stepBefore = (await slim(page)).step
+    // miss it twice: the calm line, then the fall
+    await enter(page, 0)
+    await wait(60)
+    await enter(page, 0)
+    await waitPhaseIn(page, ['repair'], 6000)
+    await shot('negative-repair')
+    const after = await slim(page)
+    expect(after.ride.problem.key === problem.key, 'the retry must ask the same sum')
+    // THE ASSERTION: the keypad can express the answer to the sum it is showing
+    await tap(page, 'button[data-continue]')
+    await waitPhaseIn(page, ['keypad'])
+    const sign = await page.$eval('#panel button[data-key="sign"]', (b) => { const r = b.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) } }).catch(() => null)
+    expect(sign, `no ± key for ${problem.text} (answer ${problem.answer}) at step ${after.step} — the sum cannot be entered at all`)
+    expect(sign.w >= 48 && sign.h >= 48, `± key is ${sign.w}×${sign.h}`)
+    await shot('negative-keypad')
+    await enter(page, problem.answer)
+    await waitPhaseIn(page, ['moving'], 4000)
+    await waitPhaseIn(page, ['floor', 'trivia', 'roof'], 8000)
+    const end = await slim(page)
+    expect(await num(page, '#tray') >= trayBefore, 'the tray went backwards on the recovery')
+    return `${problem.text.replace('▮', String(problem.answer))} missed twice at step ${stepBefore} → step ${after.step}, ± still on the keypad, rode to ${end.ride.floor}`
+  },
+})

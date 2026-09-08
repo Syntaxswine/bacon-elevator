@@ -138,6 +138,7 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .topbar { flex: 0 0 var(--topbar); height: var(--topbar); display: flex; align-items: stretch; gap: 4px; padding: 0 4px; border-bottom: 2px solid #cfc9bb; background: var(--paper); }
 .topbar .tb { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 48px; min-height: 48px; padding: 0 8px; border-radius: 10px; font-weight: 700; font-size: 17px; }
 .topbar .tb.nav { color: var(--go); }
+.topbar .tb.nav:disabled { color: #9A968C; }
 .topbar .chip { flex: 1 1 auto; justify-content: center; min-width: 0; font-size: 13px; font-weight: 600; color: var(--ink-soft); gap: 6px; }
 .topbar .chip .lname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar .count { font-variant-numeric: tabular-nums; font-size: 19px; }
@@ -180,6 +181,10 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .panel .key:active:not(:disabled) { box-shadow: 0 1px 0 #b9b3a4; transform: translateY(2px); }
 .panel .key.go { grid-column: span 2; background: var(--go); border-color: var(--go-deep); color: #fff; box-shadow: 0 3px 0 var(--go-deep); font-size: 28px; letter-spacing: 2px; }
 .panel .key.go:disabled { background: #b9c6d4; border-color: #9aaabb; box-shadow: 0 3px 0 #9aaabb; color: #fff; opacity: 1; }
+/* One `cannot act` look for the whole panel — the same three colours the disabled floor face uses,
+   so there is no red, no cross and no washed-out glyph the contrast reader would then fail.
+   The door keys were already disabled and still drew as live white keys. */
+.panel .key:disabled { background: #F2EFE8; border-color: #B5B0A3; color: #9A968C; box-shadow: 0 3px 0 #D5D0C4; }
 .panel .key.small-label { font-size: 18px; }
 .panel .key.hint-key { font-size: 17px; letter-spacing: 1px; }
 .panel .spacer { background: transparent; }
@@ -188,7 +193,10 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .panel .floor:disabled .face { color: #9a968c; border-color: #b5b0a3; background: #f2efe8; }
 .panel .floor.target .face { border-color: #9A7A2A; }
 .panel .floor.target .face { animation: pulse 1s ease-in-out infinite; }
-.panel .floor.lit .face { animation: none; background: var(--amber); box-shadow: 0 0 0 6px rgba(232, 176, 74, 0.45); border-color: #9A7A2A; }
+/* `color` too: a lit button is always disabled, so without this the digit inherits the disabled
+   grey and reads #9A968C on #E8B04A — 1.51:1, and invisible to the drive's contrast gate, which
+   skips anything inside a disabled button. */
+.panel .floor.lit .face { animation: none; background: var(--amber); color: var(--ink); box-shadow: 0 0 0 6px rgba(232, 176, 74, 0.45); border-color: #9A7A2A; }
 .panel .floor .tag { position: absolute; top: 2px; right: 22px; width: 22px; height: 22px; border-radius: 50%; background: var(--go); color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; }
 .panel .door-key { font-size: 24px; letter-spacing: -2px; }
 .panel .bell { font-size: 24px; }

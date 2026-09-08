@@ -3,13 +3,16 @@
 // Nothing here touches window, document, storage, timers or Date.
 
 import { LEVELS, LEVEL_ORDER, levelById, customLevel } from './levels.js'
-import { makeProblem, afterAnswer, checkAnswer, adaptStep, initialCtx, parseTyped, allowsNegatives, validProblem } from './math.js'
+import { makeProblem, afterAnswer, checkAnswer, adaptStep, initialCtx, parseTyped, signKeyLive, typedCap, validProblem } from './math.js'
 import { initialCar, sequence, step as carStep, FLOORS } from './elevator.js'
-import { isPassengerFloor, pickFact, makeChoices } from './trivia.js'
+import { isPassengerFloor, pickFact, makeChoices, TRIVIA_LIMITS } from './trivia.js'
 
 export const SETTINGS_DEFAULTS = Object.freeze({
   sound: false, volume: 50, speed: 'normal', motion: 'auto', bigText: false, secondTry: true,
-  passengers: 'sometimes', links: false, custom: { ops: ['add', 'sub'], min: 0, max: 20, negatives: false },
+    // Custom ships min 2: DESIGN §4 puts operands 0 and 1 at Corner Shop only, and min 0 put one of
+  // them in 26 % of the default Custom level's draws. 0 stays reachable through the stepper — a
+  // grown-up's explicit choice is not a silent rule break.
+  passengers: 'sometimes', links: false, custom: { ops: ['add', 'sub'], min: 2, max: 20, negatives: false },
 })
 
 export const PARTS = Object.freeze([
@@ -28,7 +31,9 @@ export const SCREENS = ['lobby', 'picker', 'rules', 'ride', 'roof', 'factbook', 
 // saved the moment a timeline starts, so a save taken mid-ride can be settled by hydrate().
 export const IN_FLIGHT = Object.freeze({ ride: 'moving', express: 'moving', fall: 'falling', descend: 'descending' })
 
-const STABLE = new Set(['floor', 'keypad', 'repair', 'trivia', 'fact', 'roof'])
+// The phases in which the game is waiting for the child. Exported so the DOM can REFLECT the
+// reducer's own guard instead of re-implementing it: a control that cannot act must show it.
+export const STABLE = new Set(['floor', 'keypad', 'repair', 'trivia', 'fact', 'roof'])
 
 // THE RIDE INVARIANT, in one place.
 // A ride is playable iff there is a floor ABOVE the car to press. Range-checking floor and target
@@ -79,7 +84,7 @@ export function initialState(salt) {
     facts: { seen: [], right: [], retry: [] },
     unlocks: [],
     equipped: { doors: 'doors-centre', indicator: 'segment', chime: 'single' },
-    history: { ring: [], count: 0, answered: 0, correct: 0, falls: 0, byKind: {}, skills: {} },
+    history: { ring: [], count: 0, answered: 0, correct: 0, falls: 0, byKind: {}, skills: {}, comeback: [] },
     ride: null,
     rulesSeen: false,
     step3Run: 0,
@@ -110,16 +115,22 @@ const SOUND = (name) => ({ type: 'sound', name })
 const SCREEN = (name) => ({ type: 'screen', name })
 const same = (state) => ({ state, effects: [] })
 
+// THE COMEBACK QUEUE LIVES IN history, NOT IN THE RIDE.
+// makeProblem schedules a missed sum at count+5 and count+15, but newRide reset both the queue and
+// the count every building — and a building is TEN questions. +5 could only fire for a miss on
+// floors 1–5, and +15 could never fire at all (measured: 20 buildings, one deliberate miss each;
+// floors 6–9 → 0 comebacks, +15 → 0 in every configuration). history.count already increments in
+// lockstep with the ctx count, so moving both fields is the whole fix.
 function ctxOf(state) {
   const r = state.ride
   const c = r && r.ctx ? r.ctx : initialCtx()
-  return { ...c, ring: state.history.ring, skills: state.history.skills, comeback: r ? r.comeback : [] }
+  return { ...c, ring: state.history.ring, skills: state.history.skills, comeback: state.history.comeback || [], count: state.history.count }
 }
 
 function newRide(state, seed) {
   return {
     seed: seed >>> 0, floor: 0, target: 1, cleared: [], tray: 0, banked: 0, phase: 'floor', problem: null, typed: '',
-    tries: 0, streak: 0, stepDowns: 0, comeback: [], passengersDone: [], retrying: false, forfeit: false, typedWrong: '',
+    tries: 0, streak: 0, stepDowns: 0, comeback: [], passengersDone: [], retrying: false, typedWrong: '',
     falls: 0, draws: 0, ctx: initialCtx(), lastKind: null, fallFloor: 0, roofCard: null, inFlight: null,
   }
 }
@@ -157,12 +168,12 @@ function stable(state, phase, extra = {}) {
 function askProblem(state, rng) {
   const level = currentLevel(state)
   const problem = makeProblem(level, state.step, ctxOf(state), rng)
-  return { ...state, ride: { ...state.ride, problem, typed: '', tries: 0, retrying: false, forfeit: false, typedWrong: '' }, hint: false, message: '' }
+  return { ...state, ride: { ...state.ride, problem, typed: '', tries: 0, retrying: false, typedWrong: '' }, hint: false, message: '' }
 }
 
 function askPassenger(state, rng) {
   const r = state.ride
-  const fact = pickFact(state.pool, state.facts.seen, r.lastKind, rng, state.facts.retry)
+  const fact = pickFact(state.pool, state.facts.seen, r.lastKind, rng, state.facts.retry, TRIVIA_LIMITS[state.level] ?? null)
   if (!fact) return null
   const { choices, answer } = makeChoices(fact, rng)
   return { fact, choices, answer, chosen: null, result: null }
@@ -175,32 +186,46 @@ function startTimeline(state, name, r, phase) {
   return { state: { ...state, ride, phase, pending: { car: r.car, name }, hint: false }, effect: T(name, r) }
 }
 
-function recordAnswer(state, problem, correct, fell) {
+// ONE QUESTION, ONE VERDICT — recorded at the FIRST verdict.
+// recordAnswer used to do two jobs at once and the second-try branch returned before it, so a first
+// miss changed nothing: not the streak, not history.answered, not byKind, not the 0.25 mastery
+// weight, not the comeback queue. Measured on a child who missed every first attempt and got every
+// second one right: step 3 by question 7, history reading 17 answered / 17 correct / 0 falls. The
+// two jobs are separated here so the first miss can be recorded without being a fall.
+function recordQuestion(state, problem, correct) {
   const h = state.history
   const byKind = { ...h.byKind }
   const bk = byKind[problem.kind] || [0, 0]
   byKind[problem.kind] = [bk[0] + 1, bk[1] + (correct ? 1 : 0)]
   const ctx = afterAnswer(ctxOf(state), problem, correct)
-  const history = { ...h, ring: ctx.ring, count: h.count + 1, answered: h.answered + 1, correct: h.correct + (correct ? 1 : 0), falls: h.falls + (fell ? 1 : 0), byKind, skills: ctx.skills }
-  const ride = { ...state.ride, comeback: ctx.comeback, ctx: { lastAnswer: ctx.lastAnswer, sameSeen: ctx.sameSeen, kindRun: ctx.kindRun, count: ctx.count } }
-  let step = state.step, streak = ride.streak, stepDowns = ride.stepDowns
+  const comeback = ctx.comeback.filter((x) => x && x.due >= h.count - 40).slice(-12)
+  const history = { ...h, ring: ctx.ring, count: h.count + 1, answered: h.answered + 1, correct: h.correct + (correct ? 1 : 0), byKind, skills: ctx.skills, comeback }
+  const ride = { ...state.ride, ctx: { lastAnswer: ctx.lastAnswer, sameSeen: ctx.sameSeen, kindRun: ctx.kindRun, count: ctx.count } }
+  return { ...state, history, ride }
+}
+
+// The visible step bar, on every verdict. `fell` also counts the fall.
+function applyAdapt(state, correct, fell) {
+  const history = fell ? { ...state.history, falls: state.history.falls + 1 } : state.history
+  const ride = state.ride
+  let step = state.step, streak = ride ? ride.streak : 0, stepDowns = ride ? ride.stepDowns : 0
   if (state.adaptive) {
     const a = adaptStep({ step, streak, stepDowns }, correct, fell)
     step = a.step; streak = a.streak; stepDowns = a.stepDowns
   } else {
     step = Math.max(1, Math.min(3, state.pinnedStep))
   }
-  return { ...state, history, ride: { ...ride, streak, stepDowns }, step }
+  return { ...state, history, ride: ride ? { ...ride, streak, stepDowns } : ride, step }
 }
 
 function arrive(state, rng) {
-  // The car has stopped at ride.target with the doors open and the bacon in (unless forfeited).
+  // The car has stopped at ride.target with the doors open and the bacon in.
   const r = state.ride
   const floor = r.target
-  const collected = floor >= 1 && floor <= 9 && !r.cleared.includes(floor) && !r.forfeit
+  const collected = floor >= 1 && floor <= 9 && !r.cleared.includes(floor)
   const cleared = collected ? r.cleared.concat(floor).sort((x, y) => x - y) : r.cleared
   const tray = r.tray + (collected ? 1 : 0)
-  let s = { ...state, car: { ...initialCar(), floor }, ride: { ...r, floor, cleared, tray, retrying: false, forfeit: false, typed: '', typedWrong: '', problem: null, fallFloor: 0, inFlight: null }, hint: false, message: '' }
+  let s = { ...state, car: { ...initialCar(), floor }, ride: { ...r, floor, cleared, tray, retrying: false, typed: '', typedWrong: '', problem: null, fallFloor: 0, inFlight: null }, hint: false, message: '' }
   const effects = []
   if (floor === FLOORS.ROOF) {
     const gained = s.ride.tray - s.ride.banked
@@ -344,8 +369,15 @@ export function reduce(state, action, rng) {
       const d = String(action.d)
       if (!/^\d$/.test(d)) return same(state)
       const digitsOnly = r.typed.replace('-', '')
-      if (digitsOnly.length >= 4) return same(state)
-      if (digitsOnly === '0') return same(state)
+      // The cap is the keypad's capability, derived from the problem on screen — never a bare 4,
+      // which a 5-digit answer (a comeback, a legacy save) cannot be entered under.
+      if (digitsOnly.length >= typedCap(r.problem)) return same(state)
+      // A digit after a lone 0 REPLACES it. Refusing it is a dead key: no click, no change, and a
+      // GO that then sends the 0 the child thought they had replaced.
+      if (digitsOnly === '0') {
+        const only = (r.typed.startsWith('-') ? '-' : '') + d
+        return { state: { ...state, ride: { ...r, typed: only }, message: '' }, effects: [SOUND('click')] }
+      }
       const typed = r.typed + d
       return { state: { ...state, ride: { ...r, typed }, message: '' }, effects: [SOUND('click')] }
     }
@@ -358,7 +390,7 @@ export function reduce(state, action, rng) {
 
     case 'toggle-sign': {
       if (phase !== 'keypad' || !r || !r.problem) return same(state)
-      if (!allowsNegatives(currentLevel(state), state.step)) return same(state)
+      if (!signKeyLive(currentLevel(state), state.step, r.problem)) return same(state)
       const typed = r.typed.startsWith('-') ? r.typed.slice(1) : '-' + r.typed
       return { state: { ...state, ride: { ...r, typed } }, effects: [SOUND('click')] }
     }
@@ -405,18 +437,23 @@ export function reduce(state, action, rng) {
       if (r.retrying) {
         // After a fall: the same sum again. Right → express ride to the target. Wrong → the card returns, no second fall.
         if (correct) {
-          const res = sequence(state.car, [...doorsEvents, { type: 'express', to: r.target }], 0)
+          // Register the call for the recovery ride, so the target's button is lit on the way up
+          // exactly as it is on an ordinary ride. `press` draws no randomness and emits no timeline.
+          const pressed = carStep(state.car, { type: 'press', floor: r.target })
+          const base = pressed.blocked ? state.car : pressed.car
+          const res = sequence(base, [...doorsEvents, { type: 'express', to: r.target }], 0)
           if (res.blocked) return same(state)
           const shifted = { ...res, timeline: res.timeline.map((e) => ({ ...e, t: e.t + 600 })), duration: res.duration + 600 }
-          const st = startTimeline({ ...state, message: '', lastResult: 'correct' }, 'express', shifted, 'moving')
+          const st = startTimeline({ ...state, car: base, message: '', lastResult: 'correct' }, 'express', shifted, 'moving')
           return { state: st.state, effects: [st.effect, SOUND('click'), SAVE] }
         }
-        const s = stable({ ...state, ride: { ...r, tries: r.tries + 1, forfeit: true, typedWrong: r.typed, typed: '' }, message: '', lastResult: 'wrong' }, 'repair')
+        const s = stable({ ...state, ride: { ...r, tries: r.tries + 1, typedWrong: r.typed, typed: '' }, message: '', lastResult: 'wrong' }, 'repair')
         return { state: s, effects: [SAVE] }
       }
 
       if (correct) {
-        let s = recordAnswer(state, problem, true, false)
+        // A question already recorded as a miss (the second try) is not recorded a second time.
+        let s = r.tries === 0 ? applyAdapt(recordQuestion(state, problem, true), true, false) : state
         const res = sequence(s.car, [...doorsEvents, { type: 'move' }], 0)
         if (res.blocked) {
           // Only reachable from a save that put the car at the top in a playing phase. The answer
@@ -430,21 +467,26 @@ export function reduce(state, action, rng) {
       }
 
       if (state.settings.secondTry && r.tries === 0) {
-        return { state: { ...state, ride: { ...r, tries: 1, typed: '' }, message: 'Try once more.', lastResult: 'again' }, effects: [SAVE] }
+        // The first miss is a MISS: it resets the streak and goes into history, byKind, skills and
+        // the comeback queue. It is not a fall — adaptStep(correct=false, fell=false) drops nothing.
+        const s = applyAdapt(recordQuestion(state, problem, false), false, false)
+        return { state: { ...s, ride: { ...s.ride, tries: 1, typed: '' }, message: 'Try once more.', lastResult: 'again' }, effects: [SAVE] }
       }
 
       // The fall. The true equation shows for 1.2 s, then the cable slips. Byte-identical every time.
-      let s = recordAnswer(state, problem, false, true)
+      let s = r.tries === 0 ? applyAdapt(recordQuestion(state, problem, false), false, true) : applyAdapt(state, false, true)
       const res = carStep(s.car, { type: 'fall' })
       if (res.blocked) {
         // The car is already in the pit, so it cannot fall again (only a save that lost `retrying`
         // gets here). Show the Repair card rather than swallow the tap - no second fall, exactly as
         // the retry rule already says.
-        const st = stable({ ...s, ride: { ...s.ride, tries: s.ride.tries + 1, forfeit: true, retrying: true, typedWrong: r.typed, typed: '' }, message: '', lastResult: 'wrong' }, 'repair')
+        const st = stable({ ...s, ride: { ...s.ride, tries: s.ride.tries + 1, retrying: true, typedWrong: r.typed, typed: '' }, message: '', lastResult: 'wrong' }, 'repair')
         return { state: st, effects: [SAVE] }
       }
       const shifted = { ...res, timeline: res.timeline.map((e) => ({ ...e, t: e.t + 1200 })), duration: res.duration + 1200 }
-      s = { ...s, ride: { ...s.ride, typedWrong: r.typed, typed: '', retrying: true, falls: s.ride.falls + 1, fallFloor: r.floor }, message: '', lastResult: 'fall' }
+      // DESIGN §2 wrong-answer step 2: `Button light out`. The panel reads state.car, which is the
+      // PRE-timeline car, so a call left registered here glows amber for the whole drop.
+      s = { ...s, car: { ...s.car, carCall: null }, ride: { ...s.ride, typedWrong: r.typed, typed: '', retrying: true, falls: s.ride.falls + 1, fallFloor: r.floor }, message: '', lastResult: 'fall' }
       const st = startTimeline(s, 'fall', shifted, 'falling')
       return { state: st.state, effects: [st.effect, SAVE] }
     }
@@ -493,7 +535,7 @@ export function reduce(state, action, rng) {
       const accept = !!action.accept
       const card = { ...state.roof, offer: null, offerTaken: accept ? state.roof.offer : null }
       const s = { ...state, roof: card, ride: state.ride ? { ...state.ride, roofCard: state.ride.roofCard ? { ...state.ride.roofCard, offer: null, offerTaken: card.offerTaken } : null } : null, step3Run: 0 }
-      if (accept) return { state: { ...s, level: state.roof.offer, step: 1 }, effects: [SOUND('click'), SAVE] }
+      if (accept) return { state: { ...s, level: state.roof.offer, step: 1, history: { ...s.history, comeback: [] } }, effects: [SOUND('click'), SAVE] }
       return { state: s, effects: [SOUND('click'), SAVE] }
     }
 
@@ -528,7 +570,10 @@ export function reduce(state, action, rng) {
         s = { ...s, ride: null, trivia: null, roof: null, phase: 'lobby', screen: s.screen === 'ride' || s.screen === 'roof' ? 'lobby' : s.screen }
       }
       const step = state.adaptive ? (id === state.level ? state.step : 1) : Math.max(1, Math.min(3, state.pinnedStep))
-      return { state: { ...s, level: id, step, step3Run: id === state.level ? s.step3Run : 0 }, effects: [SOUND('click'), SAVE] }
+      // A comeback must not cross a level change: a Corner Shop child is not handed `2 − 27` from
+      // a Megatall building.
+      const history = id === state.level ? s.history : { ...s.history, comeback: [] }
+      return { state: { ...s, history, level: id, step, step3Run: id === state.level ? s.step3Run : 0 }, effects: [SOUND('click'), SAVE] }
     }
 
     case 'set-setting': {

@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { LEVELS, LEVEL_ORDER, levelById, customLevel } from '../src/levels.js'
-import { KINDS } from '../src/math.js'
+import { mulberry32 } from '../src/rng.js'
+import { LEVELS, LEVEL_ORDER, levelById, customLevel, levelBound } from '../src/levels.js'
+import { KINDS, makeProblem, afterAnswer, initialCtx, digitsNeeded } from '../src/math.js'
 
 test('five levels in the design order, exactly 3 steps each, ≥ 1 kind per step', () => {
   assert.deepEqual(LEVEL_ORDER, ['corner', 'hotel', 'office', 'sky', 'megatall'])
@@ -59,4 +60,63 @@ test('levelById and customLevel', () => {
   const d = customLevel({ ops: [], min: 30, max: 10 })
   assert.equal(d.steps[0].kinds.length, 1)
   assert.ok(d.steps[0].kinds[0].a[1] > d.steps[0].kinds[0].a[0])
+})
+
+// ---- round 1, fixer 3 -------------------------------------------------------------------------
+
+// r1-math-09 / r1-code-hostile-04: a Custom table a parent can reach through the Grown-ups steppers
+// must have legal draws in it. Two shapes had none: mul/div derived a: [max(2,min), √max], which
+// INVERTS whenever min > √max (rng.int returns lo when hi < lo), and add needs a + b ≤ max, which
+// has no legal pair whenever 2·min > max. The generator then served one corner of the range for
+// ever, above the parent's own Largest number, or rendered `= undefined`.
+test('every reachable Custom setting is satisfiable, non-degenerate and honestly tagged', () => {
+  const OPSETS = [['add'], ['sub'], ['mul'], ['div'], ['add', 'sub'], ['mul', 'div'], ['add', 'sub', 'mul', 'div'], ['missAdd'], ['up'], ['down']]
+  const NUMS = [0, 5, 10, 15, 20, 25, 50, 100, 200]
+  let configs = 0, degenerate = [], overTag = [], undef = [], wide = []
+  for (const ops of OPSETS) for (const min of NUMS) for (const max of NUMS) {
+    if (min > max - 2) continue
+    configs++
+    const level = customLevel({ ops, min, max, negatives: false })
+    const tagHi = Number(/numbers (\d+) to (\d+)/.exec(level.tag)[2])
+    const rng = mulberry32(11)
+    const counts = new Map()
+    let ctx = initialCtx()
+    for (let i = 0; i < 900; i++) {
+      const p = makeProblem(level, 1, ctx, rng)
+      counts.set(p.key, (counts.get(p.key) || 0) + 1)
+      if (/undefined|NaN/.test(p.text)) undef.push(`${ops}/${min}/${max}: ${p.text}`)
+      const nums = [p.a, p.b, p.answer].concat(Number.isInteger(p.c) ? [p.c] : [])
+      if (nums.some((n) => Math.abs(n) > tagHi)) overTag.push(`${ops}/${min}/${max} tag ${level.tag}: ${p.text} = ${p.answer}`)
+      if (digitsNeeded(p) > 4) wide.push(`${ops}/${min}/${max}: ${p.text} = ${p.answer}`)
+      ctx = afterAnswer(ctx, p, true)
+    }
+    const top = Math.max(...counts.values())
+    if (counts.size < 10 || top > 450) degenerate.push(`${ops}/${min}/${max}: ${counts.size} distinct keys, top ${top}/900`)
+    ctx = null
+  }
+  assert.ok(configs >= 300, `only ${configs} configurations swept`)
+  assert.deepEqual(undef.slice(0, 3), [], `${undef.length} draws rendered undefined`)
+  assert.deepEqual(degenerate.slice(0, 3), [], `${degenerate.length}/${configs} degenerate configurations`)
+  assert.deepEqual(overTag.slice(0, 3), [], `${overTag.length} draws above the number in the tag`)
+  assert.deepEqual(wide.slice(0, 3), [], `${wide.length} answers too wide for the keypad`)
+})
+
+// r1-math-06: nothing tied a tag to the table it describes, so Hotel could say `numbers to 20`
+// while its step-3 × table served 10 × 10 = 100.
+test('a tag never undercuts the numbers its own tables can show', () => {
+  for (const l of LEVELS) {
+    const m = /^numbers to (\d+)$/.exec(l.tag)
+    if (m) assert.ok(Number(m[1]) >= levelBound(l), `${l.id}: tag says ${m[1]}, tables reach ${levelBound(l)}`)
+  }
+  // and the direct measurement, which no tag rewrite can dodge
+  const hotel = LEVELS.find((l) => l.id === 'hotel')
+  const rng = mulberry32(42)
+  let ctx = initialCtx(), over = 0
+  for (let i = 0; i < 10000; i++) {
+    const p = makeProblem(hotel, 3, ctx, rng)
+    if ([p.a, p.b, p.answer].concat(Number.isInteger(p.c) ? [p.c] : []).some((n) => n > 20)) over++
+    ctx = afterAnswer(ctx, p, true)
+    if (i % 9 === 8) ctx = { ...ctx, sameSeen: false }
+  }
+  assert.ok(over === 0 || /tables/.test(hotel.tag), `${over}/10000 draws above 20 and the tag does not name the tables: "${hotel.tag}"`)
 })

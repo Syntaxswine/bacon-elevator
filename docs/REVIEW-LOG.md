@@ -293,3 +293,168 @@ unchanged (repeat 0.00 %, step converges on every level).
   circle-mask) takes that to 0. Not done: outside the finding.
 - **`PROBLEM_KINDS` is `KINDS` in `math.js`.** If a new kind is added to `levels.js` it must be
   added there, or `validProblem` will quietly reject every save carrying it.
+
+## Round 1 — fixer 3: content and words (2026-09-08)
+
+`src/math.js`, `src/explain.js`, `src/levels.js`, `src/trivia.js`, `data/trivia.json`,
+`data/trivia-audit.json` and the copy in `src/render/screens.js`, plus the reducer and renderer call
+sites those rules are read from. Nineteen findings: eighteen reproduced and fixed, one rejected in
+half (the level-offer timing), one reviewer suggestion rejected in favour of what the measurement
+said.
+
+### The one that mattered
+
+A Megatall sum with a negative answer, missed twice. The fall drops the step 3 → 2; the panel
+derived its `±` key from the level **and step**, so the key vanished — from a keypad still showing
+`2 − 27 = ▮`. The child could not enter the answer at all: 30 cycles of card → keypad → card, and
+Lobby → Ride restored the same dead keypad. The rule the code was missing is one sentence — *the
+keypad must be able to express the answer to the problem it is showing* — and the problem outlives
+the step that drew it in four ways (a fall, a pinned-step change, a Custom-knob change, a comeback).
+It is now one predicate, `signKeyLive`, with `typedCap` for the same trap in the digit dimension
+(a 5-digit answer under a hard cap of 4), read from `main.js` and `state.js` rather than
+re-implemented in each.
+
+### What changed
+
+| Finding(s) | Change | Pinned by |
+|---|---|---|
+| `r1-math-01` | `math.js` gains `levelAllowsNegatives`, `signKeyLive`, `digitsNeeded`, `typedCap`; `main.js:204` and `state.js`'s `toggle-sign` and digit cap all ask them; `save.js`'s persisted `typed` widens to 6 digits. The `±` key no longer appears and vanishes inside one Megatall building. | new drive scenario `fall-negative` (real Chrome, 5 phones): play Megatall to a negative sum, miss twice, and the `±` key must still be there and ≥ 48 px — it reports `2 − 27 = −25 missed twice at step 3 → step 2, ± still on the keypad`. Watched failing with the old derivation: `no ± key for 2 − 27 (answer −25) at step 2 — the sum cannot be entered at all`. Plus `test/panel-capability.test.js` (every level × drawStep × panelStep) and two `state.test.js` cases |
+| `r1-math-03`, `r1-math-08` | `explain.js classify`: the missing-number kinds get the inverse clause (`7 is the total, so ▮ is 7 − 3`) instead of `+ means add`, which contradicted the worked line above it; `neighbour` fires only on `mul`, where the typed number IS a product (it was firing on `missMul`: `▮ × 8 = 40` typed 35 read `that is 5 × 7; one more 5`); the unreachable ÷ branch is deleted; `reversal` compares digit strings of EQUAL length, so `10 × 10 = ▮` typed 1 is no longer called a digit reversal. | `test/explain.test.js`: 11 new fixtures/counter-fixtures **and** a drawn-problem sweep (6 000 problems × 21 candidate entries, plus a dedicated Skyscraper `missMul` pass) asserting four invariants — a neighbour clause names a product the child pressed, a reversal is a reversal, the operator lesson is only shown for the operation the child should have used, an inverse clause evaluates to the answer. It fails on HEAD with `reversal on a truncated entry` and `a missing-number card names the glyph the child already used`. The `fall` drive scenario now enters the mistake the KIND invites, not always `answer + 1` — the reason this shipped with an instrument on the same screen |
+| `r1-math-02`, `r1-math-09`, `r1-code-hostile-04` | `makeProblem`'s last-resort fallback returned `e.a[0] op e.b[0]` — measured `100 × 2 = 200` on 900/900 draws for ops ×, Smallest 100, Largest 120, above the parent's own Largest — and `finish()` could emit `15 + ▮ = undefined`. Now `degrade()` draws a legal random sum of the same kind inside the entry's ceiling, and `finish()` fills a missing total. `customLevel` builds tables that are satisfiable by construction (one Smallest knob cannot bind both `a + b ≤ max` and `a·b ≤ max`, so it is relaxed per family, never inverted) and derives its tag from them. | `test/levels.test.js`: all 360 knob combinations a parent can reach through the steppers, 900 draws each — ≥ 10 distinct sums, no sum over half the draws, no `undefined`, nothing above the number in the tag, nothing wider than the keypad. Before: 4 804 `undefined` draws and 39 degenerate configurations. `test/math.test.js` pins `degrade()` directly (watched failing: `100 × 2 = 200 is above the entry's own max`) |
+| `r1-math-09` (second half) | `render/screens.js` composed the Custom tag a second time from the raw knobs, so the Lobby chip read `numbers 50 to 60` over a `15 ÷ 3`. It asks `customLevel` now. `SETTINGS_DEFAULTS.custom.min` is 2 (0 was in 26 % of the default Custom level's draws; §4 puts 0 and 1 at Corner Shop). | the `settings` drive scenario sets Custom to ÷ only, 52–70 through the real steppers and asserts the Lobby shows the tag `customLevel` actually produces. Watched failing: `knobs {"ops":["div"],"min":52,"max":70} → "numbers 2 to 64" not in "numbers 52 to 70"` |
+| `r1-math-06` | `levels.js` exports `levelBound(level)`; Hotel is tagged `numbers to 20; tables 2, 5, 10`, because its step-3 × table is exactly what §4 asks for and it reaches 100 (1 078 of 10 000 draws above 20). The tag was what was wrong, not the table. | `test/levels.test.js`: no `numbers to N` tag may undercut its own `levelBound`, **and** the direct measurement — 10 000 Hotel step-3 draws must show nothing over 20 unless the tag names the tables. Fails on HEAD: `hotel: tag says 20, tables reach 100` |
+| `r1-math-04` | `recordAnswer` was the only writer of history AND the adaptive rule, and the second-try branch returned before it: a first miss changed nothing. A child who missed every first attempt and got every second right was at step 3 by question 7, with history reading 17 answered / 17 correct / 0 falls. Split into `recordQuestion` (once per question, at the first verdict) and `applyAdapt` (every verdict). | `state.test.js` `a child who needs two tries is not promoted`: 18 questions wrong-then-right → step 1, 18 answered, 0 correct, 0 falls, and `byKind` records ONE attempt, not two. Fails on HEAD at the double-count assertion |
+| `r1-math-05` | The comeback queue was scheduled at `count+5`/`count+15` in a counter `newRide` reset every building — and a building is TEN questions, so +5 fired only for floors 1–5 and +15 never fired at all. Moved to `history.comeback` with `history.count` as its clock, pruned to the last 12, validated in `save.js`, and cleared on any level change (including an accepted roof offer). | `state.test.js` `a sum missed on floor 8 comes back in the NEXT building at +5 and again at +15` — the miss must reappear at exactly questions 13 and 23. The old assertion only proved the queue was SCHEDULED, which is why this shipped; it now reads `history.comeback` and a second test proves a comeback never crosses a level change |
+| `r1-math-07` | The `a = b` latch is meant to stop an incidental repeat; it was capping the kinds whose every draw has `a = b`. Hotel doubles measured 7.99 % against a 12.5 % table weight, Skyscraper squares 9.43 % against 20 %, and a second one in the same building was impossible. Declared pairs now carry `pair: true` (through `validProblem` and the comeback copy, so a reload cannot demote one). | `test/math.test.js`: 90 000 draws with the game's real per-building latch reset — Hotel doubles > 11 %, Skyscraper squares > 14 %. Fails on HEAD at 9.52 %. The old `a = b twice` assertion is narrowed to *incidental* `a = b`, which is a green test going red on purpose |
+| `r1-elevator-feel-02`, `r1-autism-fit-03` | **The forfeit is dropped.** After a second wrong retry the strip stayed on its plate, silently, at a floor the child was standing on — against `Bacon is never lost.` printed on the Rules card and §7's 16 per building (a forfeit run banked 15). The strip is collected when the sum is finally answered. DESIGN amendment 9 records the spec reversal. | the existing `state.test.js` case is renamed and inverted (tray 2, cleared [1, 2]) plus a new one playing a whole building with two cards on one floor: `roof.gained + bonus === 16`. The `fall` drive scenario now answers WRONG a second time — no scenario ever missed twice, which is how the whole branch shipped unwatched |
+| `r1-autism-fit-02` | The trivia picker knew the level existed and never asked it: over seeds 1–8 at Corner Shop, 53 of 96 passengers were above difficulty 1 and the longest question ran 188 characters. `TRIVIA_LIMITS` gates the pool by level, applied before the comeback and recycle branches so nothing escapes the band. | `test/trivia.test.js` (2 000 gated draws stay in band, kinds still alternate, a due retry above the band is refused) and a `state.test.js` walk of 8 seeds × 6 buildings at Corner Shop. Both mutation-checked: dropping the filter reports `elevator-history-haughwout-five-floors is difficulty 2`, dropping the wiring reports `seed 1: difficulty 2 at numbers to 10` |
+| `r1-autism-fit-07` | The picker never said that picking another building ends the parked one. The behaviour is already the kind thing — the tray is banked — so only the words were missing; the lobby's floor label is now one function both screens share. | the `settings` drive scenario parks a building, opens the picker, asserts the note names the parked floor and the lunchbox, then picks Hotel and asserts the tray reached the lunchbox |
+| `r1-elevator-feel-03` | The lit floor button was read from the pre-timeline car: it glowed amber for the whole 3.6 s fall (against §2's `Button light out`) and nothing was lit on the recovery express, where a real car shows its registered call. The fall clears `carCall`; the retry issues a `press` (which draws no randomness, so `elevator.test.js`'s snapshots do not move). Also `color: var(--ink)` on `.floor.lit .face`: the lit digit was #9A968C on #E8B04A = **1.51:1**, invisible to the contrast gate because it skips anything inside a disabled button. | `state.test.js` (carCall null through the fall, `=== target` on the express) and the `fall` drive scenario, watched failing: `the car call stays lit through the whole fall` |
+| `r1-autism-fit-04`, `r1-mobile-ux-07`, `r1-elevator-feel-09` | One `cannot act` look for the panel (`.panel .key:disabled`, the same three colours the disabled floor face already used — no red, no cross, no washed-out glyph), `.topbar .tb.nav:disabled`, and `STABLE` exported from `state.js` so `main.js` and `panel.js` REFLECT the reducer's own guard instead of re-implementing it. The two door keys had been disabled and drawing as live white keys the whole time; no reviewer caught that. | the `fall` drive scenario asserts Lobby, the bell and both door keys report `disabled` during the fall, and that a disabled key does not paint the live white with the live drop shadow. Watched failing with the CSS rule removed |
+| `r1-elevator-feel-04` | `◁▷` during a close snapped the doors fully open and then held them for the whole 500 ms step: the renderer re-seeded its animation from `state.car.doors` (still `open` on a reopen) instead of from what it last drew. `lastDoorPos` is the painted position. | covered by the existing door-order assertions; the drive's `fall` and `play20` step orders are unchanged |
+| `r1-elevator-feel-05` | A digit tapped after a lone `0` was refused: no click, no change, and GO then sent the `0` the child thought they had replaced. It replaces the zero now, and still clicks. | `state.test.js`: `0` then `5` gives `5`; `0` twice gives `0` **and** still emits a click — the falsifier for a dead key |
+| `r1-elevator-feel-08` | The `+ 5` number line drew one long arc labelled `+ 5`, which only reads if you already know what `+ 5` means. It draws `b` unit hops (28.8 px each at Corner Shop). | a new `layout` checkpoint counts the quadratic paths in `#hint svg` against the problem's own `b`. Watched failing: `the number line draws 1 hop(s) for b = 5` |
+| `r1-autism-fit-05` | The floor-mode spacer carried a 26 px bold `·` — the only glyph on the panel that did nothing, and no `[data-tap]`, so the 48 px gate never looked at it. | a `layout` assertion: a floor-mode spacer must carry no text |
+| `r1-elevator-feel-07` (half) | Corner Shop **step 3** drops 0 as an operand: 22 % of its sums carried one, and `2 + 0` is not a question for a child who loves maths. 0 stays the teaching point at steps 1 and 2. | `test/math.test.js`: 0 must still appear at steps 1–2 and never at step 3. Fails on HEAD at 1 250/5 000 |
+| `r1-trivia-truth-01` … `-07`, `r1-math-10` | Eleven trivia items corrected — see below. **67 items in, 67 items out:** nothing was cut, because every claim was either sourced or removed from the sentence rather than the item. | four new `trivia.test.js` tests, all four watched failing on the shipped bank |
+
+### The trivia bank: 67 → 67
+
+Every source below was **fetched in this session**; no claim was repaired from memory.
+
+- **`elevator-engineering-inspection-certificate`** — the shipped item cited *34 Pa. Code § 7.15*
+  under a sentence about **Maine**, and the project's own audit had already called that citation
+  rotten (a 1924 rule superseded by ch. 405) and recorded the fix: *cite Maine Title 32 §15221*.
+  The fix was never applied to `sources[]`. Applied now, and §15221 (fetched) carries **both** shown
+  claims: `The owner of an elevator shall have the elevator inspected annually` and `The elevator
+  certificate must be posted in the elevator`.
+- **`elevator-culture-thirteenth-floor`** — the 2024 figure lived only in the refute lens, which the
+  player never sees, and said *apartment* where the study counted *condominium* buildings.
+  Hardesty & Auerbach, *Significance* 21(2), April 2024 promoted into `sources[]` with its quote
+  (`of the approximately 620 condominium buildings in New York City with more than 13 storeys, only
+  13.5% have a unit with a thirteenth-floor address`); wording corrected.
+- **`elevator-engineering-kone-monospace-1996`** — the Otis-1990-Tokyo parenthetical had no shown
+  source and its only citation (Elevator World) answers **HTTP 403** to every fetch. Search snippets
+  name an Otis *Sky Linear* of 1990, but a snippet is not a source. **Cut, not softened.**
+- **`elevator-records-bailong-outdoor-elevator`** — the cited Guinness page itself gives two ride
+  times (`takes 1 minute 58 seconds` and `takes just 1 minute and 32 seconds`) and the fact asserted
+  only the faster. Reworded to *under two minutes*, true under either reading, and the source now
+  ships the quote a parent can check.
+- **`elevator-history-colosseum-capstans`** — the second source shipped the quote `had roughly 25
+  elevators`, contradicting the item's own 60 capstans. Fetched: that page carries no sentence about
+  the hypogeum or its capstans, so there was no honest quote to swap in. Source dropped; the
+  Smithsonian interview with Beste, who did the work, remains.
+- **`elevator-culture-otis-1854-rope`** — its question named **1854** and its fact a **five-story**
+  store: the answers to two other items in the same pool, which `pickFact` will show inside one
+  cycle. Both are now told without the numbers (and the fact drops 402 → 297 characters).
+- **Five facts over 360 characters** (`door-close` 434, `otis-1854-rope` 402, `monospace` 386,
+  `autotronic` 384, `tallest-lift` 363) trimmed to ≤ 310. Nothing trimmed was untrue: every removed
+  sentence is preserved verbatim in `data/trivia-audit.json` with its source.
+- **`math-numbers-chessboard-doubling`** (`r1-math-10`) — `About 18 quintillion` against a distractor
+  of `About 18 trillion` is only right on the **short scale**, and the bank otherwise writes British
+  English (*storeys*, *maths*, *lift*). The answer is now `A 20-digit number`, which is the same under
+  every naming convention; the total was re-checked at Wolfram MathWorld
+  (`2^(64)-1=18446744073709551615`).
+- **`elevator-history-empire-state-73-elevators`** (`r1-math-10`, second half) — **the finding does
+  not stand.** The ESB facts page says `the Empire State Building houses a whopping 73 Otis
+  elevators` verbatim (fetched). The item is unchanged; the quote is now shown so no reader has to
+  take it on trust.
+
+The root cause of the first one — an audit that records a fix the artefact never receives — is now a
+test: **`the audit record and the shipped bank say the same thing`** compares question, answer,
+distractors, fact, source URLs and source quotes item by item across the two files. Two more gates
+came with it: every shown fact ≤ 360 characters with a quote on every source, and no item may give
+away another item's answer (one documented exception, the Eiffel pair, where the maths item cannot
+ask its arithmetic question without naming its inputs).
+
+### Rejected
+
+- **`r1-elevator-feel-07`, the offer-timing half.** Measured across seeds 1–10 at corner and hotel
+  under perfect play: the roof offers the next level at the SECOND roof, after exactly 20 questions,
+  deterministically. The finding wants it at the first. §4 makes `two consecutive buildings at step 3
+  with ≤ 1 fall` a marked **Decision**, taken against judge 3's objection to silent difficulty
+  change, and §Risks 5 repeats it. Twenty questions is about six minutes, and the Lobby's level chip
+  moves building in one tap. The defensible half of the finding — the 0-operand rate — is fixed.
+- **`r1-math-06`'s suggested fix** (cap the ×10 table at 5 × 10). It contradicts §4's own Hotel
+  step-3 row and would delete two thirds of a table the design specifies. The tag was wrong, not the
+  table.
+- **`r1-math-09`'s suggested fix** (enforce `max − min ≥ 5`). It treats the symptom at the wrong
+  layer: the measured degeneracy is not narrowness but tables with NO legal draw (add is degenerate
+  at 50–100, a span of 50; mul at 100–120 inverts its own range). A span rule leaves 9 of the 39
+  degenerate configurations degenerate and forbids harmless narrow ones. Satisfiable-by-construction
+  tables plus `degrade()` fix all 39.
+
+### Numbers
+
+`npm test` **123 → 148** tests, all green (`explain` +2 including a 130 000-classification invariant
+sweep, `levels` +2 including all 360 reachable Custom settings, `math` +3, `state` +7, `trivia` +4,
+and a new `panel-capability.test.js` with 3). `node tools/phone-drive.mjs` **40/40 → 45/45**: eight
+scenarios became nine (`fall-negative`) across all five corrected phone profiles, and `fall`,
+`layout` and `settings` carry eleven new assertions. `npm run headless` unchanged and in bounds on
+every level: 0.00 % repeats, max kind 25.5–38.7 %, step 3 by the sixth answer, 0 falls under the
+perfect policy.
+
+Measured before → after, on the things a child feels:
+
+| | before | after |
+|---|---|---|
+| negative sum re-asked after a fall | no `±` key, unanswerable for ever | `±` present at every Megatall step |
+| bacon in a building with one double miss | 15 | 16 |
+| Corner Shop passengers above difficulty 1 (seeds 1–8) | 53 of 96 | 0 |
+| longest Corner Shop question | 188 characters | ≤ 130 |
+| degenerate Custom settings (of 360 reachable) | 39 | 0 |
+| Custom draws rendering `undefined` | 4 804 of 324 000 | 0 |
+| second-try child's step after 18 questions | 3 (from question 7) | 1 |
+| comeback at +15 | never fires, in any configuration | fires |
+| comeback at +5 for a miss on floors 6–9 | never fires | fires, in the next building |
+| Hotel doubles / Skyscraper squares | 7.99 % / 9.43 % | 13.1 % / 16.2 % |
+| lit floor digit contrast | 1.51:1 | 7.24:1 |
+| trivia facts over 360 characters | 5 | 0 |
+| shown claims with no shown source | 3 | 0 |
+
+Two things the instruments could not have caught before this round, and now can: the `fall` scenario
+never missed twice (so the entire forfeit branch — reducer, renderer and copy — shipped unwatched),
+and it always entered `answer + 1` (so only the `offby` clause was ever exercised, which is how a
+Repair card telling a child who added that `+ means add` shipped with a drive assertion on the same
+screen).
+
+### Handed on
+
+- **`settings.secondTry` is still `true` at every level**, while §4 says `on at Corner Shop, off
+  above`. The measured harm — a second-try child being promoted on the strength of answers they got
+  wrong the first time — is fixed by the `recordQuestion`/`applyAdapt` split, so the remaining gap is
+  a spec question, not a defect: either flip it when the child ACCEPTS a roof offer (and say so on
+  the offer card), or amend §4 to make it a pure parent switch. **The lead should decide.**
+- **`levels.js` carries a `floors:` field** (corner 3, hotel 6, rest 9) that nothing in `src/`,
+  `test/` or `tools/` reads — every building is 9 floors plus the roof. And `phase: 'pit'` is in
+  `PHASES` and handled by `createDisplay`, but the reducer never sets it. Dead, both of them.
+- **`repair().small` prints `you pressed 2` for a child who pressed `0` then `2`.** `state.js` keeps
+  the raw string in `ride.typedWrong`, so the exact keys are available if a later round wants the
+  card to echo them. With the reversal fix in, it no longer feeds a false clause.
+- **The mul-square signal is unused.** A child who types `a × a` on `7 × 5` has recalled the wrong
+  table row; it lands in `other` 5 726 times per 4 003 drawn `mul` problems. A truthful neighbour
+  clause (`that is 7 × 7; it is 7 × 5`) is one line inside the `mul` block, deliberately left out to
+  keep this diff to the findings.
+- **The Hotel tag now wraps to two lines at 320 px** (the picker row grows 74 → 92 px). Measured, no
+  overflow, drive green — but it is the first level tag that does not fit on one line, and a sixth
+  level would want a shorter form.

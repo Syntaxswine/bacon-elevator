@@ -83,6 +83,9 @@ export function migrate(obj) {
     falls: clampInt(h.falls, 0, MAX_COUNT, 0),
     byKind: isObj(h.byKind) ? Object.fromEntries(Object.entries(h.byKind).filter(([, v]) => Array.isArray(v) && v.length === 2 && v.every(Number.isInteger)).map(([k, v]) => [k, v.slice()])) : {},
     skills: isObj(h.skills) ? Object.fromEntries(Object.entries(h.skills).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.map((x) => (x ? 1 : 0)).slice(-8)])) : {},
+    // The comeback queue lives here now (it could not mature inside one building). Same validator
+    // the live problem gets: makeProblem hands a due entry straight to the renderer.
+    comeback: (Array.isArray(h.comeback) ? h.comeback : []).map((x) => (isObj(x) ? { problem: validProblem(x.problem), due: clampInt(x.due, 0, MAX_COUNT, -1) } : null)).filter((x) => x && x.problem && x.due >= 0).slice(-12),
   }
   s.ride = migrateRide(obj.ride)
   s.phase = 'lobby'
@@ -111,7 +114,7 @@ function migrateRide(r) {
     banked: Math.min(tray, clampInt(r.banked, 0, MAX_BACON, 0)),
     phase,
     problem,
-    typed: typeof r.typed === 'string' && /^-?\d{0,4}$/.test(r.typed) ? r.typed : '',
+    typed: typeof r.typed === 'string' && /^-?\d{0,6}$/.test(r.typed) ? r.typed : '',
     tries: clampInt(r.tries, 0, 99, 0),
     streak: clampInt(r.streak, 0, 99, 0),
     stepDowns: clampInt(r.stepDowns, 0, 99, 0),
@@ -120,8 +123,7 @@ function migrateRide(r) {
     comeback: (Array.isArray(r.comeback) ? r.comeback : []).map((x) => (isObj(x) ? { problem: validProblem(x.problem), due: clampInt(x.due, 0, MAX_COUNT, -1) } : null)).filter((x) => x && x.problem && x.due >= 0).slice(0, 40),
     passengersDone: Array.isArray(r.passengersDone) ? [...new Set(r.passengersDone.filter((x) => Number.isSafeInteger(x) && x >= 1 && x <= 9))] : [],
     retrying: bool(r.retrying, false) && (floor === -1 || (inFlight !== null && inFlight.name === 'fall')),
-    forfeit: bool(r.forfeit, false),
-    typedWrong: typeof r.typedWrong === 'string' && /^-?\d{0,4}$/.test(r.typedWrong) ? r.typedWrong : '',
+    typedWrong: typeof r.typedWrong === 'string' && /^-?\d{0,6}$/.test(r.typedWrong) ? r.typedWrong : '',
     falls: clampInt(r.falls, 0, 999, 0),
     draws: clampInt(r.draws, 0, MAX_COUNT, 0),
     ctx: isObj(r.ctx) ? r.ctx : null,

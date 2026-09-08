@@ -291,8 +291,13 @@ export function createShaft(container, opts = {}) {
     lit = f
   }
 
+  // WHERE THE LEAVES ACTUALLY ARE, in pixels — not what the reducer believes. On a reopen mid-close
+  // state.car.doors is still 'open', so seeding the animation from state snapped the leaves fully
+  // open on the first frame and then held them there for the whole 500 ms step.
+  let lastDoorPos = 1
   function setDoors(open) {
     const o = clamp(open, 0, 1)
+    lastDoorPos = o
     if (equipped.doors === 'doors-telescopic') {
       doorL.setAttribute('transform', `translate(${-OPEN_W / 2 * o} 0)`)
       doorR.setAttribute('transform', `translate(${-OPEN_W * o} 0)`)
@@ -437,22 +442,19 @@ export function createShaft(container, opts = {}) {
       const impact = steps.find((s) => s.ev === 'impact')
       const bacon = steps.find((s) => s.ev === 'bacon')
       const to = arrive ? arrive.floor : name === 'fall' ? -1 : from
-      // After a wrong retry the strip stays on its plate (ride.forfeit): no slide, no strip in the car.
-      const forfeit = !!(state.ride && state.ride.forfeit)
       anim = {
-        name, steps, duration, from, to, forfeit,
+        name, steps, duration, from, to,
         msPerFloor: name === 'ride' ? DURATIONS.floor : DURATIONS.express,
         moveStart: move ? move.t : null,
         fallStart: fallStart ? fallStart.t : Infinity,
         impactAt: impact ? impact.t : Infinity,
-        baconAt: bacon && !forfeit ? bacon.t : null,
+        baconAt: bacon ? bacon.t : null,
         door: null,
         sillPassed: null,
         lastElapsed: 0,
       }
-      const doorsOpen = state.car.doors === 'open' || state.car.doors === 'opening' ? 1 : 0
-      anim.door = { from: doorsOpen, to: doorsOpen, t0: 0, t1: 1 }
-      idle.doorsOpen = doorsOpen
+      anim.door = { from: lastDoorPos, to: lastDoorPos, t0: 0, t1: 1 }
+      idle.doorsOpen = state.car.doors === 'open' || state.car.doors === 'opening' ? 1 : 0
       car.setAttribute('data-motion', name === 'fall' ? 'falling' : name === 'express' ? 'hoisting' : name === 'closeDoors' || name === 'openDoors' ? 'idle' : 'moving')
       if (name === 'fall') setIndicator(label(from), 'down')
       else if (name === 'descend') setIndicator(label(from), 'down')
@@ -464,9 +466,9 @@ export function createShaft(container, opts = {}) {
       const a = anim
       const nextOf = (ev) => a.steps.find((s) => s.t > step.t && s.ev === ev)
       switch (step.ev) {
-        case 'doors-closing': { const n = nextOf('doors-closed'); a.door = { from: a.door ? a.door.to : 1, to: 0, t0: step.t, t1: n ? n.t : step.t + DURATIONS.doors }; doors.setAttribute('data-state', 'closing'); break }
+        case 'doors-closing': { const n = nextOf('doors-closed'); a.door = { from: lastDoorPos, to: 0, t0: step.t, t1: n ? n.t : step.t + DURATIONS.doors }; doors.setAttribute('data-state', 'closing'); break }
         case 'doors-closed': doors.setAttribute('data-state', 'closed'); setLantern(null); break
-        case 'doors-opening': { const n = nextOf('doors-open'); a.door = { from: a.door ? a.door.to : 0, to: 1, t0: step.t, t1: n ? n.t : step.t + DURATIONS.doors }; doors.setAttribute('data-state', 'opening'); break }
+        case 'doors-opening': { const n = nextOf('doors-open'); a.door = { from: lastDoorPos, to: 1, t0: step.t, t1: n ? n.t : step.t + DURATIONS.doors }; doors.setAttribute('data-state', 'opening'); break }
         case 'doors-open': doors.setAttribute('data-state', 'open'); break
         case 'move-start': stripPending = false; setStrip(false); break // the next ride starts: the strip is on the tray now
         case 'lantern': setLantern(step.floor, a.name === 'descend' ? 'down' : 'up'); break
@@ -475,7 +477,7 @@ export function createShaft(container, opts = {}) {
         case 'fall-start': break
         case 'impact': car.setAttribute('data-motion', 'idle'); setIndicator('P', 'none'); break
         case 'brake': break
-        case 'bacon': { if (a.forfeit) break; const L = landings.get(step.floor); if (L && L.plate) L.plate.setAttribute('visibility', 'hidden'); stripPending = true; break }
+        case 'bacon': { const L = landings.get(step.floor); if (L && L.plate) L.plate.setAttribute('visibility', 'hidden'); stripPending = true; break }
         default: break
       }
     },

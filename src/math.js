@@ -46,7 +46,7 @@ export function validProblem(p) {
   if (!Number.isSafeInteger(p.a) || !Number.isSafeInteger(p.b) || !Number.isSafeInteger(p.answer)) return null
   if (typeof p.text !== 'string' || !p.text.includes(BLANK)) return null
   if (typeof p.key !== 'string' || !p.key) return null
-  const q = { kind: p.kind, a: p.a, b: p.b, ...(Number.isSafeInteger(p.c) ? { c: p.c } : {}), answer: p.answer, text: p.text, key: p.key }
+  const q = { kind: p.kind, a: p.a, b: p.b, ...(Number.isSafeInteger(p.c) ? { c: p.c } : {}), ...(p.pair ? { pair: true } : {}), answer: p.answer, text: p.text, key: p.key }
   return solve(q) === q.answer ? q : null
 }
 
@@ -96,6 +96,11 @@ export function parseTyped(typed) {
 
 function finish(kind, a, b, extra = {}) {
   const p = { kind, a, b, ...extra }
+  // A missing-number kind without its total renders `15 + ▮ = undefined` on the display band.
+  // finish() is the one place every problem is built, so it is the one place that can refuse to
+  // emit a blank the child cannot read.
+  if (kind === 'missAdd' && !Number.isInteger(p.c)) p.c = a + b
+  if (kind === 'missMul' && !Number.isInteger(p.c)) p.c = a * b
   p.answer = solve(p)
   p.text = textOf(p)
   p.key = keyOf(p)
@@ -138,7 +143,7 @@ function draw(e, rng) {
       if (e.regroup === false && (a % 10) + (b % 10) >= 10) return null
       if (e.regroup === true && (a % 10) + (b % 10) < 10) return null
       if (Number.isInteger(e.regroups) && carries(a, b) > e.regroups) return null
-      return finish('add', a, b)
+      return finish('add', a, b, e.double ? { pair: true } : {})
     }
     case 'sub': {
       let a, b
@@ -157,7 +162,7 @@ function draw(e, rng) {
       const b = e.square ? a : (e.tables ? rng.pick(e.tables) : rng.int(e.b[0], e.b[1]))
       if (a * b > max) return null
       if (e.mult10 && !(a <= 25 || b <= 25 || a % 10 === 0 || b % 10 === 0)) return null
-      return finish('mul', a, b)
+      return finish('mul', a, b, e.square ? { pair: true } : {})
     }
     case 'div': {
       const b = e.tables ? rng.pick(e.tables) : rng.int(e.b[0], e.b[1])
@@ -226,14 +231,39 @@ export function makeProblem(level, step, ctx, rng) {
     last = p
     if (c.ring.includes(p.key)) continue
     if (c.lastAnswer !== null && p.answer === c.lastAnswer) continue
-    if (c.sameSeen && p.a === p.b) continue
+    if (c.sameSeen && p.a === p.b && !p.pair) continue   // a DECLARED double/square is the table, not a coincidence
     if (c.kindRun && c.kindRun.kind === p.kind && c.kindRun.n >= 3) continue
     return p
   }
   if (last) return last
-  // Every draw broke a table constraint (a bad custom table): fall back to the first entry, unconstrained.
-  const e = entries[0]
-  return finish(e.kind === 'div' || e.kind === 'missMul' ? 'add' : e.kind, e.a ? e.a[0] : 0, e.b ? e.b[0] : 0)
+  // Every draw broke a constraint (an impossible table). Degrade to a legal, RANDOM sum inside the
+  // entry's own ceiling — never one corner of the range served for ever, and never a kind the
+  // child was not asked for. The old fallback returned `e.a[0] op e.b[0]`, which measured as
+  // `100 × 2 = 200` on 900/900 draws with ops ×, Smallest 100, Largest 120.
+  return degrade(entries[0], rng)
+}
+
+function degrade(e, rng) {
+  const max = Math.max(4, Math.min(e.max ?? 20, 9999))
+  const fHi = Math.max(2, Math.min(12, Math.floor(Math.sqrt(max))))
+  switch (e.kind) {
+    case 'mul': case 'missMul': {
+      const b = rng.int(2, fHi), a = rng.int(2, Math.max(2, Math.floor(max / b)))
+      return finish(e.kind, a, b)
+    }
+    case 'div': {
+      const b = rng.int(2, fHi), q = rng.int(2, Math.max(2, Math.floor(max / b)))
+      return finish('div', q * b, b)
+    }
+    case 'sub': case 'down': {
+      const a = rng.int(2, max), b = rng.int(1, e.kind === 'sub' && e.negatives ? max : a)
+      return finish(e.kind, a, b)
+    }
+    default: {
+      const a = rng.int(1, Math.max(1, Math.floor(max / 2))), b = rng.int(1, Math.max(1, max - a))
+      return finish(e.kind === 'up' ? 'up' : e.kind === 'missAdd' ? 'missAdd' : 'add', a, b)
+    }
+  }
 }
 
 export function afterAnswer(ctx, problem, correct) {
@@ -245,13 +275,13 @@ export function afterAnswer(ctx, problem, correct) {
   const served = comeback.findIndex((x) => x && x.problem && x.problem.key === problem.key && x.due <= c.count)
   if (served >= 0) comeback.splice(served, 1)
   if (!correct) {
-    const copy = { kind: problem.kind, a: problem.a, b: problem.b, ...(Number.isInteger(problem.c) ? { c: problem.c } : {}), answer: problem.answer, text: problem.text, key: problem.key }
+    const copy = { kind: problem.kind, a: problem.a, b: problem.b, ...(Number.isInteger(problem.c) ? { c: problem.c } : {}), ...(problem.pair ? { pair: true } : {}), answer: problem.answer, text: problem.text, key: problem.key }
     comeback = comeback.concat({ problem: copy, due: c.count + 5 }, { problem: copy, due: c.count + 15 })
   }
   return {
     ring,
     lastAnswer: problem.answer,
-    sameSeen: c.sameSeen || problem.a === problem.b,
+    sameSeen: c.sameSeen || (problem.a === problem.b && !problem.pair),
     kindRun: c.kindRun.kind === problem.kind ? { kind: problem.kind, n: c.kindRun.n + 1 } : { kind: problem.kind, n: 1 },
     comeback,
     count: c.count + 1,
@@ -274,4 +304,21 @@ export function adaptStep({ step = 1, streak = 0, stepDowns = 0 } = {}, correct,
 
 export function allowsNegatives(level, step) {
   return stepOf(level, step).kinds.some((e) => e.negatives)
+}
+
+// THE KEYPAD MUST BE ABLE TO EXPRESS THE ANSWER TO THE PROBLEM IT IS SHOWING.
+// The problem outlives the step that drew it: it is re-shown after a fall (which drops the step),
+// after a pinned-step change, after a Custom-knob change and as a comeback. Deriving the ± key from
+// the level+step alone therefore takes the key away from a sum that needs it — a keypad that cannot
+// answer the sum on screen, with no way out. This predicate is that rule, and it lives here so
+// every caller shares it instead of re-implementing the comparison.
+export function levelAllowsNegatives(level) {
+  return level.steps.some((s) => s.kinds.some((e) => e.negatives))
+}
+
+export const TYPED_MAX = 6
+export function digitsNeeded(p) { return p ? String(Math.abs(p.answer)).length : 1 }
+export function typedCap(p) { return Math.min(TYPED_MAX, Math.max(4, digitsNeeded(p))) }
+export function signKeyLive(level, step, problem) {
+  return levelAllowsNegatives(level) || !!(problem && problem.answer < 0)
 }

@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mulberry32 } from '../src/rng.js'
 import { LEVELS, levelById, customLevel } from '../src/levels.js'
+import { SETTINGS_DEFAULTS } from '../src/state.js'
 import { makeProblem, afterAnswer, solve, keyOf, checkAnswer, adaptStep, initialCtx, textOf, trueText, BLANK, stepOf } from '../src/math.js'
 
 const N = 20000
@@ -31,7 +32,7 @@ for (const level of LEVELS) for (let step = 1; step <= 3; step++) {
         assert.ok(!ctx.ring.includes(p.key) || p.comeback, `ring repeat ${p.key}`)
         assert.notEqual(p.answer, ctx.lastAnswer, `same answer twice: ${p.answer}`)
         assert.ok(!(ctx.kindRun.kind === p.kind && ctx.kindRun.n >= 3), `kind run ${p.kind}`)
-        assert.ok(!(ctx.sameSeen && p.a === p.b), `a = b twice`)
+        assert.ok(!(ctx.sameSeen && p.a === p.b && !p.pair), `incidental a = b twice`)
       }
       ctx = afterAnswer(ctx, p, true)
     }
@@ -135,4 +136,88 @@ test('custom level obeys its knobs', () => {
     if (p.kind === 'div') assert.equal(p.a % p.b, 0)
     ctx = afterAnswer(ctx, p, true)
   }
+})
+
+// ---- round 1, fixer 3 -------------------------------------------------------------------------
+
+// r1-math-02 / r1-code-hostile-04: the shape customLevel used to build for ops ×, Smallest 100,
+// Largest 120 — a range that inverts. Every draw breaks a constraint, and the generator's last
+// resort must still be a legal, varied sum inside the entry's own ceiling.
+test('an impossible table degrades to a legal, varied sum', () => {
+  const level = { id: 'x', name: 'x', tag: 'x', steps: [{ kinds: [{ kind: 'mul', weight: 1, a: [100, 10], b: [2, 10], max: 120 }] }] }
+  const rng = mulberry32(5)
+  let ctx = initialCtx()
+  const counts = new Map()
+  for (let i = 0; i < 900; i++) {
+    const p = makeProblem(level, 1, ctx, rng)
+    assert.equal(p.kind, 'mul')
+    assert.equal(solve(p), p.answer)
+    assert.ok(!/undefined|NaN/.test(p.text), p.text)
+    assert.ok(p.a * p.b <= 120, `${p.text} = ${p.answer} is above the entry's own max`)
+    counts.set(p.key, (counts.get(p.key) || 0) + 1)
+    ctx = afterAnswer(ctx, p, true)
+  }
+  assert.ok(counts.size >= 10, `only ${counts.size} distinct sums: ${[...counts.keys()].slice(0, 3)}`)
+  assert.ok(Math.max(...counts.values()) <= 180, 'one sum over 20 % of the draws')
+  // and the missing-number kinds never render a blank total
+  const mrng = mulberry32(6)
+  const missing = { id: 'y', name: 'y', tag: 'y', steps: [{ kinds: [{ kind: 'missAdd', weight: 1, a: [15, 20], b: [15, 20], max: 20 }] }] }
+  for (let i = 0; i < 200; i++) {
+    const p = makeProblem(missing, 1, initialCtx(), mrng)
+    assert.ok(!/undefined/.test(p.text), p.text)
+    assert.equal(solve(p), p.answer)
+  }
+})
+
+test('the shipped Custom default never serves an operand of 0 or 1', () => {
+  const level = customLevel(SETTINGS_DEFAULTS.custom)
+  const rng = mulberry32(31)
+  let ctx = initialCtx()
+  for (let i = 0; i < 3000; i++) {
+    const p = makeProblem(level, 1, ctx, rng)
+    assert.ok(p.a >= 2 && p.b >= 2, `${p.text} carries an operand under 2`)
+    ctx = afterAnswer(ctx, p, true)
+  }
+})
+
+// r1-math-07: the latch is meant to stop an INCIDENTAL repeat, not to cap a kind whose every draw
+// has a = b. It measured Hotel doubles at 7.99 % against a 12.50 % table weight and Skyscraper
+// squares at 9.43 % against 20.00 %, and made a second one in the same building impossible.
+test('a declared double or square is not capped by the incidental a = b latch', () => {
+  const cases = [
+    { id: 'hotel', step: 2, want: 0.11, label: 'doubles' },
+    { id: 'sky', step: 3, want: 0.14, label: 'squares' },
+  ]
+  for (const c of cases) {
+    const level = levelById(c.id)
+    const rng = mulberry32(42)
+    let ctx = initialCtx(), pairs = 0, n = 0
+    for (let i = 0; i < 90000; i++) {
+      const p = makeProblem(level, c.step, ctx, rng)
+      if (p.a === p.b) pairs++
+      n++
+      ctx = afterAnswer(ctx, p, true)
+      if (i % 9 === 8) ctx = { ...ctx, sameSeen: false }   // the game's real per-building latch reset
+    }
+    assert.ok(pairs / n > c.want, `${c.id} ${c.label} ${(100 * pairs / n).toFixed(2)} % against a ${100 * c.want} % floor`)
+  }
+})
+
+// r1-elevator-feel-07 (the defensible half): 0 is the teaching point at Corner Shop steps 1 and 2,
+// but at step 3 — the top of the easiest building — `2 + 0` and `5 − 5` are not a question for a
+// child who loves maths. Measured before: 22 % of step-3 sums carried a 0 operand.
+test('Corner Shop keeps 0 as a teaching point at steps 1–2 and drops it at step 3', () => {
+  const corner = levelById('corner')
+  const rng = mulberry32(8)
+  const zeros = [0, 0, 0]
+  for (let step = 1; step <= 3; step++) {
+    let ctx = initialCtx()
+    for (let i = 0; i < 5000; i++) {
+      const p = makeProblem(corner, step, ctx, rng)
+      if (p.a === 0 || p.b === 0) zeros[step - 1]++
+      ctx = afterAnswer(ctx, p, true)
+    }
+  }
+  assert.ok(zeros[0] > 0 && zeros[1] > 0, `0 is the teaching point at steps 1–2: ${zeros.join('/')}`)
+  assert.equal(zeros[2], 0, `${zeros[2]}/5000 step-3 sums still carry a 0 operand`)
 })

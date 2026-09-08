@@ -1,5 +1,5 @@
 // Screen markup: lobby, picker, rules, roof, fact book, workshop, grown-ups, and the fact sheet.
-import { LEVELS } from '../levels.js'
+import { LEVELS, customLevel } from '../levels.js'
 import { PARTS, PLAQUES, lunchboxMilestone } from '../state.js'
 import { domainOf } from '../trivia.js'
 import { encodeCode } from '../save.js'
@@ -24,8 +24,14 @@ function silhouette(id) {
   return `<svg viewBox="0 0 48 56" aria-hidden="true">${shapes[id] || shapes.corner}</svg>`
 }
 
+// The floor as the child reads it, in one place: the lobby's parked-building line and the picker's
+// note about what changing building does must not drift apart.
+const floorLabel = (f) => (f === -1 ? 'P' : f === 0 ? 'G' : f === 10 ? 'R' : String(f))
+
 function levelName(state) {
-  if (state.level === 'custom') return { name: 'Custom', tag: `numbers ${state.settings.custom.min} to ${state.settings.custom.max}` }
+  // Ask the one function rather than composing the tag a second time from the raw knobs: the chip
+  // and the picker must not keep telling the parent the lie that levels.js has stopped telling.
+  if (state.level === 'custom') { const c = customLevel(state.settings.custom); return { name: c.name, tag: c.tag } }
   const l = LEVELS.find((x) => x.id === state.level) || LEVELS[0]
   return { name: l.name, tag: l.tag }
 }
@@ -46,7 +52,7 @@ export function lobby(state) {
       </svg>
       <h1>Bacon Elevator</h1>
       <div class="total" aria-label="lunchbox total">${LUNCH} <span id="lunchbox-total">${state.lunchbox}</span> ${BACON()}</div>
-      ${state.ride ? `<p class="muted small">A building is waiting at floor ${esc(state.ride.floor === -1 ? 'P' : state.ride.floor === 0 ? 'G' : state.ride.floor === 10 ? 'R' : state.ride.floor)} with ${state.ride.tray} bacon on the tray.</p>` : ''}
+      ${state.ride ? `<p class="muted small">A building is waiting at floor ${esc(floorLabel(state.ride.floor))} with ${state.ride.tray} bacon on the tray.</p>` : ''}
     </div>
     <div class="stack">
       <button class="btn primary tall wide" data-nav="ride" data-tap aria-label="Ride">${rideLabel}</button>
@@ -67,6 +73,7 @@ export function lobby(state) {
 export function picker(state) {
   return `<div class="page">
     <div class="row spread"><h1>Pick a building</h1><button class="btn" data-nav="lobby" data-tap aria-label="Back to lobby">Lobby</button></div>
+    ${state.ride ? `<p class="muted small">The building waiting at floor ${esc(floorLabel(state.ride.floor))} is finished when you pick another one: its ${state.ride.tray} bacon go into the lunchbox and the next Ride starts a new building at G.</p>` : ''}
     <p class="muted small">The tag says how big the numbers are. The bar is the step inside the building.</p>
     <div class="level-list">
       ${LEVELS.map((l) => `<button class="btn level ${state.level === l.id ? 'current' : ''}" data-level="${l.id}" data-tap aria-label="${esc(l.name)}, ${esc(l.tag)}">${silhouette(l.id)}<span><span class="name">${esc(l.name)}</span><br><span class="tag">${esc(l.tag)}</span></span><span style="margin-left:auto">${stepbar(state.level === l.id ? state.step : (state.adaptive ? 1 : state.pinnedStep))}</span></button>`).join('')}

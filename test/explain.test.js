@@ -146,6 +146,92 @@ test('classify: every class has a fixture and a counter-fixture', () => {
   assert.equal(classify(div, 252).cls, 'opswap')
   assert.equal(classify(add, 'abc').cls, 'other')
   assert.equal(classify(add, 999).cls, 'other')
+  // Missing-number kinds put the child's number in the BLANK, not at the end of the sum, so the
+  // clause names the inverse move — never the glyph the child has just (correctly) used.
+  const mAdd = { kind: 'missAdd', a: 3, b: 4, c: 7, answer: 4 }
+  assert.equal(classify(mAdd, 10).cls, 'opswap')                       // 3 + 7: they added
+  assert.equal(classify(mAdd, 10).clause, '7 is the total, so ▮ is 7 − 3')
+  assert.notEqual(classify(mAdd, 11).cls, 'opswap')
+  assert.equal(classify(mAdd, 6).cls, 'offby')
+  assert.equal(classify(mAdd, 6).clause, 'count again')
+  const mMul = { kind: 'missMul', a: 3, b: 4, c: 12, answer: 3 }
+  assert.equal(classify(mMul, 48).cls, 'opswap')                       // 12 × 4: they multiplied
+  assert.equal(classify(mMul, 48).clause, '12 is the total, so ▮ is 12 ÷ 4')
+  assert.notEqual(classify(mMul, 47).cls, 'opswap')
+  assert.equal(classify(mMul, 12).clause, '12 is the total, so ▮ is 12 ÷ 4')  // copied the total
+  // A neighbour table fact is a claim about a PRODUCT: only `mul` types a product.
+  const mMul2 = { kind: 'missMul', a: 5, b: 8, c: 40, answer: 5 }
+  assert.notEqual(classify(mMul2, 35).cls, 'neighbour')
+  assert.equal(classify(mMul2, 35).clause, '40 is the total, so ▮ is 40 ÷ 8')
+  assert.equal(classify(div, 6).cls, 'offby')      // the ÷ neighbour branch was unreachable
+  assert.equal(classify(div, 6).clause, 'count again')
+  // Reversal is a claim about digit ORDER, not a truncated entry.
+  assert.notEqual(classify({ kind: 'add', a: 15, b: 5, answer: 20 }, 2).cls, 'reversal')
+  assert.equal(classify({ kind: 'add', a: 15, b: 5, answer: 20 }, 2).clause, 'the answer is 20')
+  assert.notEqual(classify({ kind: 'mul', a: 10, b: 10, answer: 100 }, 1).cls, 'reversal')
+  assert.notEqual(classify({ kind: 'add', a: 497, b: 243, answer: 740 }, 47).cls, 'reversal')
+  assert.equal(classify({ kind: 'missAdd', a: 3, b: 21, c: 24, answer: 21 }, 12).cls, 'reversal')
+})
+
+// The class, not the instances: a clause is a sentence about the child's mistake, so it must be
+// TRUE of the problem it is shown for. Hand-picked fixtures cannot see this; drawn problems can.
+function clauseInvariants(p, assertFn) {
+  const c = Number.isInteger(p.c) ? p.c : undefined
+  const cands = new Set([p.answer - 1, p.answer + 1, p.answer - 2, p.answer + 2, p.a, p.b, c,
+    p.a + p.b, p.a - p.b, p.a * p.b, 2 * p.answer, Math.floor(p.answer / 2), p.answer + 10, p.answer - 10,
+    Number(String(Math.abs(p.answer)).split('').reverse().join('')),
+    p.a * (p.b - 1), p.a * (p.b + 1), (p.a - 1) * p.b, (p.a + 1) * p.b,
+    c === undefined ? undefined : c * p.b, c === undefined ? undefined : c + p.a])
+  const seen = { offby: 0, neighbour: 0, reversal: 0, opswap: 0, other: 0 }
+  for (const t of cands) {
+    if (!Number.isInteger(t) || t === p.answer) continue
+    const { cls, clause } = classify(p, t)
+    seen[cls]++
+    const where = `${p.text} (answer ${p.answer}) typed ${t} → ${cls}: ${clause}`
+    if (cls === 'neighbour') {
+      assertFn.equal(p.kind, 'mul', 'neighbour on a kind whose entry is not a product: ' + where)
+      const m = clause.match(/that is (\d+) × (\d+)/)
+      assertFn.ok(m && Number(m[1]) * Number(m[2]) === t, 'neighbour names a product the child did not press: ' + where)
+    }
+    if (cls === 'reversal') {
+      const A = String(Math.abs(p.answer))
+      assertFn.equal(String(t).length, A.length, 'reversal on a truncated entry: ' + where)
+      assertFn.equal(String(t), A.split('').reverse().join(''), 'reversal that is not a reversal: ' + where)
+    }
+    if (/ means /.test(clause)) {
+      assertFn.ok(!/^miss/.test(p.kind), 'a missing-number card names the glyph the child already used: ' + where)
+      assertFn.equal(clause, { add: '+ means add', up: '▲ means go up', sub: '− means take away', down: '▼ means go down', mul: '× means times', div: '÷ means share equally' }[p.kind], where)
+    }
+    const inv = clause.match(/^(\d+) is the total, so ▮ is (\d+) (−|÷) (\d+)$/)
+    if (inv) {
+      assertFn.ok(/^miss/.test(p.kind), 'inverse clause on a direct kind: ' + where)
+      const v = inv[3] === '÷' ? Number(inv[2]) / Number(inv[4]) : Number(inv[2]) - Number(inv[4])
+      assertFn.equal(v, p.answer, 'inverse clause does not reach the answer: ' + where)
+    }
+    assertFn.ok(!/oops|wrong|✗|!/i.test(clause) && !/\bno\b/i.test(clause), 'clause tone: ' + where)
+  }
+  return seen
+}
+
+test('every clause is true of the mistake it is shown for', () => {
+  const rng = mulberry32(9)
+  const levels = LEVELS.concat(customLevel({ ops: ['add', 'sub', 'mul', 'div', 'missAdd', 'up', 'down'], min: 0, max: 60, negatives: true }))
+  const seen = { offby: 0, neighbour: 0, reversal: 0, opswap: 0, other: 0 }
+  for (let i = 0; i < 6000; i++) {
+    const level = levels[i % levels.length]
+    const p = makeProblem(level, 1 + (i % level.steps.length), initialCtx(), rng)
+    if (!p) continue
+    const s = clauseInvariants(p, assert)
+    for (const k of Object.keys(seen)) seen[k] += s[k]
+  }
+  // The round-robin above almost never reaches Skyscraper step 2, where missMul lives.
+  const sky = LEVELS.find((l) => l.id === 'sky')
+  for (let i = 0; i < 500; i++) {
+    const p = makeProblem(sky, 2, initialCtx(), rng)
+    const s = clauseInvariants(p, assert)
+    for (const k of Object.keys(seen)) seen[k] += s[k]
+  }
+  for (const k of ['offby', 'neighbour', 'reversal', 'opswap', 'other']) assert.ok(seen[k] > 0, `no ${k} clause was exercised`)
 })
 
 test('repair carries the true equation big and the typed value small', () => {

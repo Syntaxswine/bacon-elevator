@@ -6,6 +6,11 @@ import { label } from '../elevator.js'
 import { isPassengerFloor } from '../trivia.js'
 import { repair } from '../explain.js'
 import { BLANK, fmt } from '../math.js'
+import { STABLE } from '../state.js'
+
+// The reducer refuses the bell and the top-bar Lobby by phase; the DOM must say so rather than
+// leaving a live-looking control that does nothing.
+const busy = (state) => !STABLE.has(state.phase) && state.phase !== 'lobby'
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 
@@ -92,9 +97,9 @@ function doorFlags(state, ctx) {
 function floorMode(state, ctx) {
   const { canOpen, canClose } = doorFlags(state, ctx)
   return [
-    `<button class="cell key bell" data-bell data-tap aria-label="Rules">🔔</button>`,
+    `<button class="cell key bell" data-bell data-tap ${busy(state) ? 'disabled' : ''} aria-label="Rules">🔔</button>`,
     floorButton(10, state),
-    `<div class="cell spacer" aria-hidden="true">·</div>`,
+    `<div class="cell spacer" aria-hidden="true"></div>`,
     floorButton(7, state), floorButton(8, state), floorButton(9, state),
     floorButton(4, state), floorButton(5, state), floorButton(6, state),
     floorButton(1, state), floorButton(2, state), floorButton(3, state),
@@ -115,6 +120,8 @@ function patchFloor(container, state, ctx) {
     const aria = `Floor ${lab}${isTarget ? ', press to ride' : ''}`
     if (b.getAttribute('aria-label') !== aria) b.setAttribute('aria-label', aria)
   }
+  const bell = container.querySelector('[data-bell]')
+  if (bell) bell.disabled = busy(state)
   const { canOpen, canClose } = doorFlags(state, ctx)
   const open = container.querySelector('button[data-door="open"]')
   const close = container.querySelector('button[data-door="close"]')

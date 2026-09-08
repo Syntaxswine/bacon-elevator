@@ -68,26 +68,43 @@ export function makeChoices(fact, rng) {
   return { choices, answer: choices.indexOf(fact.answer) }
 }
 
+// THE FACT POOL IS GATED BY LEVEL. A child at `numbers to 10` was drawing difficulty-3, 183-character
+// questions, because the picker knew the level existed and never asked it. The band is applied
+// FIRST, so it also covers the comeback branch (a fact met at Megatall does not follow a child down
+// to Corner Shop) and the all-seen recycle (a Corner Shop child recycles inside their own band
+// rather than escaping it). Measured pool: 67 items → 22 at d ≤ 1 / q ≤ 130 (10 elevator, 12 maths,
+// eleven buildings of two passengers before anything repeats), 54 at d ≤ 2 / q ≤ 160.
+export const TRIVIA_LIMITS = Object.freeze({
+  corner: { maxDifficulty: 1, maxQ: 130 },
+  hotel: { maxDifficulty: 1, maxQ: 130 },
+  office: { maxDifficulty: 2, maxQ: 160 },
+  sky: { maxDifficulty: 2, maxQ: 160 },
+  megatall: null,
+  custom: null,
+})
+
 // pickFact: a missed fact that is due (≥ 20 questions ago) first; then unseen of the other kind;
 // then unseen of any kind; then the least recently seen (kinds still alternating when possible).
 // `seen` is the ordered list of fact ids shown so far (repeats allowed); `retry` is [{id, at}]
-// where `at` is seen.length when it was missed.
-export function pickFact(facts, seen = [], lastKind = null, rng, retry = []) {
+// where `at` is seen.length when it was missed; `limits` is a TRIVIA_LIMITS row (null = no band).
+export function pickFact(facts, seen = [], lastKind = null, rng, retry = [], limits = null) {
   if (!facts || !facts.length) return null
+  const banded = limits ? facts.filter((f) => f.difficulty <= limits.maxDifficulty && f.q.length <= limits.maxQ) : facts
+  const inBand = banded.length ? banded : facts
   const count = seen.length
-  const byId = new Map(facts.map((f) => [f.id, f]))
+  const byId = new Map(inBand.map((f) => [f.id, f]))
   const due = retry.filter((r) => r && byId.has(r.id) && count - r.at >= 20)
   if (due.length) return byId.get(due[0].id)
   const seenSet = new Set(seen)
   const otherKind = lastKind === 'elevator' ? 'math' : lastKind === 'math' ? 'elevator' : null
-  const unseen = facts.filter((f) => !seenSet.has(f.id))
+  const unseen = inBand.filter((f) => !seenSet.has(f.id))
   let pool = unseen
   if (otherKind && unseen.some((f) => f.kind === otherKind)) pool = unseen.filter((f) => f.kind === otherKind)
   if (pool.length) return pool[Math.floor(rng() * pool.length)]
   // All seen: recycle the least recently shown, alternating kinds when it can.
   const lastIndex = new Map()
   seen.forEach((id, i) => lastIndex.set(id, i))
-  let cands = facts.slice()
+  let cands = inBand.slice()
   if (otherKind && cands.some((f) => f.kind === otherKind)) cands = cands.filter((f) => f.kind === otherKind)
   cands.sort((x, y) => (lastIndex.get(x.id) ?? -1) - (lastIndex.get(y.id) ?? -1))
   const oldest = lastIndex.get(cands[0].id) ?? -1

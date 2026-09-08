@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { reduce, initialState, PARTS, hydrate, ROOF_BONUS } from '../src/state.js'
 import { serialize, parse } from '../src/save.js'
+import { TRIVIA_LIMITS } from '../src/trivia.js'
 import { fresh, makeRng, run, startRide, answer, answerTrivia, playBuilding, typeValue } from './_helpers.js'
 
 test('ride-start: rules first, then the ride at G with Press 1', () => {
@@ -99,12 +100,14 @@ test('a fall keeps tray and cleared; Try again asks the SAME sum; the express ri
   s = r.state
   assert.equal(s.ride.floor, 4); assert.equal(s.ride.tray, 4); assert.deepEqual(s.ride.cleared, [1, 2, 3, 4])
   assert.equal(s.phase, 'trivia', 'floor 4 is a passenger floor')
-  // the missed sum is queued for +5 and +15
-  assert.equal(s.ride.comeback.length, 2)
-  assert.deepEqual(s.ride.comeback.map((c) => c.due), [s.ride.ctx.count + 5 - 1, s.ride.ctx.count + 15 - 1].map((x) => x))
+  // the missed sum is queued for +5 and +15 — in history, which is the only clock that survives the
+  // roof. (This assertion used to read s.ride.comeback and only ever proved the queue was
+  // SCHEDULED; the test below proves it FIRES, which is what shipped broken.)
+  assert.equal(s.history.comeback.length, 2)
+  assert.deepEqual(s.history.comeback.map((c) => c.due), [s.history.count + 5 - 1, s.history.count + 15 - 1])
 })
 
-test('wrong again after a fall: no second fall, the card returns, the strip stays on its plate', () => {
+test('wrong again after a fall: no second fall, the card returns, and the strip is still collected', () => {
   const rng = makeRng(7)
   let s = fresh(7)
   s = reduce(s, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
@@ -116,10 +119,12 @@ test('wrong again after a fall: no second fall, the card returns, the strip stay
   const r = answer(s, rng, false)
   assert.equal(r.raw.effects.some((e) => e.type === 'timeline'), false)
   s = r.state
-  assert.equal(s.phase, 'repair'); assert.equal(s.ride.floor, -1); assert.equal(s.history.falls, 1); assert.equal(s.ride.forfeit, true)
+  assert.equal(s.phase, 'repair'); assert.equal(s.ride.floor, -1); assert.equal(s.history.falls, 1)
   s = run(s, { type: 'card-continue' }, rng).state
   s = answer(s, rng, true).state
-  assert.equal(s.ride.floor, 2); assert.equal(s.ride.tray, 1); assert.deepEqual(s.ride.cleared, [1]); assert.equal(s.ride.target, 3)
+  // `Bacon is never lost.` is printed on the Rules card, so it has to be true: the strip at the
+  // target floor is collected when the sum is finally answered, however many cards it took.
+  assert.equal(s.ride.floor, 2); assert.equal(s.ride.tray, 2); assert.deepEqual(s.ride.cleared, [1, 2]); assert.equal(s.ride.target, 3)
   assert.equal(s.phase, 'floor')
 })
 
@@ -390,7 +395,7 @@ test('the retry answer after a fall is never recorded a second time: history, ri
   const snap2 = JSON.stringify(t.history)
   t = run(t, { type: 'card-continue' }, rng).state
   t = answer(t, rng, false).state
-  assert.equal(t.phase, 'repair'); assert.equal(JSON.stringify(t.history), snap2); assert.equal(t.history.falls, 1); assert.equal(t.ride.forfeit, true)
+  assert.equal(t.phase, 'repair'); assert.equal(JSON.stringify(t.history), snap2); assert.equal(t.history.falls, 1)
   t = run(t, { type: 'card-continue' }, rng).state
   t = answer(t, rng, true).state
   assert.equal(JSON.stringify(t.history), snap2); assert.equal(t.history.answered, 1)
@@ -493,4 +498,209 @@ test('r1-code-hostile-01: a share code carrying a dead ride is normalised on imp
   assert.equal(back.ride.phase, 'floor')
   assert.equal(back.ride.target, 5, 'import used to spread the incoming ride with no validation at all')
   assert.deepEqual(back.ride.passengersDone, [4])
+})
+
+// ---- round 1, fixer 3 -------------------------------------------------------------------------
+
+// Find a state parked at the keypad on a problem the predicate picks out (e.g. a negative answer).
+function seekProblem(build, want, tries = 400) {
+  for (let seed = 1; seed <= tries; seed++) {
+    const rng = makeRng(seed)
+    let s = build(startRide(fresh(seed), rng), rng)
+    s = run(s, { type: 'press-floor', floor: s.ride.target }, rng).state
+    if (s.phase === 'keypad' && want(s.ride.problem)) return { s, rng, seed }
+  }
+  throw new Error('no seed produced the problem this test is about')
+}
+
+test('r1-math-01: a fall on a negative sum leaves a keypad that can still answer it', () => {
+  const { s: start, rng } = seekProblem(
+    (s) => ({ ...s, level: 'megatall', step: 3, adaptive: true }),
+    (p) => p.answer < 0,
+  )
+  const p = start.ride.problem
+  assert.ok(p.answer < 0)
+  // miss twice: second try clears the entry, the second miss falls
+  let s = typeValue(start, 99, rng)
+  s = run(s, { type: 'go' }, rng).state
+  assert.equal(s.message, 'Try once more.')
+  s = typeValue(s, 99, rng)
+  s = run(s, { type: 'go' }, rng).state
+  assert.equal(s.phase, 'repair', 'the fall lands on the Repair card')
+  assert.equal(s.step, 2, 'the adaptive rule dropped the step under the parked problem')
+  assert.equal(s.ride.problem.key, p.key, 'the same sum is re-asked')
+  s = run(s, { type: 'card-continue' }, rng).state
+  assert.equal(s.phase, 'keypad')
+  const tray = s.ride.tray
+  // the ± key must still be there: this is the whole finding
+  const signed = reduce(s, { type: 'toggle-sign' }, rng)
+  assert.notEqual(signed.state.ride.typed, s.ride.typed, 'the ± key was refused for a sum that needs it')
+  s = typeValue(s, p.answer, rng)
+  const go = reduce(s, { type: 'go' }, rng)
+  const tl = go.effects.find((e) => e.type === 'timeline')
+  assert.ok(tl && tl.name === 'express', 'the correct answer did not ride the elevator out of the pit')
+  assert.ok(go.state.ride.tray >= tray, 'bacon went backwards')
+})
+
+test('r1-math-01 (the other key): a five-digit answer is enterable, and the cap still binds', () => {
+  const rng = makeRng(77)
+  let s = startRide(fresh(77), rng)
+  s = run(s, { type: 'press-floor', floor: 1 }, rng).state
+  const big = { kind: 'add', a: 5000, b: 5000, c: undefined, answer: 10000, text: '5000 + 5000 = ▮', key: 'add:5000:5000' }
+  delete big.c
+  s = { ...s, ride: { ...s.ride, problem: big, typed: '' } }
+  s = typeValue(s, 10000, rng)
+  assert.equal(s.ride.typed, '10000', 'a 4-digit cap cannot enter a 5-digit answer')
+  const go = reduce(s, { type: 'go' }, rng)
+  assert.ok(go.effects.some((e) => e.type === 'timeline'), 'the right answer was refused')
+  // and the cap is still a cap: one digit past what this answer needs is swallowed
+  let t = { ...s, ride: { ...s.ride, typed: '10000' } }
+  assert.equal(reduce(t, { type: 'digit', d: '7' }, rng).state.ride.typed, '10000')
+})
+
+test('r1-math-05: a sum missed on floor 8 comes back in the NEXT building at +5 and again at +15', () => {
+  const rng = makeRng(21)
+  let s = fresh(21)
+  s = reduce(s, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
+  s = reduce(s, { type: 'set-setting', key: 'adaptive', value: false }, rng).state
+  s = { ...s, level: 'office' }
+  s = startRide(s, rng)
+  const asked = []
+  let guard = 0
+  while (asked.length < 26 && guard++ < 400) {
+    if (s.phase === 'trivia') { s = answerTrivia(s, rng, true); continue }
+    if (s.phase === 'roof') { s = run(s, { type: 'next-building' }, rng).state; continue }
+    if (s.phase === 'repair') {                       // the retry is the SAME sum, not a new question
+      s = run(s, { type: 'card-continue' }, rng).state
+      s = answer(s, rng, true).state
+      continue
+    }
+    if (s.phase === 'floor') s = run(s, { type: 'press-floor', floor: s.ride.target }, rng).state
+    if (s.phase !== 'keypad') throw new Error('stuck at ' + s.phase)
+    const p = s.ride.problem
+    asked.push({ key: p.key, comeback: !!p.comeback })
+    s = answer(s, rng, asked.length !== 8).state    // miss the eighth question: floor 7 → 8
+  }
+  const missed = asked[7].key
+  assert.equal(asked[12].key, missed, `+5 served ${asked[12].key}, not the missed ${missed}`)
+  assert.equal(asked[12].comeback, true)
+  assert.equal(asked[22].key, missed, `+15 served ${asked[22].key}, not the missed ${missed}`)
+  assert.equal(asked[22].comeback, true)
+  // a building is TEN questions (floors 1–9 plus the ride to R), so both are in a later building
+  assert.ok(asked.length >= 23)
+})
+
+test('r1-math-05: a comeback never crosses a level change', () => {
+  const rng = makeRng(22)
+  let s = fresh(22)
+  s = reduce(s, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
+  s = startRide(s, rng)
+  s = answer(s, rng, false).state           // a miss queues +5 and +15
+  s = run(s, { type: 'card-continue' }, rng).state
+  s = answer(s, rng, true).state
+  assert.equal(s.history.comeback.length, 2, 'the queue lives in history, where it can mature')
+  s = reduce(s, { type: 'set-level', id: 'megatall' }, rng).state
+  assert.deepEqual(s.history.comeback, [], 'a Corner Shop sum must not follow the child to Megatall')
+})
+
+test('r1-math-04: a child who needs two tries is not promoted, and the miss is recorded once', () => {
+  const rng = makeRng(41)
+  let s = startRide(fresh(41), rng)
+  assert.equal(s.settings.secondTry, true)
+  const trail = []
+  for (let i = 0; i < 18; i++) {
+    if (s.phase === 'trivia') s = answerTrivia(s, rng, true)
+    if (s.phase === 'roof') s = run(s, { type: 'next-building' }, rng).state
+    if (s.phase === 'floor') s = run(s, { type: 'press-floor', floor: s.ride.target }, rng).state
+    assert.equal(s.phase, 'keypad', 'stuck before question ' + (i + 1))
+    const kind = s.ride.problem.kind
+    s = answer(s, rng, false).state                 // the first miss: 'Try once more.'
+    assert.equal(s.phase, 'keypad')
+    assert.equal(s.message, 'Try once more.')
+    s = answer(s, rng, true).state                  // and then the right answer
+    trail.push(s.step)
+    if (i === 0) assert.deepEqual(s.history.byKind[kind], [1, 0], 'one question, one attempt recorded')
+  }
+  assert.equal(s.step, 1, `promoted on second tries: step trail ${trail.join(' ')}`)
+  assert.equal(s.history.answered, 18)
+  assert.equal(s.history.correct, 0, 'a question the child missed once is not a clean hit')
+  assert.equal(s.history.falls, 0, 'a second try is not a fall')
+  assert.ok(s.history.comeback.length > 0, 'the misses were never queued to come back')
+})
+
+test('r1-elevator-feel-02 / r1-autism-fit-03: a building always banks 16, however many cards it took', () => {
+  const rng = makeRng(51)
+  let s = fresh(51)
+  s = reduce(s, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
+  s = startRide(s, rng)
+  let missed = false, guard = 0
+  while (s.phase !== 'roof' && guard++ < 200) {
+    if (s.phase === 'trivia') { s = answerTrivia(s, rng, true); continue }
+    if (s.phase === 'repair') {
+      s = run(s, { type: 'card-continue' }, rng).state
+      // wrong AGAIN on the retry: the card returns, no second fall — and no forfeit
+      s = missed ? answer(s, rng, true).state : (missed = true, answer(s, rng, false).state)
+      continue
+    }
+    s = answer(s, rng, s.ride.floor !== 2).state   // miss once, at floor 2 → 3
+  }
+  assert.equal(s.roof.gained, 13, 'nine floor strips + two passenger answers')
+  assert.deepEqual(s.ride.cleared, [1, 2, 3, 4, 5, 6, 7, 8, 9])
+  assert.equal(s.roof.gained + s.roof.bonus, 16, 'a fallen building banks less than a clean one')
+})
+
+test('r1-elevator-feel-05: a digit after a lone 0 replaces it, and no key is ever silent', () => {
+  const rng = makeRng(61)
+  let s = startRide(fresh(61), rng)
+  s = run(s, { type: 'press-floor', floor: 1 }, rng).state
+  s = reduce(s, { type: 'digit', d: '0' }, rng).state
+  assert.equal(s.ride.typed, '0')
+  const then5 = reduce(s, { type: 'digit', d: '5' }, rng)
+  assert.equal(then5.state.ride.typed, '5', 'the key was swallowed: GO then sends the 0 the child replaced')
+  const then0 = reduce(s, { type: 'digit', d: '0' }, rng)
+  assert.equal(then0.state.ride.typed, '0', 'no leading zeros, ever')
+  assert.ok(then0.effects.some((e) => e.type === 'sound' && e.name === 'click'), 'a dead key: no click, no change')
+  // and parseTyped can still never see '05'
+  assert.equal(reduce(then5.state, { type: 'digit', d: '0' }, rng).state.ride.typed, '50')
+})
+
+test('r1-elevator-feel-03: the lit button is the car\'s real registered call, through the fall and the express', () => {
+  const rng = makeRng(62)
+  let s = fresh(62)
+  s = reduce(s, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
+  s = startRide(s, rng)
+  s = run(s, { type: 'press-floor', floor: 1 }, rng).state
+  assert.equal(s.car.carCall, 1, 'the tap registers the car call')
+  const fell = reduce(typeValue(s, s.ride.problem.answer + 7, rng), { type: 'go' }, rng)
+  assert.equal(fell.state.phase, 'falling')
+  assert.equal(fell.state.car.carCall, null, 'the button light stays on through the whole 3.6 s drop')
+  let t = run(fell.state, { type: 'timeline-done' }, rng).state
+  t = run(t, { type: 'card-continue' }, rng).state
+  const back = reduce(typeValue(t, t.ride.problem.answer, rng), { type: 'go' }, rng)
+  assert.equal(back.state.car.carCall, t.ride.target, 'nothing is lit on the recovery express')
+  assert.ok(back.effects.some((e) => e.type === 'timeline' && e.name === 'express'))
+})
+
+test('r1-autism-fit-02: a Corner Shop child never meets a fact above their band', () => {
+  const band = TRIVIA_LIMITS.corner
+  let met = 0
+  for (let seed = 1; seed <= 8; seed++) {
+    const rng = makeRng(seed)
+    let s = startRide(fresh(seed), rng)
+    let guard = 0
+    while (guard++ < 400 && met < 1000) {
+      if (s.phase === 'trivia') {
+        const f = s.trivia.fact
+        met++
+        assert.ok(f.difficulty <= band.maxDifficulty, `seed ${seed}: difficulty ${f.difficulty} at numbers to 10 (${f.id})`)
+        assert.ok(f.q.length <= band.maxQ, `seed ${seed}: a ${f.q.length}-character question at numbers to 10 (${f.id})`)
+        s = answerTrivia(s, rng, true)
+        continue
+      }
+      if (s.phase === 'roof') { if (s.buildings >= 6) break; s = run(s, { type: 'next-building' }, rng).state; continue }
+      if (s.phase === 'repair') { s = run(s, { type: 'card-continue' }, rng).state; continue }
+      s = answer(s, rng, true).state
+    }
+  }
+  assert.ok(met >= 40, `only ${met} passengers met, so the sweep proves little`)
 })

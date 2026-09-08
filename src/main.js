@@ -1,13 +1,13 @@
 // Bacon Elevator — the DOM side. Dispatches from taps, plays effects and timelines off rAF.
 import { VERSION } from './version.js'
 import { mulberry32 } from './rng.js'
-import { initialState, reduce, hydrate, currentLevel } from './state.js'
+import { initialState, reduce, hydrate, currentLevel, STABLE } from './state.js'
 import { serialize, parse, SAVE_KEY, decodeCode } from './save.js'
 import * as storage from './storage.js'
 import { loadFacts } from './trivia.js'
 import { DURATIONS, scale, speedAt, label } from './elevator.js'
 import { createPlayer } from './timeline.js'
-import { allowsNegatives } from './math.js'
+import { signKeyLive } from './math.js'
 import { explain } from './explain.js'
 import { createShaft } from './render/shaft.js'
 import { createPanel, createDisplay } from './render/panel.js'
@@ -201,7 +201,9 @@ function save() { storage.setItem(SAVE_KEY, serialize(state)) }
 
 // ---- render ---------------------------------------------------------------------------------
 function renderPanel() {
-  panel.render(state, { negatives: state.ride && state.ride.problem ? allowsNegatives(currentLevel(state), state.step) : false, doorsClosing: !!shaft.doorsClosingNow() })
+  // The panel's capability comes from the problem it is SHOWING, not from the step that drew it.
+  const p = state.ride ? state.ride.problem : null
+  panel.render(state, { negatives: !!p && signKeyLive(currentLevel(state), state.step, p), doorsClosing: !!shaft.doorsClosingNow() })
 }
 let lastHintKey = ''
 let lastScreen = ''
@@ -240,6 +242,14 @@ function render() {
   shaft.setState(state)
   noteMotion()
   renderPanel()
+  // The ride's own top bar mirrors the reducer's phase guard: Lobby is refused while the car is
+  // moving, falling or descending, so it must not look live for those 2.7–6.1 s. The speaker is
+  // left alone — set-setting has no phase guard, so it genuinely works mid-ride.
+  const busyNow = !STABLE.has(state.phase) && state.phase !== 'lobby'
+  for (const b of sections.ride.querySelectorAll('.topbar [data-nav]')) {
+    b.disabled = busyNow
+    b.setAttribute('aria-disabled', busyNow ? 'true' : 'false')
+  }
   display.render(state, ui.transient)
   // hint overlay
   const showHint = state.phase === 'keypad' && state.hint && r && r.problem
@@ -301,9 +311,22 @@ function numberLine(p) {
     ticks.push(`<line x1="${X(n)}" y1="66" x2="${X(n)}" y2="${n % 5 === 0 ? 56 : 60}" stroke="#6B6B6B" stroke-width="2"/><text x="${X(n)}" y="84" text-anchor="middle" font-size="12" font-family="system-ui" fill="#2B2B2B">${t}</text>`)
   }
   const mid = (X(start) + X(end)) / 2
-  const arc = `<path d="M${X(start)} 62 Q${mid} 10 ${X(end)} 62" fill="none" stroke="${end >= start ? '#2F7A8C' : '#5B6B7A'}" stroke-width="4" stroke-linecap="round"/>`
-  const arrowY = 62
+  const col = end >= start ? '#2F7A8C' : '#5B6B7A'
   const dir = end >= start ? 1 : -1
+  // ONE HOP PER UNIT, so `+ 5` is five arcs a child can count instead of one arc labelled `+ 5`,
+  // which only reads if you already know what + 5 means. The single long arc stays for missAdd
+  // (the hop count is the thing being asked) and for b > 10, where the hops would not be countable.
+  const unit = Math.abs(X(1) - X(0))
+  const hops = []
+  if (['add', 'sub', 'up', 'down'].includes(p.kind) && p.b >= 1 && p.b <= 10 && unit >= 12) {
+    for (let i = 0; i < p.b; i++) {
+      const n0 = start + dir * i, n1 = n0 + dir
+      const w = Math.abs(X(n1) - X(n0))
+      hops.push(`<path d="M${X(n0)} 62 Q${(X(n0) + X(n1)) / 2} ${62 - Math.min(30, w * 1.6)} ${X(n1)} 62" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round"/>`)
+    }
+  }
+  const arc = hops.length ? hops.join('') : `<path d="M${X(start)} 62 Q${mid} 10 ${X(end)} 62" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round"/>`
+  const arrowY = 62
   const head = `<path d="M${X(end)} ${arrowY} l${-6 * dir} -8 M${X(end)} ${arrowY} l${6 * dir} -8" fill="none" stroke="${end >= start ? '#2F7A8C' : '#5B6B7A'}" stroke-width="4" stroke-linecap="round"/>`
   return `<svg viewBox="0 0 ${W} ${H}" aria-label="number line from ${start} ${lab}"><line x1="${x0}" y1="66" x2="${x1}" y2="66" stroke="#6B6B6B" stroke-width="3"/>${ticks.join('')}${arc}${head}<circle cx="${X(start)}" cy="66" r="6" fill="#E8B04A" stroke="#6B6B6B" stroke-width="2"/><text x="${mid}" y="30" text-anchor="middle" font-size="20" font-weight="700" font-family="system-ui" fill="${end >= start ? '#2F7A8C' : '#5B6B7A'}">${esc(lab)}</text></svg>`
 }

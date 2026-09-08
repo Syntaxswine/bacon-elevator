@@ -6,7 +6,7 @@
 // classify(problem, typed) → {cls, clause}; repair(problem, typed) → {big, small, worked, clause}.
 // Failure copy never contains "Oops", "wrong", "no", "✗" or an exclamation mark.
 
-import { fmt, MINUS, trueText } from './math.js'
+import { fmt, MINUS, BLANK, trueText } from './math.js'
 
 const line = (expr, value, text) => ({ text: text || `${expr} = ${fmt(value)}`, expr, value })
 const tens = (n) => Math.floor(n / 10) * 10
@@ -141,7 +141,27 @@ export function explain(p) {
   }
 }
 
-const OP_WORD = { add: '+ means add', up: '▲ means go up', sub: `${MINUS} means take away`, down: '▼ means go down', mul: '× means times', div: '÷ means share equally', missAdd: '+ means add', missMul: '× means times' }
+const OP_WORD = { add: '+ means add', up: '▲ means go up', sub: `${MINUS} means take away`, down: '▼ means go down', mul: '× means times', div: '÷ means share equally' }
+
+// The missing-number kinds put the child's number in the BLANK, not at the end of the sum: the
+// total is already printed, so every clause for them names the inverse move, never the glyph the
+// child has just (correctly) used. `+ means add` on `3 + ▮ = 7` contradicts the worked line above it.
+const totalOf = (p) => (Number.isInteger(p.c) ? p.c : p.kind === 'missMul' ? p.a * p.b : p.a + p.b)
+const isMissing = (k) => k === 'missAdd' || k === 'missMul'
+const inverseClause = (p) => {
+  const c = fmt(totalOf(p))
+  return p.kind === 'missMul'
+    ? `${c} is the total, so ${BLANK} is ${c} ÷ ${fmt(p.b)}`
+    : `${c} is the total, so ${BLANK} is ${c} ${MINUS} ${fmt(p.a)}`
+}
+
+// Digit reversal is a claim about digit ORDER, so it is tested on digit strings of EQUAL length:
+// "1" is not 100 reversed, it is 100 cut short — a child who pressed GO one digit early.
+function isReversal(ans, t) {
+  if (!(ans >= 10) || t === ans || t < 0) return false
+  const d = String(ans)
+  return d.length >= 2 && String(t).length === d.length && String(t) === d.split('').reverse().join('')
+}
 
 export function classify(p, typed) {
   const ans = p.answer
@@ -149,26 +169,23 @@ export function classify(p, typed) {
   if (!Number.isFinite(t)) return { cls: 'other', clause: `the answer is ${fmt(ans)}` }
   const d = Math.abs(t - ans)
   if (d === 1 || d === 2) return { cls: 'offby', clause: 'count again' }
-  if (p.kind === 'mul' || p.kind === 'missMul' || p.kind === 'div') {
-    const a = p.kind === 'div' ? p.b : p.a, b = p.kind === 'div' ? ans : p.b
-    // neighbour table fact: a × (b ± 1) or (a ± 1) × b
-    if (p.kind !== 'div') {
-      if (t === a * (b - 1)) return { cls: 'neighbour', clause: `that is ${a} × ${b - 1}; one more ${a}` }
-      if (t === a * (b + 1)) return { cls: 'neighbour', clause: `that is ${a} × ${b + 1}; one ${a} fewer` }
-      if (t === (a - 1) * b) return { cls: 'neighbour', clause: `that is ${a - 1} × ${b}; one more ${b}` }
-      if (t === (a + 1) * b) return { cls: 'neighbour', clause: `that is ${a + 1} × ${b}; one ${b} fewer` }
-    } else {
-      if (t === b - 1 || t === b + 1) return { cls: 'neighbour', clause: `${a} × ${t} = ${a * t}; try ${a} × ${b}` }
-    }
+  // A neighbour table fact is a claim about a PRODUCT, so it can only fire where the child's number
+  // IS a product — plain mul. On div and missMul the typed number is a FACTOR, and a neighbouring
+  // factor is off by one, already returned above (which is why the old ÷ branch was unreachable).
+  if (p.kind === 'mul') {
+    const a = p.a, b = p.b
+    if (t === a * (b - 1)) return { cls: 'neighbour', clause: `that is ${a} × ${b - 1}; one more ${a}` }
+    if (t === a * (b + 1)) return { cls: 'neighbour', clause: `that is ${a} × ${b + 1}; one ${a} fewer` }
+    if (t === (a - 1) * b) return { cls: 'neighbour', clause: `that is ${a - 1} × ${b}; one more ${b}` }
+    if (t === (a + 1) * b) return { cls: 'neighbour', clause: `that is ${a + 1} × ${b}; one ${b} fewer` }
   }
-  if (ans >= 10 && ans !== t && t >= 0 && String(t) === String(Math.abs(ans)).split('').reverse().join('').replace(/^0+/, '')) {
-    return { cls: 'reversal', clause: `you pressed ${fmt(t)}; it is ${fmt(ans)}` }
-  }
+  if (isReversal(ans, t)) return { cls: 'reversal', clause: `you pressed ${fmt(t)}; it is ${fmt(ans)}` }
   const a = p.a, b = p.b
-  const swaps = { add: a - b, up: a - b, sub: a + b, down: a + b, mul: a + b, div: a * b, missAdd: a + (Number.isInteger(p.c) ? p.c : a + b), missMul: (Number.isInteger(p.c) ? p.c : a * b) * b }
-  if (p.kind in swaps && t === swaps[p.kind] && t !== ans) return { cls: 'opswap', clause: OP_WORD[p.kind] }
-  if (p.kind === 'mul' && t === a * a && a !== b) return { cls: 'other', clause: `the answer is ${fmt(ans)}` }
-  return { cls: 'other', clause: `the answer is ${fmt(ans)}` }
+  const swaps = { add: a - b, up: a - b, sub: a + b, down: a + b, mul: a + b, div: a * b, missAdd: a + totalOf(p), missMul: totalOf(p) * b }
+  if (p.kind in swaps && t === swaps[p.kind] && t !== ans) {
+    return { cls: 'opswap', clause: isMissing(p.kind) ? inverseClause(p) : OP_WORD[p.kind] }
+  }
+  return { cls: 'other', clause: isMissing(p.kind) ? inverseClause(p) : `the answer is ${fmt(ans)}` }
 }
 
 export function repair(p, typed) {

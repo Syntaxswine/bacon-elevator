@@ -22,11 +22,13 @@ export const LEVELS = [
     steps: [
       { kinds: [K('add', 3, { a: [0, 5], b: [0, 5], max: 5 }), K('sub', 3, { a: [0, 5], b: [0, 5], max: 5 }), K('up', 1, { a: [0, 5], b: [1, 5], max: 5 }), K('down', 1, { a: [1, 5], b: [1, 5], max: 5 })] },
       { kinds: [K('add', 3, { a: [0, 10], b: [0, 10], max: 10 }), K('sub', 3, { a: [0, 10], b: [0, 10], max: 10 }), K('up', 1, { a: [0, 9], b: [1, 10], max: 10 }), K('down', 1, { a: [1, 10], b: [1, 10], max: 10 })] },
-      { kinds: [K('add', 2, { a: [0, 10], b: [0, 10], max: 10 }), K('sub', 2, { a: [0, 10], b: [0, 10], max: 10 }), K('missAdd', 2, { a: [0, 10], b: [0, 10], max: 10 }), K('up', 1, { a: [0, 9], b: [1, 10], max: 10 }), K('down', 1, { a: [1, 10], b: [1, 10], max: 10 })] },
+      // step 3 is the top of the easiest building: 0 has been taught at steps 1 and 2, and `2 + 0`
+      // is not a question. ▲ keeps a: [1, 9] so a floor move still starts somewhere.
+      { kinds: [K('add', 2, { a: [1, 10], b: [1, 10], max: 10 }), K('sub', 2, { a: [1, 10], b: [1, 10], max: 10 }), K('missAdd', 2, { a: [1, 10], b: [1, 10], max: 10 }), K('up', 1, { a: [1, 9], b: [1, 10], max: 10 }), K('down', 1, { a: [1, 10], b: [1, 10], max: 10 })] },
     ],
   },
   {
-    id: 'hotel', name: 'Hotel', short: 'Hotel', tag: 'numbers to 20', floors: 6,
+    id: 'hotel', name: 'Hotel', short: 'Hotel', tag: 'numbers to 20; tables 2, 5, 10', floors: 6,
     steps: [
       { kinds: [K('add', 3, { a: [2, 18], b: [2, 18], max: 20, regroup: false }), K('sub', 3, { a: [2, 20], b: [2, 18], max: 20, regroup: false }), K('up', 1, { a: [2, 9], b: [2, 8], max: 10 })] },
       { kinds: [K('add', 3, { a: [2, 18], b: [2, 18], max: 20, regroup: true }), K('sub', 3, { a: [2, 20], b: [2, 18], max: 20, regroup: true }), K('add', 1, { a: [2, 10], b: [2, 10], max: 20, double: true }), K('down', 1, { a: [2, 10], b: [2, 9], max: 10 })] },
@@ -61,30 +63,43 @@ export const LEVELS = [
 
 export const LEVEL_ORDER = LEVELS.map((l) => l.id)
 
+// The largest number any step of a level can put on the display — the number its tag must not
+// undercut. Nothing tied a tag to its tables before, so `numbers to 20` could serve 10 × 10 = 100.
+export function levelBound(level) {
+  return Math.max(...level.steps.flatMap((s) => s.kinds.map((k) => k.max ?? 0)))
+}
+
 export function levelById(id) {
   if (id === 'custom') return null
   return LEVELS.find((l) => l.id === id) || null
 }
 
 // Custom (Grown-ups) level: one step from explicit knobs.
+// Every table here is satisfiable BY CONSTRUCTION, and the tag is derived from the tables that were
+// actually built rather than from the raw knobs. A sum needs a + b ≤ max and a product a·b ≤ max,
+// so one Smallest-number knob cannot bind both families: it is relaxed per family — never inverted
+// (rng.int returns lo when hi < lo, which is how `100 × 2 = 200` became the only sum a parent's
+// ops-×, 100-to-120 setting could serve), never left with a single legal pair.
 export function customLevel({ ops = ['add', 'sub'], min = 0, max = 20, negatives = false } = {}) {
   min = Math.max(0, Math.floor(+min || 0))
-  max = Math.max(min + 2, Math.floor(+max || 10))
+  max = Math.max(min + 2, Math.min(9999, Math.floor(+max || 10)))
+  const sumLo = Math.max(0, Math.min(min, Math.floor(max / 4)))
+  const facHi = Math.max(5, Math.min(12, Math.floor(Math.sqrt(max))))   // no honest table under 5 × 5
+  const facLo = 2                                                       // min cannot bind a factor
+  const mulMax = facHi * facHi
   const kinds = []
   const OPS = new Set(ops && ops.length ? ops : ['add'])
-  if (OPS.has('add')) kinds.push(K('add', 2, { a: [min, max], b: [min, max], max }))
+  if (OPS.has('add')) kinds.push(K('add', 2, { a: [sumLo, max], b: [sumLo, max], max }))
   if (OPS.has('sub')) kinds.push(K('sub', 2, { a: [min, max], b: [min, max], max, negatives: !!negatives }))
-  if (OPS.has('mul')) {
-    const hi = Math.max(2, Math.min(12, Math.floor(Math.sqrt(max))))
-    kinds.push(K('mul', 2, { a: [Math.max(2, min), Math.max(2, Math.min(max, hi))], b: [2, hi], max: Math.max(4, max) }))
-  }
-  if (OPS.has('div')) {
-    const hi = Math.max(2, Math.min(12, Math.floor(Math.sqrt(max))))
-    kinds.push(K('div', 2, { q: [2, Math.max(2, Math.min(max, hi))], b: [2, hi], max: Math.max(4, max) }))
-  }
-  if (OPS.has('missAdd')) kinds.push(K('missAdd', 1, { a: [min, max], b: [min, max], max }))
+  if (OPS.has('mul')) kinds.push(K('mul', 2, { a: [facLo, facHi], b: [facLo, facHi], max: mulMax }))
+  if (OPS.has('div')) kinds.push(K('div', 2, { q: [facLo, facHi], b: [facLo, facHi], max: mulMax }))
+  if (OPS.has('missAdd')) kinds.push(K('missAdd', 1, { a: [sumLo, max], b: [sumLo, max], max }))
   if (OPS.has('up')) kinds.push(K('up', 1, { a: [0, 9], b: [1, 10], max: 10 }))
   if (OPS.has('down')) kinds.push(K('down', 1, { a: [1, 10], b: [1, 10], max: 10 }))
-  if (!kinds.length) kinds.push(K('add', 1, { a: [min, max], b: [min, max], max }))
-  return { id: 'custom', name: 'Custom', short: 'Custom', tag: `numbers ${min} to ${max}`, floors: 9, custom: true, negatives: !!negatives, steps: [{ kinds }] }
+  if (!kinds.length) kinds.push(K('add', 1, { a: [sumLo, max], b: [sumLo, max], max }))
+  // The tag names what the tables can actually show, so `ops ÷, 50 to 60` can no longer read
+  // `numbers 50 to 60` over a `15 ÷ 3`.
+  const lo = Math.min(...kinds.map((k) => (k.a ? k.a[0] : k.q[0])))
+  const hi = Math.max(...kinds.map((k) => k.max))
+  return { id: 'custom', name: 'Custom', short: 'Custom', tag: `numbers ${lo} to ${hi}`, floors: 9, custom: true, negatives: !!negatives, steps: [{ kinds }] }
 }
