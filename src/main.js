@@ -16,6 +16,8 @@ import { createAudio } from './audio.js'
 
 const params = new URLSearchParams(location.search)
 const DRIVE = params.get('drive') === '1'
+// Per-tab, cleared when the tab closes: a cold open still starts in the lobby, as DESIGN wants.
+const RESUME_KEY = 'bacon-elevator.resume-ride'
 const SEED = params.has('seed') ? (parseInt(params.get('seed'), 10) >>> 0) : null
 const DRIVE_SCALE = params.get('fast') === '1' ? 0.1 : 1
 const app = document.getElementById('app')
@@ -264,6 +266,9 @@ function render() {
   if (s !== 'ride') for (const sec of Object.values(sections)) if (sec.classList.contains('active')) { const p = sec.querySelector('.page, .body'); if (p && ui.scrollReset) p.scrollTop = 0 }
   ui.scrollReset = false
   ui.prevPhase = state.phase
+  // A chip offered mid-ride appears at the next resting frame. render() only rewrites the
+  // per-screen sections, never #app's own children, so an existing chip survives a re-render.
+  showChipIfAtRest()
 }
 
 // ---- hint renderers ------------------------------------------------------------------------
@@ -419,22 +424,37 @@ if (window.ResizeObserver) new ResizeObserver(onResize).observe(shaftBox)
 window.addEventListener('pagehide', save)
 
 // ---- service worker + update chip -----------------------------------------------------
+// Only a chip TAP may reload this tab. The old gate reloaded on any controllerchange once a worker
+// had ever been offered, and sw.js's skipWaiting made that fire on its own: the page navigated
+// 3.1 s into a sum with no tap, and the child came back to the lobby. Nothing moves without the
+// child's action — and the chip itself is held back while the car is in motion.
 let waitingWorker = null
+let pendingWorker = null // offered, but held until the car is at rest
+let updateRequested = false // only a chip tap sets this; only this may reload
+let chipForced = false // ?drive=1&chip=1, so the chip's placement is testable without a deploy
+const CHIP_HELD_PHASES = new Set(['moving', 'falling', 'descending'])
+function showChipIfAtRest() {
+  if (!(pendingWorker || chipForced)) return
+  if (CHIP_HELD_PHASES.has(state.phase)) return
+  if (document.getElementById('update-chip')) return
+  const chip = document.createElement('button')
+  chip.id = 'update-chip'; chip.className = 'chip-update'; chip.setAttribute('data-tap', ''); chip.setAttribute('data-update', '')
+  chip.textContent = 'Update ready — tap to reload'
+  chip.setAttribute('aria-label', 'Update ready, tap to reload')
+  app.appendChild(chip)
+}
 function applyUpdate() {
+  updateRequested = true
+  // Come back to the sum, not to the lobby: save.js parks every load on the lobby screen, and the
+  // ride is fully resumable through `ride-start`.
+  try { sessionStorage.setItem(RESUME_KEY, '1') } catch { /* Safari private mode */ }
   if (waitingWorker) waitingWorker.postMessage({ type: 'skip-waiting' })
   const chip = document.getElementById('update-chip'); if (chip) chip.remove()
 }
 if ('serviceWorker' in navigator && params.get('nosw') !== '1') {
   window.addEventListener('load', () => {
     resetDone.then(() => navigator.serviceWorker.register('./sw.js')).then((reg) => {
-      const offer = (w) => {
-        waitingWorker = w
-        if (document.getElementById('update-chip')) return
-        const chip = document.createElement('button')
-        chip.id = 'update-chip'; chip.className = 'chip-update'; chip.setAttribute('data-tap', ''); chip.setAttribute('data-update', '')
-        chip.textContent = 'Update ready — tap to reload'
-        app.appendChild(chip)
-      }
+      const offer = (w) => { waitingWorker = w; pendingWorker = w; showChipIfAtRest() }
       if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting)
       reg.addEventListener('updatefound', () => {
         const w = reg.installing
@@ -443,7 +463,7 @@ if ('serviceWorker' in navigator && params.get('nosw') !== '1') {
       })
     }).catch((err) => { console.warn('service worker registration failed', err) })
     let reloading = false
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (waitingWorker && !reloading) { reloading = true; location.reload() } })
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (updateRequested && !reloading) { reloading = true; location.reload() } })
   })
 }
 
@@ -459,6 +479,7 @@ if (DRIVE) {
     inFlight: () => play !== null,
   }
 }
+if (DRIVE && params.get('chip') === '1') chipForced = true
 const factsLoading = fetch('./data/trivia.json').then((r) => r.json()).then((json) => loadFacts(json).facts)
   .catch((err) => { console.warn('trivia bank did not load; passengers stay home', err); return [] })
 async function boot() {
@@ -472,6 +493,11 @@ async function boot() {
   }
   render()
   shaft.resize()
+  // After a chip tap the child comes back to the sum, not to the lobby. `ride-start` is a no-op
+  // unless the phase is 'lobby', which is exactly what save.js leaves, so it cannot fire twice.
+  let resumeRide = false
+  try { resumeRide = sessionStorage.getItem(RESUME_KEY) === '1'; sessionStorage.removeItem(RESUME_KEY) } catch { /* private mode */ }
+  if (resumeRide && state.ride) dispatch({ type: 'ride-start' })
   factsLoading.then((facts) => dispatch({ type: 'load-facts', facts }))
 }
 boot()

@@ -253,7 +253,22 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 @keyframes drift { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-70px); opacity: 0; } }
 
 /* update chip */
-.chip-update { position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: #fff; border-radius: 999px; padding: 12px 20px; min-height: 48px; font-size: 16px; z-index: 20; }
+/* Update chip: over the (untappable) shaft, never over the panel. It now STAYS until it is tapped,
+   so where it sits matters. Pinned to the bottom it covered GO on an iPhone 12 (elementFromPoint at
+   GO's own centre returned #update-chip) and keys 1–6 on an SE; render/shaft.js carries no
+   [data-tap], so the shaft is safe ground. No white-space:nowrap — with max-width the text wraps
+   instead of overflowing when the platform font runs large. */
+.chip-update {
+  position: fixed; left: 50%;
+  top: calc(env(safe-area-inset-top, 0px) + var(--topbar) + 8px);
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  background: var(--ink); color: #fff;
+  border: 2px solid #fff; border-radius: 999px;
+  padding: 10px 18px; min-height: 48px;
+  font-size: 15px; line-height: 1.2; text-align: center;
+  z-index: 20;
+}
 
 /* ---------- motion ---------- */
 html.reduced .panel .floor.target .face { animation: none; background: #FFF0CC; box-shadow: 0 0 0 6px rgba(232, 176, 74, 0.45); }

@@ -8,6 +8,7 @@
     "test": "node --test \"test/**/*.test.js\"",
     "serve": "node tools/serve.js",
     "drive": "node tools/phone-drive.mjs",
+    "drive:update": "node tools/update-drive.mjs",
     "headless": "node tools/headless-play.mjs"
   },
   "devDependencies": {

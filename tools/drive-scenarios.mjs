@@ -34,7 +34,7 @@ const slim = (page) => page.evaluate(() => {
   const r = s.ride
   return {
     screen: s.screen, phase: s.phase, lunchbox: s.lunchbox, step: s.step, settings: s.settings, carFloor: s.car.floor, carDoors: s.car.doors,
-    ride: r ? { floor: r.floor, target: r.target, tray: r.tray, cleared: r.cleared, typed: r.typed, problem: r.problem, tries: r.tries, retrying: r.retrying } : null,
+    ride: r ? { floor: r.floor, target: r.target, tray: r.tray, cleared: r.cleared, typed: r.typed, problem: r.problem, tries: r.tries, retrying: r.retrying, phase: r.phase, passengersDone: r.passengersDone, roofCard: r.roofCard } : null,
     trivia: s.trivia ? { answer: s.trivia.answer, chosen: s.trivia.chosen, result: s.trivia.result, choices: s.trivia.choices } : null,
     roof: s.roof ? { gained: s.roof.gained, offer: s.roof.offer } : null,
     message: s.message, pool: s.pool.length,
@@ -444,6 +444,83 @@ export const scenarios = [
   },
 ]
 
+// THE SAVE IS THE DOORWAY. Every state the reducer can be parked in is reachable by closing the
+// tab, and three of them used to come back dead. Nothing here is a corrupt save: these are the
+// blobs the game writes for itself, on the child's own path.
+scenarios.push({
+  name: 'reload',
+  async run(ctx) {
+    const { page, shot } = ctx
+    await load(ctx)
+    await startRide(page)
+
+    // (1) mid-sum, walk out to the picker and come back. The reducer bug behind this (nav stamping
+    //     ride.phase = lobby over a live keypad) is not DOM-reachable today, because every nav button
+    //     lives on the lobby screen; the reducer test pins it. This is the regression guard for the
+    //     path a child DOES take.
+    await rideOne(page)
+    await tap(page, `button[data-floor="${label((await slim(page)).ride.target)}"]`)
+    await waitPhaseIn(page, ['keypad'])
+    const mid = await slim(page)
+    await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
+    await tap(page, '[data-nav="picker"]'); await waitScreen(page, 'picker')
+    expect((await slim(page)).ride.phase === 'keypad', 'the parked ride recorded phase ' + (await slim(page)).ride.phase + ', not keypad')
+    await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
+    await startRide(page)
+    let s = await slim(page)
+    expect(s.phase === 'keypad', 'the resumed building is at ' + s.phase + ', not the keypad')
+    expect(s.ride.problem.key === mid.ride.problem.key, 'the resumed sum changed')
+    await tap(page, 'button[data-key="3"]')
+    expect((await slim(page)).ride.typed === '3', 'the digit keys are dead after the resume')
+    await tap(page, 'button[data-key="back"]')
+    await rideOne(page)
+
+    // (2) the Fact card. The SAVE effect fires with `choice`, so the blob at that instant is
+    // {phase:'fact', floor:4, target:4}. It used to come back as "Press 4" with floor 4 the only
+    // live button - and that button inert. Zero console errors; it just stopped being a game.
+    await rideTo(page, 4)
+    s = await slim(page)
+    expect(s.phase === 'trivia', 'floor 4 should carry a passenger at the default cadence, got ' + s.phase)
+    await tap(page, `button[data-choice="${s.trivia.answer}"]`)
+    await waitPhaseIn(page, ['fact'])
+    s = await slim(page)
+    expect(s.ride.floor === 4 && s.ride.target === 4, `the save at the Fact card: floor ${s.ride.floor}, target ${s.ride.target}`)
+    const trayAtCard = s.ride.tray
+    await shot('fact-card')
+    await ctx.goto(Q)
+    await waitFor(page, () => window.__bacon && window.__bacon.state().pool.length > 0, 'the fact pool')
+    await startRide(page)
+    await waitPhaseIn(page, ['floor'])
+    const q = await text(page, '#question')
+    expect(/Press\s*5/.test(q), `after the reload the display reads "${q}", not "Press 5"`)
+    s = await slim(page)
+    expect(s.ride.target === 5, `target ${s.ride.target} after the reload`)
+    expect(s.ride.tray === trayAtCard, `tray ${s.ride.tray} != ${trayAtCard}: nothing may be lost on a reload`)
+    await shot('after-reload')
+    await tap(page, 'button[data-floor="5"]')
+    await waitPhaseIn(page, ['keypad'])
+    await rideOne(page)
+    expect((await slim(page)).ride.floor === 5, 'the elevator did not move after the reload')
+
+    // (3) the roof card. The summary lives only in RAM until it is persisted, so a reload used to
+    // synthesise {gained:0, bonus:0} - "Tray 0 -> lunchbox" over a full tray.
+    await rideTo(page, 9)
+    await rideOne(page)
+    await waitScreen(page, 'roof')
+    const gain = await page.$eval('.roof .gain', (e) => e.textContent.trim())
+    expect(!/Tray 0 /.test(gain), `the roof card reads "${gain}" before any reload`)
+    await shot('roof')
+    await ctx.goto(Q)
+    await waitFor(page, () => window.__bacon && window.__bacon.state().pool.length > 0, 'the fact pool')
+    await tap(page, '[data-nav="ride"]')
+    await waitScreen(page, 'roof')
+    const again = await page.$eval('.roof .gain', (e) => e.textContent.trim())
+    expect(again === gain, `the roof card after a reload reads "${again}", not "${gain}"`)
+    await shot('roof-after-reload')
+    return `keypad resumed, Fact card at 4 -> "Press 5" -> rode to 5, roof card survives a reload ("${again}")`
+  },
+})
+
 scenarios.push({
   name: 'fall',
   async run(ctx) {
@@ -756,6 +833,47 @@ scenarios.push(
       await waitPhaseIn(page, ['repair'])
       const rm = await check('repair-megatall', { ride: true, card: true })
       if (rm && rm.card) seen.push(`repair-megatall(card ${rm.card.h}px: ${rm.card.worked})`)
+      // THE UPDATE CHIP. It used to live for about a second before the page reloaded itself, so
+      // nobody caught where it sat; now that the worker waits for the tap, it stays. Pinned to the
+      // bottom it covered GO on an iPhone 12 (elementFromPoint at GO's own centre returned
+      // #update-chip) and keys 1-6 on an SE. ?chip=1 forces it in so this is testable without a
+      // deploy. Navigation here goes through el.click(), not a physical tap: a chip that BLOCKS the
+      // tap must be reported by the occlusion measurement, not as a timeout somewhere else.
+      await ctx.goto(Q + '&chip=1&reset=1')
+      await waitFor(page, () => window.__bacon && window.__bacon.state().pool.length > 0, 'the fact pool')
+      const click = async (sel) => { const hit = await page.evaluate((q) => { const e = document.querySelector(q); if (!e || e.disabled) return false; e.click(); return true }, sel); expect(hit, 'no ' + sel + ' to click'); await wait(120) }
+      await waitFor(page, () => !!document.getElementById('update-chip'), 'the update chip')
+      const chipRect = await page.$eval('#update-chip', (e) => { const b = e.getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), x: Math.round(b.left), y: Math.round(b.top) } })
+      if (chipRect.h < 48) bad.push(`update chip is ${chipRect.h}px tall, under the 48 px floor`)
+      if (chipRect.y < 0 || chipRect.y + chipRect.h > page.viewport().height) bad.push(`update chip at y=${chipRect.y} h=${chipRect.h} is off screen`)
+      const occ = async (where) => {
+        const out = await page.evaluate(() => {
+          const o = []
+          for (const el of document.querySelectorAll('[data-tap]')) {
+            const b = el.getBoundingClientRect()
+            if (!b.width || !b.height || !el.offsetParent) continue
+            const cx = b.left + b.width / 2, cy = b.top + b.height / 2
+            // A centre outside the viewport is a scrolled page, not an overlay; the chip is
+            // position:fixed, so it can only ever cover something the viewport already shows.
+            if (cx < 0 || cy < 0 || cx > innerWidth || cy > innerHeight) continue
+            const hit = document.elementFromPoint(cx, cy)
+            if (hit && hit !== el && !el.contains(hit)) o.push((el.dataset.key || el.dataset.floor || el.dataset.nav || el.tagName) + ' <- #' + (hit.id || hit.className))
+          }
+          return o
+        })
+        if (out.length) bad.push(`the update chip occludes at ${where}: ${out.join('; ')}`)
+      }
+      await occ('lobby')
+      await click('[data-nav="ride"]')
+      if ((await attr(page, '#app', 'data-screen')) === 'rules') { await occ('rules'); await click('.rules [data-continue]') }
+      await waitPhaseIn(page, ['floor'])
+      await occ('floor')
+      await shot('chip-floor')
+      await click(`button[data-floor="${label((await slim(page)).ride.target)}"]`)
+      await waitPhaseIn(page, ['keypad'])
+      await occ('keypad')
+      await shot('chip-keypad')
+      seen.push(`chip(${chipRect.w}x${chipRect.h} at ${chipRect.x},${chipRect.y})`)
       if (bad.length) throw new Error(bad.join(' ;; '))
       return seen.join(', ')
     },

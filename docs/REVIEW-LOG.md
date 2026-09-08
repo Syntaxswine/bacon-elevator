@@ -126,3 +126,170 @@ them nothing.
   They are the *easier* case now that the budget yields, but nothing pins them.
 - The landscape block still re-sets `--cell`/`--gap`/`--display` by hand instead of using the
   budget's variables; it is correct today but it is a second copy of the same arithmetic.
+
+---
+
+## Round 1 — fixer 2: state, save and the service worker
+
+Files owned: `src/state.js`, `src/save.js`, `src/main.js`, `sw.js`, `tools/make-icons.mjs`,
+`assets/`. Eleven findings (`r1-code-hostile-01/02/05/06/07/08/09`, `r1-elevator-feel-06`,
+`r1-deploy-pages-02/03/04`, `r1-mobile-ux-04`). All eleven reproduced; none rejected.
+
+### The two that mattered
+
+**The building died on a save the game wrote for itself.** Answer the passenger on floor 4 and the
+Fact card goes up; the `choice` action emits `SAVE`, so the blob on disk at that instant is
+`{phase:'fact', floor:4, target:4}`. `migrateRide` rewrote `fact → floor` and stopped there — it
+did not do what `card-continue` does, which is add the floor to `passengersDone` **and** advance the
+target. After the reload the display read `Press 4`, floor 4 was the only enabled button, and that
+button was inert: `press-floor` refuses `f === car.floor`, and the reducer refuses any `f !==
+target`. No console error. It just quietly stopped being a game, and it cost the child the whole
+building. Reproduced in real headless Chrome at 390 × 664, and it is now the `reload` drive
+scenario on all five phones.
+
+The root cause is one missing invariant, not one missing line: every field of a ride was
+range-checked **on its own**, and the one relation the reducer depends on — *there is a floor above
+the car to press* — was checked nowhere. `floor` was clamped to [−1, 10] and `target` to [1, 10]
+with no tie between them. So `normaliseRide()` now states that relation once, in `state.js`, and
+every entry into a ride goes through it: a parsed save, a share code, a resume, a settled timeline,
+an `import`. `nextTarget(floor)` is the only way a target is ever computed (four sites used a raw
+`floor + 1`, which yields target 11 at floor 10 — a target no button can carry).
+
+**The deploy reloaded the child's tab mid-sum.** `sw.js` ended `install` with `skipWaiting()`, so a
+new worker activated the instant it finished installing; `clients.claim()` took the open tab over;
+`main.js` reloaded on *any* `controllerchange` once a worker had ever been offered. Measured
+against a server sending the header GitHub Pages really sends (`max-age=600`): at 1851 ms the state
+is `{phase:'keypad', typed:'3'}`, an unrequested main-frame navigation fires at 3116 ms, and the
+child is on the lobby screen. That breaks the one rule this game has: nothing moves without the
+child's action.
+
+Removing `skipWaiting` alone would have been worse than the disease. The update chip was pinned to
+`bottom: 12px` and had only ever existed for about a second before the page reloaded itself, so
+nobody had noticed where it sat: `elementFromPoint` at GO's own centre returned `#update-chip` on
+an iPhone 12, and it covered keys 1–6 on an SE. Making the worker wait turns that into a permanent
+overlay over the button that moves the elevator. `sw.js`, `src/main.js` and the chip rule in
+`css/app.css` are therefore one change, landed together.
+
+### What changed
+
+| finding | change | pinned by |
+|---|---|---|
+| `01`, `07`, `elevator-feel-06` | `normaliseRide()` + `nextTarget()` in `state.js`; every ride entry routed through them; `migrateRide` ends with it | `test/save-walk.test.js` (3 000 corrupt saves), `save.test.js` fact-card test, drive `reload` |
+| `06` | `validProblem()` in `math.js` — the stored answer must equal `solve()`; applied to `ride.problem`, every `comeback[].problem`, and the comeback draw in `makeProblem` | `save.test.js` comeback test; 452 of the walk's 788 failures |
+| `07` | three blocked car steps stop returning `same(state)`: `press-floor` heals, a right answer at the top banks the building, a wrong answer in the pit returns the Repair card | `state.test.js` blocked-step test; the walk's no-op assertion |
+| `09` | `clampInt` on every counter (`Number.isSafeInteger`, ceilings 1e9 / 1e6 / 999 / 99); `banked ≤ tray` | `save.test.js` magnitude test |
+| `05` | the roof summary is persisted as `ride.roofCard`; `ride-start` reads it; an old save with no card omits the lines instead of printing a zero | `state.test.js` roof test, drive `reload` step 3 |
+| `08` | `nav` parks a live building through `to-lobby`, which already records the real phase | `state.test.js` nav test |
+| `02`, `deploy-pages-02`, `mobile-ux-04` | no `skipWaiting` in `install`; the chip is offered only at rest and stays until tapped; only `updateRequested` may reload; a chip tap resumes the ride | `tools/update-drive.mjs` asserts 1–3, 6; `version.test.js` |
+| `deploy-pages-03` | `install` precaches with `new Request(u, {cache:'reload'})`; `index.html` is cache-first from the versioned cache (DESIGN amendment 10) | `update-drive.mjs` asserts 4–5 |
+| `mobile-ux-04` | the chip moves from the bottom to under the top bar, over the untappable shaft | drive `layout` occlusion probe |
+| `deploy-pages-04` | a real maskable pair (`icon-maskable-{192,512}.png`), the manifest's purposes split, a measured gate in `make-icons.mjs` (DESIGN amendment 11) | `version.test.js` manifest test; the gate itself |
+
+Two corrections to the finding texts, both of which change the framing:
+
+- `r1-mobile-ux-04` says the chip "never appears". It does. An in-page `MutationObserver` recorded
+  it added at page-clock 1769 ms; the document was destroyed 1017 ms later by the self-reload. A
+  60 ms Node-side poll misses that, which is how two reviewers concluded it never rendered. The
+  constraint broken is *nothing moves without the child's action*, not *nothing shows under 300 ms*.
+- `r1-code-hostile-08` is real in the reducer but **not reachable through today's DOM**: every
+  `[data-nav]` to the picker, Fact Book, Workshop and Grown-ups lives on the lobby screen, so
+  `phase !== 'lobby'` cannot hold when `nav` fires. It is fixed and pinned as a reducer test, and
+  it is honestly defence-in-depth, not a live player path. The `import` action was the same shape of
+  doorway and is now normalised too.
+
+Two bugs the review did not find, both the same class, found while reproducing:
+
+1. **A wrong answer at a pit keypad was a silent no-op.** From `{phase:'repair', floor:−1,
+   retrying:false}` with second try off, `carStep(car, {type:'fall'})` is refused because the car is
+   already at −1, and `go` returned `same(state)` with zero effects: the child taps GO and *nothing*
+   happens. My first harness missed it because a perfect player never falls — which is why the
+   walk's wrong-answer arm is load-bearing.
+2. **`{phase:'floor', floor:−1}` handed out free bacon.** Pressing 1 and answering right moved the
+   car −1 → 0 while `arrive` set `ride.floor = target = 1`: the car teleported a floor and floor 1's
+   strip was collected for a one-floor ride out of the pit. The invariant's rule "floor −1 exists
+   only while the Repair card is up" closes it.
+
+### Rejected
+
+- **`r1-deploy-pages-03`'s `updateViaCache:'none'` half.** Not the bug and a no-op here.
+  `register('./sw.js')` already defaults to `updateViaCache:'imports'`, and `sw.js` has no
+  `importScripts`. Measured: on the max-age=600 server the update check fetched `/sw.js` from the
+  network on *every* load while fetching zero assets — the worker script was fresh and only the
+  precache was stale. Adding the option would look like a fix and change nothing. `cache:'reload'`
+  in `addAll` is the whole cure.
+- Nothing else was rejected.
+
+### Departures from the plan, and things the lead should look at
+
+- **The `state` plan's `validProblem` lives in `src/math.js`, which fixer 3 owns.** It belongs
+  there — it uses `solve` and `BLANK`, and `keyOf`/`checkAnswer` are its neighbours — and putting a
+  maths validator in `state.js` would have been the wrong shape. It is an additive export plus a
+  two-line hardening of `makeProblem`'s comeback draw; fixer 3 branches from this commit.
+- **`css/app.css` (fixer 1's file) carries the chip rule**, and **`src/render/screens.js`** carries
+  one line so `gained === null` omits the roof lines instead of printing `Tray null`. Both are
+  required by the sw and state plans and cannot ship separately from them.
+- **DESIGN amendments 10 and 11 were written by the engineer, not the lead.** Amendment 6 said
+  network-first `index.html` and `skipWaiting`; amendment 4 said one image with
+  `purpose: "any maskable"`. Both are now wrong, and the plan for each said not to land it silently.
+  They are written up with their measurements and marked for the lead to confirm or revert.
+- **`test/save.test.js`'s "floor 99 → phase floor" assertion was changed on purpose.** Under the
+  invariant floor 99 clamps to 10, and floor 10 *is* the roof, so a corrupt top-of-the-building save
+  is banked rather than dropped — which is what "nothing is ever taken away" asks for. It used to
+  land in phase `floor` with target 1: a building whose one lit button was below the car.
+
+### Numbers
+
+`npm test` **109 → 123**, all green. Every new assertion was watched failing on a clean checkout of
+the previous tip first: the four `r1-*` save tests, the four `r1-*` state tests, both new
+`version.test.js` tests, and the rewritten manifest assertion — 9 failing before, 0 after.
+
+`test/save-walk.test.js` is the falsifier for this whole section: 3 000 seeded corrupt saves,
+parsed, hydrated and then *played* to the roof with nothing but DOM-reachable actions.
+
+| | before | after |
+|---|---|---|
+| dead or throwing | **788 / 3 000 (26.3 %)** | **0** |
+| render throws (`text.split`) | 452 | 0 |
+| `no-op: press-floor 10` | 141 | 0 |
+| `GO on the correct answer was a no-op` | 122 | 0 |
+| `no-op: press-floor 11` | 29 | 0 |
+| tail: `press-floor N` with target ≤ floor | 44 | 0 |
+
+`node tools/phone-drive.mjs` **35/35 → 40/40** (a new `reload` scenario on all five phones). The
+occlusion probe was watched failing with the old chip rule: at 390 × 664, `go <- #update-chip`.
+
+`node tools/update-drive.mjs` (new, `npm run drive:update`) — the only instrument that can see any
+of this, because the phone drive's own server sends `no-store` and never bumps a version:
+
+| assertion | before | after |
+|---|---|---|
+| 1 · no unrequested navigation for 8 s | one at 3116 ms | none |
+| 2 · the chip stays, and covers no tap target | added 1769 ms, destroyed 1017 ms later | added 1838 ms, still there at 10 s |
+| 3 · the session stays on one version until the tap | mixed (new HTML, old modules) | 1.0.0 throughout |
+| 4 · `be-1.0.1` holds VERSION 1.0.1 | `'1.0.0'` | `'1.0.1'` |
+| 5 · install fetched the assets | **1** | **28** |
+| 6 · after the tap: one navigation, 1.0.1, back on the sum | 0 navs, 1.0.0, lobby | 1 nav, 1.0.1, `ride/keypad`, typed `35` |
+| **total** | **5 / 15** | **15 / 15** |
+
+Icons: `transparentFraction` 0.0399 → **0.0000**; corner pixel alpha 0 → opaque `#2A303F`; art reach
+0.883 → **0.751** against a 0.800 safe circle. `node tools/headless-play.mjs` at seed 42 is
+unchanged (repeat 0.00 %, step converges on every level).
+
+`validProblem`'s strict `solve(q) === q.answer` check rejects nothing legitimate: 320 000 real draws
+(20 000 per level per step across all five levels, plus 20 000 custom) gave 0 mismatches.
+
+### Handed on
+
+- **`tools/update-drive.mjs` is not in `npm run drive`.** It costs a real Chrome launch and ~40 s
+  and belongs beside the drive in the pre-push gate, not inside `node --test`.
+- **The Windows trap it carries:** Chrome's service-worker database fails *silently* when
+  `userDataDir` sits past MAX_PATH — `getRegistrations()` returns `[]` with no console error, no
+  pageerror and no failed request. Any future SW instrument needs a short profile directory.
+- **Multi-tab:** a chip tap in one tab no longer reloads the others. That is deliberate (nothing may
+  move under the child's hands), but a second tab is then silently controlled by the new worker
+  while still running the old modules until it is closed.
+- **`assets/apple-touch-icon.png` still has 3.7 % transparent corners**, which iOS composites onto
+  black. Rendering it from a plate with the `rx` removed (art unscaled — iOS rounds, it does not
+  circle-mask) takes that to 0. Not done: outside the finding.
+- **`PROBLEM_KINDS` is `KINDS` in `math.js`.** If a new kind is added to `levels.js` it must be
+  added there, or `validProblem` will quietly reject every save carrying it.

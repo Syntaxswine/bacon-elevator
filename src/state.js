@@ -3,7 +3,7 @@
 // Nothing here touches window, document, storage, timers or Date.
 
 import { LEVELS, LEVEL_ORDER, levelById, customLevel } from './levels.js'
-import { makeProblem, afterAnswer, checkAnswer, adaptStep, initialCtx, parseTyped, allowsNegatives } from './math.js'
+import { makeProblem, afterAnswer, checkAnswer, adaptStep, initialCtx, parseTyped, allowsNegatives, validProblem } from './math.js'
 import { initialCar, sequence, step as carStep, FLOORS } from './elevator.js'
 import { isPassengerFloor, pickFact, makeChoices } from './trivia.js'
 
@@ -27,6 +27,42 @@ export const SCREENS = ['lobby', 'picker', 'rules', 'ride', 'roof', 'factbook', 
 // Timeline name → the phase the game is parked in while it plays. `ride.inFlight = {name, to}` is
 // saved the moment a timeline starts, so a save taken mid-ride can be settled by hydrate().
 export const IN_FLIGHT = Object.freeze({ ride: 'moving', express: 'moving', fall: 'falling', descend: 'descending' })
+
+const STABLE = new Set(['floor', 'keypad', 'repair', 'trivia', 'fact', 'roof'])
+
+// THE RIDE INVARIANT, in one place.
+// A ride is playable iff there is a floor ABOVE the car to press. Range-checking floor and target
+// independently is not enough: a save holding {floor:4, target:4} passes every range check and is
+// still a dead building, because press-floor refuses f === car.floor and the reducer refuses any
+// f !== target, so the only live button is inert. Every entry into a ride — a parsed save, a share
+// code, a resume, a settled timeline — comes through here.
+export function nextTarget(floor) { return Math.min(10, Math.max(1, floor + 1)) }
+
+export function normaliseRide(ride) {
+  if (!ride) return null
+  const r = { ...ride }
+  r.floor = Math.max(-1, Math.min(10, Number.isSafeInteger(r.floor) ? r.floor : 0))
+  r.problem = validProblem(r.problem)
+  r.passengersDone = Array.isArray(r.passengersDone) ? r.passengersDone.filter(Number.isSafeInteger) : []
+  if (!STABLE.has(r.phase)) r.phase = 'floor'
+  if ((r.phase === 'keypad' || r.phase === 'repair') && !r.problem) r.phase = 'floor'
+  if (r.phase === 'fact') {
+    // The card was read. Do exactly what card-continue does — including the bookkeeping, which is
+    // the half a plain phase rewrite used to drop: the passenger stayed on the landing forever.
+    if (!r.passengersDone.includes(r.floor)) r.passengersDone = r.passengersDone.concat(r.floor)
+    r.phase = 'floor'
+    r.target = nextTarget(r.floor)
+  }
+  if (r.floor === -1 && !(r.phase === 'repair' && r.problem)) { r.floor = 0; r.phase = 'floor' }
+  if (r.floor >= 10) { r.floor = 10; r.phase = 'roof' } // the top IS the roof; bank it, never drop it
+  if (r.phase === 'roof') { r.floor = 10; r.target = 10; r.retrying = false; return r }
+  const t = Number.isSafeInteger(r.target) ? r.target : nextTarget(r.floor)
+  r.target = Math.max(nextTarget(r.floor), Math.min(10, t))
+  // The pit card IS the retry: a car at −1 showing the Repair card is always retrying, so a wrong
+  // answer there returns the card instead of asking the elevator to fall out of the pit.
+  r.retrying = r.floor === -1 && r.phase === 'repair'
+  return r
+}
 
 export function initialState(salt) {
   return {
@@ -84,7 +120,7 @@ function newRide(state, seed) {
   return {
     seed: seed >>> 0, floor: 0, target: 1, cleared: [], tray: 0, banked: 0, phase: 'floor', problem: null, typed: '',
     tries: 0, streak: 0, stepDowns: 0, comeback: [], passengersDone: [], retrying: false, forfeit: false, typedWrong: '',
-    falls: 0, draws: 0, ctx: initialCtx(), lastKind: null, fallFloor: 0, inFlight: null,
+    falls: 0, draws: 0, ctx: initialCtx(), lastKind: null, fallFloor: 0, roofCard: null, inFlight: null,
   }
 }
 
@@ -97,10 +133,10 @@ export function hydrate(state, rng) {
   if (!r || !r.inFlight) return state
   const { name, to } = r.inFlight
   const phase = IN_FLIGHT[name]
-  if (!phase || (name === 'fall' && !r.problem)) return { ...state, ride: { ...r, inFlight: null, retrying: r.retrying && r.floor === -1 } }
+  if (!phase || (name === 'fall' && !r.problem)) return { ...state, ride: normaliseRide({ ...r, inFlight: null }) }
   const parked = { ...state, phase, screen: 'ride', car: { ...initialCar(), floor: r.floor }, pending: { name, car: { ...initialCar(), floor: to } }, trivia: null, roof: null }
   const settled = reduce(parked, { type: 'timeline-done' }, rng).state
-  return { ...settled, ride: settled.ride ? { ...settled.ride, phase: settled.phase, inFlight: null } : null, phase: 'lobby', screen: 'lobby', trivia: null, roof: null, pending: null, hint: false, message: '' }
+  return { ...settled, ride: settled.ride ? normaliseRide({ ...settled.ride, phase: settled.phase, inFlight: null }) : null, phase: 'lobby', screen: 'lobby', trivia: null, roof: null, pending: null, hint: false, message: '' }
 }
 
 function seedFor(state) {
@@ -181,7 +217,9 @@ function arrive(state, rng) {
       unlocks: state.unlocks.concat(unlocked),
       plaques: state.plaques.concat(plaques),
       step3Run,
-      ride: { ...s.ride, tray: s.ride.tray + ROOF_BONUS, banked: s.ride.tray + ROOF_BONUS },
+      // The roof summary lives in the ride, which IS persisted, so a reload at the roof shows the
+      // real numbers instead of a fabricated "Tray 0 -> lunchbox".
+      ride: { ...s.ride, tray: s.ride.tray + ROOF_BONUS, banked: s.ride.tray + ROOF_BONUS, roofCard: { gained, bonus: ROOF_BONUS, unlocked, plaques, offer: next, offerTaken: null, lunchboxBefore: state.lunchbox } },
       roof: { gained, bonus: ROOF_BONUS, unlocked, plaques, offer: next, lunchboxBefore: state.lunchbox },
     }
     s = stable(s, 'roof', { screen: 'roof' })
@@ -196,7 +234,7 @@ function arrive(state, rng) {
       return { state: withDraws(s, rng), effects }
     }
   }
-  s = stable({ ...s, ride: { ...s.ride, target: floor + 1 } }, 'floor')
+  s = stable({ ...s, ride: { ...s.ride, target: nextTarget(floor) } }, 'floor')
   effects.push(SAVE)
   return { state: withDraws(s, rng), effects }
 }
@@ -207,8 +245,6 @@ function bankOnLeave(state) {
   const gained = Math.max(0, r.tray - r.banked)
   return { ...state, lunchbox: state.lunchbox + gained, ride: { ...r, banked: r.tray } }
 }
-
-const STABLE = new Set(['floor', 'keypad', 'repair', 'trivia', 'fact', 'roof'])
 
 export function reduce(state, action, rng) {
   if (!action || typeof action.type !== 'string') return same(state)
@@ -228,7 +264,9 @@ export function reduce(state, action, rng) {
       if (name === 'lobby') return reduce(state, { type: 'to-lobby' }, rng)
       // picker, factbook, workshop, grownups: reachable from the lobby (or the roof); an in-progress building is parked.
       let s = state
-      if (r && phase !== 'lobby' && phase !== 'roof') s = stable(bankOnLeave(state), 'lobby', { hint: false })
+      // `to-lobby` already banks the tray, performs the fact -> floor transition WITH passengersDone,
+      // and records the REAL phase into ride.phase. Stamping 'lobby' here instead left a dead building.
+      if (r && phase !== 'lobby' && phase !== 'roof') s = reduce(state, { type: 'to-lobby' }, rng).state
       return { state: { ...s, screen: name }, effects: [SCREEN(name), SAVE] }
     }
 
@@ -240,16 +278,21 @@ export function reduce(state, action, rng) {
         s = { ...s, ride: newRide(s, seedFor(s)), car: initialCar(), trivia: null, roof: null, hint: false, message: '' }
         s = stable(s, 'floor')
       } else {
-        // Resume exactly where it was.
-        const car = { ...initialCar(), floor: r.floor }
-        s = { ...s, car, hint: false, message: '', trivia: null, roof: null }
-        if (r.phase === 'trivia') {
+        // Resume exactly where it was - through the invariant, so a hand-edited, imported or
+        // half-written save can never park the car on a floor whose one live button does nothing.
+        const nr = normaliseRide(r)
+        const car = { ...initialCar(), floor: nr.floor }
+        s = { ...s, ride: nr, car, hint: false, message: '', trivia: null, roof: null }
+        if (nr.phase === 'trivia') {
           const trivia = askPassenger(s, rng)
-          s = trivia ? stable({ ...s, trivia }, 'trivia') : stable({ ...s, ride: { ...r, target: r.floor + 1 } }, 'floor')
-        } else if (r.phase === 'roof') {
-          s = stable(s, 'roof', { roof: { gained: 0, bonus: 0, unlocked: [], plaques: [], offer: null, lunchboxBefore: s.lunchbox } })
+          s = trivia ? stable({ ...s, trivia }, 'trivia') : stable({ ...s, ride: { ...nr, target: nextTarget(nr.floor) } }, 'floor')
+        } else if (nr.phase === 'roof') {
+          // gained === null means "an old save with no roof card": the screen omits those lines
+          // rather than printing a number nobody earned.
+          const rc = nr.roofCard
+          s = stable(s, 'roof', { roof: rc ? { ...rc } : { gained: null, bonus: null, unlocked: [], plaques: [], offer: null, lunchboxBefore: s.lunchbox } })
         } else {
-          s = stable(s, r.phase)
+          s = stable(s, nr.phase)
         }
       }
       const screen = s.phase === 'roof' ? 'roof' : (s.rulesSeen ? 'ride' : 'rules')
@@ -270,7 +313,7 @@ export function reduce(state, action, rng) {
       }
       if (phase === 'fact' && r) {
         const done = r.passengersDone.includes(r.floor) ? r.passengersDone : r.passengersDone.concat(r.floor)
-        const s = stable({ ...state, trivia: null, ride: { ...r, passengersDone: done, target: r.floor + 1 } }, 'floor')
+        const s = stable({ ...state, trivia: null, ride: { ...r, passengersDone: done, target: nextTarget(r.floor) } }, 'floor')
         return { state: s, effects: [SOUND('click'), SAVE] }
       }
       return same(state)
@@ -281,7 +324,15 @@ export function reduce(state, action, rng) {
       const f = action.floor
       if (f !== r.target) return same(state)
       const pressed = carStep(state.car, { type: 'press', floor: f })
-      if (pressed.blocked) return same(state)
+      if (pressed.blocked) {
+        // Unreachable while the invariant holds. If it ever is reached, heal - never freeze: a tap
+        // on the one lit button must always do something. normaliseRide is idempotent, so the
+        // recursion below runs at most once.
+        const nr = normaliseRide({ ...r, floor: state.car.floor })
+        if (nr.phase === r.phase && nr.target === r.target && nr.floor === r.floor) return same(state)
+        const healed = { ...state, ride: nr, phase: nr.phase, car: { ...initialCar(), floor: nr.floor } }
+        return nr.phase === 'floor' ? reduce(healed, { type: 'press-floor', floor: nr.target }, rng) : { state: healed, effects: [SAVE] }
+      }
       let s = { ...state, car: pressed.car }
       s = askProblem(s, rng)
       s = stable(s, 'keypad')
@@ -367,7 +418,12 @@ export function reduce(state, action, rng) {
       if (correct) {
         let s = recordAnswer(state, problem, true, false)
         const res = sequence(s.car, [...doorsEvents, { type: 'move' }], 0)
-        if (res.blocked) return same(state)
+        if (res.blocked) {
+          // Only reachable from a save that put the car at the top in a playing phase. The answer
+          // was RIGHT, so bank the building rather than swallow the tap.
+          if (s.car.floor >= FLOORS.ROOF) return arrive({ ...s, ride: { ...s.ride, target: FLOORS.ROOF }, car: { ...initialCar(), floor: FLOORS.ROOF }, pending: null }, rng)
+          return same(state)
+        }
         const shifted = { ...res, timeline: res.timeline.map((e) => ({ ...e, t: e.t + 600 })), duration: res.duration + 600 }
         const st = startTimeline({ ...s, message: '', lastResult: 'correct' }, 'ride', shifted, 'moving')
         return { state: st.state, effects: [st.effect, SOUND('click'), SAVE] }
@@ -380,7 +436,13 @@ export function reduce(state, action, rng) {
       // The fall. The true equation shows for 1.2 s, then the cable slips. Byte-identical every time.
       let s = recordAnswer(state, problem, false, true)
       const res = carStep(s.car, { type: 'fall' })
-      if (res.blocked) return same(state)
+      if (res.blocked) {
+        // The car is already in the pit, so it cannot fall again (only a save that lost `retrying`
+        // gets here). Show the Repair card rather than swallow the tap - no second fall, exactly as
+        // the retry rule already says.
+        const st = stable({ ...s, ride: { ...s.ride, tries: s.ride.tries + 1, forfeit: true, retrying: true, typedWrong: r.typed, typed: '' }, message: '', lastResult: 'wrong' }, 'repair')
+        return { state: st, effects: [SAVE] }
+      }
       const shifted = { ...res, timeline: res.timeline.map((e) => ({ ...e, t: e.t + 1200 })), duration: res.duration + 1200 }
       s = { ...s, ride: { ...s.ride, typedWrong: r.typed, typed: '', retrying: true, falls: s.ride.falls + 1, fallFloor: r.floor }, message: '', lastResult: 'fall' }
       const st = startTimeline(s, 'fall', shifted, 'falling')
@@ -429,7 +491,8 @@ export function reduce(state, action, rng) {
     case 'offer': {
       if (phase !== 'roof' || !state.roof || !state.roof.offer) return same(state)
       const accept = !!action.accept
-      const s = { ...state, roof: { ...state.roof, offer: null, offerTaken: accept ? state.roof.offer : null }, step3Run: 0 }
+      const card = { ...state.roof, offer: null, offerTaken: accept ? state.roof.offer : null }
+      const s = { ...state, roof: card, ride: state.ride ? { ...state.ride, roofCard: state.ride.roofCard ? { ...state.ride.roofCard, offer: null, offerTaken: card.offerTaken } : null } : null, step3Run: 0 }
       if (accept) return { state: { ...s, level: state.roof.offer, step: 1 }, effects: [SOUND('click'), SAVE] }
       return { state: s, effects: [SOUND('click'), SAVE] }
     }
@@ -447,7 +510,7 @@ export function reduce(state, action, rng) {
       let s = state
       if (phase === 'fact' && r) {
         const done = r.passengersDone.includes(r.floor) ? r.passengersDone : r.passengersDone.concat(r.floor)
-        s = stable({ ...s, trivia: null, ride: { ...r, passengersDone: done, target: r.floor + 1 } }, 'floor')
+        s = stable({ ...s, trivia: null, ride: { ...r, passengersDone: done, target: nextTarget(r.floor) } }, 'floor')
       }
       s = bankOnLeave(s)
       s = { ...s, ride: s.ride ? { ...s.ride, phase: s.phase } : null, phase: 'lobby', screen: 'lobby', hint: false, pending: null }
@@ -510,7 +573,9 @@ export function reduce(state, action, rng) {
     case 'import': {
       const inc = action.state
       if (!inc || typeof inc !== 'object') return same(state)
-      const s = { ...initialState(inc.salt), ...inc, pool: state.pool, seedOverride: state.seedOverride, phase: 'lobby', screen: 'lobby', car: initialCar(), pending: null, trivia: null, roof: null, hint: false }
+      // Its one caller feeds a decodeCode() result, already through parse -> migrate; normalising
+      // here means a second caller can never open a doorway back into the dead states.
+      const s = { ...initialState(inc.salt), ...inc, ride: normaliseRide(inc.ride), pool: state.pool, seedOverride: state.seedOverride, phase: 'lobby', screen: 'lobby', car: initialCar(), pending: null, trivia: null, roof: null, hint: false }
       return { state: s, effects: [SCREEN('lobby'), SAVE] }
     }
 

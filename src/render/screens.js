@@ -125,8 +125,8 @@ export function roof(state) {
       </svg>
       <div class="drift" aria-hidden="true">${drift}</div>
     </div>
-    <p class="gain">Tray ${info.gained} → lunchbox</p>
-    <p class="gain">+${info.bonus} roof bonus</p>
+    ${info.gained === null ? '' : `<p class="gain">Tray ${info.gained} → lunchbox</p>
+    <p class="gain">+${info.bonus} roof bonus</p>`}
     <p class="total">${LUNCH} <span id="lunchbox-roof">${state.lunchbox}</span> ${BACON()}</p>
     ${unlockedNames.length ? `<p><strong>New in the Workshop:</strong> ${esc(unlockedNames.join(', '))}</p>` : next ? `<p class="muted">Next part at ${next.at} bacon: ${esc(next.part.name)}</p>` : ''}
     ${info.plaques.length ? `<p><strong>A plaque for ${esc(info.plaques.join(' and '))} bacon hangs in the Lobby.</strong></p>` : ''}

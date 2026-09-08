@@ -1,5 +1,6 @@
 // Save serialisation. Pure: tolerates garbage, migrates v0, and makes the BE1- share code.
-import { initialState, SETTINGS_DEFAULTS } from './state.js'
+import { initialState, SETTINGS_DEFAULTS, normaliseRide } from './state.js'
+import { validProblem } from './math.js'
 
 export const SAVE_KEY = 'bacon-elevator.save.v1'
 
@@ -13,7 +14,12 @@ export function serialize(state) {
 }
 
 function isObj(x) { return x !== null && typeof x === 'object' && !Array.isArray(x) }
-const int = (x, d) => (Number.isInteger(x) ? x : d)
+// Range, not merely type. Number.isInteger(1e308) is true, and a lunchbox that large prints as
+// "1e+308" on the top bar and never increments again (1e308 + 3 === 1e308).
+const int = (x, d) => (Number.isSafeInteger(x) ? x : d)
+const MAX_BACON = 1e9
+const MAX_COUNT = 1e9
+const clampInt = (x, lo, hi, d) => (typeof x === 'number' && Number.isFinite(x) ? Math.max(lo, Math.min(hi, Math.trunc(x))) : d)
 const bool = (x, d) => (typeof x === 'boolean' ? x : d)
 const oneOf = (x, opts, d) => (opts.includes(x) ? x : d)
 const strArr = (x) => (Array.isArray(x) ? x.filter((s) => typeof s === 'string') : [])
@@ -28,8 +34,8 @@ export function migrate(obj) {
     obj = { ...obj, lunchbox: obj.lunchbox ?? obj.bacon, level: obj.level ?? obj.levelId }
   }
   s.created = int(obj.created, base.created)
-  s.lunchbox = Math.max(0, int(obj.lunchbox, 0))
-  s.buildings = Math.max(0, int(obj.buildings, 0))
+  s.lunchbox = clampInt(obj.lunchbox, 0, MAX_BACON, 0)
+  s.buildings = clampInt(obj.buildings, 0, 1e6, 0)
   s.level = oneOf(obj.level, ['corner', 'hotel', 'office', 'sky', 'megatall', 'custom'], 'corner')
   s.step = Math.max(1, Math.min(3, int(obj.step, 1)))
   s.adaptive = bool(obj.adaptive, true)
@@ -71,10 +77,10 @@ export function migrate(obj) {
   const h = isObj(obj.history) ? obj.history : {}
   s.history = {
     ring: strArr(h.ring).slice(-20),
-    count: Math.max(0, int(h.count, 0)),
-    answered: Math.max(0, int(h.answered, 0)),
-    correct: Math.max(0, int(h.correct, 0)),
-    falls: Math.max(0, int(h.falls, 0)),
+    count: clampInt(h.count, 0, MAX_COUNT, 0),
+    answered: clampInt(h.answered, 0, MAX_COUNT, 0),
+    correct: clampInt(h.correct, 0, MAX_COUNT, 0),
+    falls: clampInt(h.falls, 0, MAX_COUNT, 0),
     byKind: isObj(h.byKind) ? Object.fromEntries(Object.entries(h.byKind).filter(([, v]) => Array.isArray(v) && v.length === 2 && v.every(Number.isInteger)).map(([k, v]) => [k, v.slice()])) : {},
     skills: isObj(h.skills) ? Object.fromEntries(Object.entries(h.skills).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.map((x) => (x ? 1 : 0)).slice(-8)])) : {},
   }
@@ -86,44 +92,61 @@ export function migrate(obj) {
 
 function migrateRide(r) {
   if (!isObj(r)) return null
-  const p = isObj(r.problem) ? r.problem : null
-  const problem = p && ['add', 'sub', 'mul', 'div', 'missAdd', 'missMul', 'up', 'down'].includes(p.kind) && Number.isInteger(p.a) && Number.isInteger(p.b) && Number.isInteger(p.answer) && typeof p.text === 'string' && typeof p.key === 'string'
-    ? { kind: p.kind, a: p.a, b: p.b, ...(Number.isInteger(p.c) ? { c: p.c } : {}), answer: p.answer, text: p.text, key: p.key }
-    : null
-  const floor = Math.max(-1, Math.min(10, int(r.floor, 0)))
-  let phase = oneOf(r.phase, ['floor', 'keypad', 'repair', 'trivia', 'fact', 'roof'], 'floor')
-  if ((phase === 'keypad' || phase === 'repair') && !problem) phase = 'floor'
-  if (phase === 'fact') phase = 'floor' // the card was read; a quit during the question re-asks it fresh
-  if (phase === 'roof' && floor !== 10) phase = 'floor'
-  const cleared = Array.isArray(r.cleared) ? [...new Set(r.cleared.filter((x) => Number.isInteger(x) && x >= 1 && x <= 9))].sort((x, y) => x - y) : []
-  const target = Math.max(1, Math.min(10, int(r.target, floor + 1)))
+  const problem = validProblem(r.problem)
+  const floor = clampInt(r.floor, -1, 10, 0)
+  const phase = oneOf(r.phase, ['floor', 'keypad', 'repair', 'trivia', 'fact', 'roof'], 'floor')
+  const cleared = Array.isArray(r.cleared) ? [...new Set(r.cleared.filter((x) => Number.isSafeInteger(x) && x >= 1 && x <= 9))].sort((x, y) => x - y) : []
+  const target = clampInt(r.target, 1, 10, floor + 1)
   // A save taken mid-timeline: {name, to}; hydrate() plays it to its end before anything renders.
   const f = isObj(r.inFlight) ? r.inFlight : null
   const inFlight = f && ['ride', 'express', 'fall', 'descend'].includes(f.name) && Number.isInteger(f.to) && f.to >= -1 && f.to <= 10 ? { name: f.name, to: f.to } : null
-  return {
+  const tray = clampInt(r.tray, 0, MAX_BACON, 0)
+  const out = {
     seed: int(r.seed, 1) >>> 0,
     floor,
-    target: phase === 'roof' ? 10 : target,
+    target,
     cleared,
-    tray: Math.max(0, int(r.tray, 0)),
-    banked: Math.max(0, int(r.banked, 0)),
+    tray,
+    // banked can never exceed the tray, or the roof card would say the tray gave less than it banked.
+    banked: Math.min(tray, clampInt(r.banked, 0, MAX_BACON, 0)),
     phase,
     problem,
     typed: typeof r.typed === 'string' && /^-?\d{0,4}$/.test(r.typed) ? r.typed : '',
-    tries: Math.max(0, int(r.tries, 0)),
-    streak: Math.max(0, int(r.streak, 0)),
-    stepDowns: Math.max(0, int(r.stepDowns, 0)),
-    comeback: Array.isArray(r.comeback) ? r.comeback.filter((x) => isObj(x) && isObj(x.problem) && Number.isInteger(x.due)) : [],
-    passengersDone: Array.isArray(r.passengersDone) ? r.passengersDone.filter(Number.isInteger) : [],
+    tries: clampInt(r.tries, 0, 99, 0),
+    streak: clampInt(r.streak, 0, 99, 0),
+    stepDowns: clampInt(r.stepDowns, 0, 99, 0),
+    // A comeback problem is drawn verbatim when it is due and handed straight to the renderer, so it
+    // gets the same validator the live problem gets — `isObj` alone let `{}` through to text.split().
+    comeback: (Array.isArray(r.comeback) ? r.comeback : []).map((x) => (isObj(x) ? { problem: validProblem(x.problem), due: clampInt(x.due, 0, MAX_COUNT, -1) } : null)).filter((x) => x && x.problem && x.due >= 0).slice(0, 40),
+    passengersDone: Array.isArray(r.passengersDone) ? [...new Set(r.passengersDone.filter((x) => Number.isSafeInteger(x) && x >= 1 && x <= 9))] : [],
     retrying: bool(r.retrying, false) && (floor === -1 || (inFlight !== null && inFlight.name === 'fall')),
     forfeit: bool(r.forfeit, false),
-    typedWrong: typeof r.typedWrong === 'string' ? r.typedWrong : '',
-    falls: Math.max(0, int(r.falls, 0)),
-    draws: Math.max(0, int(r.draws, 0)),
+    typedWrong: typeof r.typedWrong === 'string' && /^-?\d{0,4}$/.test(r.typedWrong) ? r.typedWrong : '',
+    falls: clampInt(r.falls, 0, 999, 0),
+    draws: clampInt(r.draws, 0, MAX_COUNT, 0),
     ctx: isObj(r.ctx) ? r.ctx : null,
     lastKind: oneOf(r.lastKind, ['elevator', 'math'], null),
-    fallFloor: Math.max(0, int(r.fallFloor, 0)),
+    fallFloor: clampInt(r.fallFloor, 0, 10, 0),
+    roofCard: roofCardOf(r.roofCard),
     inFlight,
+  }
+  // The one place the CROSS-FIELD invariant is settled: every field above is range-checked on its
+  // own, and a ride can still be dead ({floor:4, target:4} presses nothing). A mid-timeline save
+  // keeps its phase — hydrate() plays that timeline to its end and normalises there.
+  return inFlight ? out : normaliseRide(out)
+}
+
+const LEVEL_IDS = ['corner', 'hotel', 'office', 'sky', 'megatall']
+function roofCardOf(c) {
+  if (!isObj(c)) return null
+  return {
+    gained: clampInt(c.gained, 0, MAX_BACON, 0),
+    bonus: clampInt(c.bonus, 0, 99, 0),
+    unlocked: strArr(c.unlocked),
+    plaques: strArr(c.plaques),
+    offer: oneOf(c.offer, LEVEL_IDS, null),
+    offerTaken: oneOf(c.offerTaken, LEVEL_IDS, null),
+    lunchboxBefore: clampInt(c.lunchboxBefore, 0, MAX_BACON, 0),
   }
 }
 

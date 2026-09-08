@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { reduce, initialState, PARTS, hydrate } from '../src/state.js'
+import { reduce, initialState, PARTS, hydrate, ROOF_BONUS } from '../src/state.js'
 import { serialize, parse } from '../src/save.js'
 import { fresh, makeRng, run, startRide, answer, answerTrivia, playBuilding, typeValue } from './_helpers.js'
 
@@ -416,4 +416,81 @@ test('set-level never overwrites a parent\'s explicit secondTry choice (or any o
   const before = JSON.stringify(t.settings)
   t = reduce(t, { type: 'set-level', id: 'hotel' }, rng).state
   assert.equal(JSON.stringify(t.settings), before); assert.equal(t.ride, null); assert.equal(t.lunchbox, 1)
+})
+
+
+// ---------------------------------------------------------------------------------------------
+// Round 1, fixer 2: the ride invariant and the blocked-step heals. Each of these fails without
+// the fix named in its title.
+// ---------------------------------------------------------------------------------------------
+
+test('r1-code-hostile-08: leaving a live ride for the picker records the REAL phase, not lobby', () => {
+  const rng = makeRng(101)
+  let s = startRide(fresh(101), rng)
+  s = run(s, { type: 'press-floor', floor: s.ride.target }, rng).state
+  assert.equal(s.phase, 'keypad')
+  const problem = s.ride.problem
+  s = reduce(s, { type: 'nav', screen: 'picker' }, rng).state
+  assert.equal(s.screen, 'picker')
+  assert.equal(s.ride.phase, 'keypad', 'nav stamped lobby over the real phase; the resumed building was dead')
+  s = reduce(s, { type: 'nav', screen: 'lobby' }, rng).state
+  s = run(s, { type: 'ride-start' }, rng).state
+  assert.equal(s.phase, 'keypad')
+  assert.equal(s.ride.problem.key, problem.key, 'the same sum comes back')
+  const typed = reduce(s, { type: 'digit', d: '3' }, rng)
+  assert.notEqual(typed.state, s, 'the digit keys must work after the resume')
+  assert.equal(typed.state.ride.typed, '3')
+})
+
+test('r1-code-hostile-05: the roof summary is persisted, so a resume shows the real numbers', () => {
+  const rng = makeRng(102)
+  let s = playBuilding(startRide(fresh(102), rng), rng)
+  assert.equal(s.phase, 'roof')
+  const gained = s.roof.gained
+  assert.ok(gained > 0, 'the tray gave something')
+  assert.equal(s.ride.roofCard.gained, gained, 'the summary must live in the ride, which is what gets saved')
+  // The resume path: save.js parks the state in the lobby with the ride intact.
+  const reloaded = { ...s, phase: 'lobby', screen: 'lobby', roof: null, car: undefined }
+  const back = reduce({ ...reloaded, car: s.car }, { type: 'ride-start' }, rng).state
+  assert.equal(back.phase, 'roof')
+  assert.equal(back.roof.gained, gained, 'a reload at the roof used to invent {gained:0, bonus:0}')
+  assert.equal(back.roof.bonus, ROOF_BONUS)
+  // An old save with no card omits the lines rather than printing a number nobody earned.
+  const old = { ...reloaded, car: s.car, ride: { ...s.ride, roofCard: null } }
+  assert.equal(reduce(old, { type: 'ride-start' }, rng).state.roof.gained, null)
+})
+
+test('r1-code-hostile-07 / elevator-feel-06: a blocked car step never swallows the tap', () => {
+  const rng = makeRng(103)
+  // (a) a right answer with the car already at the top banks the building instead of doing nothing
+  let s = startRide(fresh(103), rng)
+  s = run(s, { type: 'press-floor', floor: s.ride.target }, rng).state
+  const p = s.ride.problem
+  let top = { ...s, car: { ...s.car, floor: 10 }, ride: { ...s.ride, floor: 10 } }
+  top = typeValue(top, p.answer, rng)
+  const moved = reduce(top, { type: 'go' }, rng)
+  assert.notEqual(moved.state, top, 'GO on the correct answer was a no-op at the top')
+  assert.equal(moved.state.phase, 'roof')
+  // (b) a WRONG answer at a pit keypad returns the Repair card; it cannot fall out of the pit
+  let pit = { ...s, car: { ...s.car, floor: -1 }, ride: { ...s.ride, floor: -1, retrying: false, tries: 1 }, settings: { ...s.settings, secondTry: false } }
+  pit = typeValue(pit, p.answer + 1, rng)
+  const wrong = reduce(pit, { type: 'go' }, rng)
+  assert.notEqual(wrong.state, pit, 'GO on a wrong answer in the pit was a silent no-op')
+  assert.equal(wrong.state.phase, 'repair')
+  assert.equal(wrong.state.ride.retrying, true)
+  // (c) a floor button that the elevator refuses heals instead of freezing
+  const stuck = { ...s, phase: 'floor', car: { ...s.car, floor: 4 }, ride: { ...s.ride, phase: 'floor', floor: 4, target: 4, problem: null } }
+  const healed = reduce(stuck, { type: 'press-floor', floor: 4 }, rng)
+  assert.notEqual(healed.state, stuck, 'the one lit button was inert')
+  assert.equal(healed.state.ride.target, 5)
+})
+
+test('r1-code-hostile-01: a share code carrying a dead ride is normalised on import', () => {
+  const rng = makeRng(104)
+  const s = fresh(104)
+  const dead = { ...s, ride: { seed: 7, floor: 4, target: 4, cleared: [], tray: 3, banked: 0, phase: 'fact', problem: null, typed: '', tries: 0, streak: 0, stepDowns: 0, comeback: [], passengersDone: [], retrying: false, forfeit: false, typedWrong: '', falls: 0, draws: 0, ctx: null, lastKind: null, fallFloor: 0, roofCard: null, inFlight: null } }
+  const back = reduce(s, { type: 'import', state: dead }, rng).state
+  assert.equal(back.ride.phase, 'floor')
+  assert.equal(back.ride.target, 5, 'import used to spread the incoming ride with no validation at all')
+  assert.deepEqual(back.ride.passengersDone, [4])
 })
