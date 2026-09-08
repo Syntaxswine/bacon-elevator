@@ -26,11 +26,24 @@ const argv = process.argv.slice(2)
 const flag = (n) => argv.includes(n)
 const opt = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d }
 
+// THE HEIGHTS ARE THE BROWSER'S, NOT THE DEVICE'S.
+//
+// A phone's screen is 375x667; the page never gets 667. Safari and Chrome keep an address
+// bar and a toolbar, and what is left is the visual viewport the layout must fit. Round 1 of
+// the hostile review found the panel's bottom row (0 | GO, the door keys) pushed off the
+// bottom of the screen on every real phone — and this instrument could not see it, because
+// these profiles used the DEVICE heights and so handed the page ~100 px it never has.
+//
+// `height` is therefore the browser-visible height with the bars showing (the worst case a
+// child sees on first load, before scrolling collapses the bar); `device` records the screen
+// it came from. Sources: Apple's Safari viewport sizes and Chrome's mobile toolbar height.
+// Run with --tall to use the device heights instead (fullscreen / Home Screen install).
 const PHONES = {
-  se: { name: 'iPhone SE (375x667 @2)', viewport: { width: 375, height: 667, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' },
-  i12: { name: 'iPhone 12 (390x844 @3)', viewport: { width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' },
-  pixel: { name: 'Pixel 5 (393x851 @2.75)', viewport: { width: 393, height: 851, deviceScaleFactor: 2.75, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36' },
-  small: { name: 'Small Android (360x640 @2)', viewport: { width: 360, height: 640, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (Linux; Android 11; SM-A125F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36' },
+  se: { name: 'iPhone SE 2/3, Safari bars (375x553; screen 375x667)', device: 667, viewport: { width: 375, height: 553, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' },
+  i12: { name: 'iPhone 12/13/14, Safari bars (390x664; screen 390x844)', device: 844, viewport: { width: 390, height: 664, deviceScaleFactor: 3, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' },
+  pixel: { name: 'Pixel 5, Chrome toolbar (393x727; screen 393x851)', device: 851, viewport: { width: 393, height: 727, deviceScaleFactor: 2.75, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (Linux; Android 13; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36' },
+  small: { name: 'Small Android, Chrome toolbar (360x560; screen 360x640)', device: 640, viewport: { width: 360, height: 560, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (Linux; Android 11; SM-A125F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36' },
+  se1: { name: 'iPhone SE 1 / iPod, Safari bars (320x454; screen 320x568)', device: 568, viewport: { width: 320, height: 454, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1' },
 }
 
 const CHROME_CANDIDATES = [
@@ -95,7 +108,7 @@ async function main() {
         page.on('requestfailed', (r) => errors.push('requestfailed: ' + r.url() + ' ' + (r.failure() && r.failure().errorText)))
         page.on('response', (r) => { if (r.status() >= 400) errors.push(`http ${r.status()}: ${r.url()}`) })
         await page.setUserAgent(phone.ua)
-        await page.setViewport(phone.viewport)
+        await page.setViewport(flag('--tall') ? { ...phone.viewport, height: phone.device } : phone.viewport)
         const t0 = Date.now()
         const ctx = {
           page, url, phone, key, ROOT, errors,
