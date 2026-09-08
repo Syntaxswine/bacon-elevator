@@ -3,8 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F4F1EA">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Bacon Elevator">
+<meta name="description" content="Do the sum, ride the elevator, collect the bacon.">
 <title>Bacon Elevator</title>
-<style>body{margin:0;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100dvh;background:#1b1f2a;color:#f4e9d8}h1{font-size:1.6rem}</style>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./favicon.ico" sizes="32x32">
+<link rel="icon" type="image/svg+xml" href="./assets/icon.svg">
+<link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+<link rel="stylesheet" href="./css/app.css">
 </head>
-<body><h1>Bacon Elevator — under construction</h1></body>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <!-- The one place the bacon is drawn. Flat, thick-outlined, no face. -->
+    <symbol id="bacon" viewBox="0 0 64 32">
+      <path d="M4 20 C 12 6, 20 30, 30 16 S 48 4, 60 12 L 60 20 C 48 12, 40 30, 30 24 S 12 14, 4 28 Z" fill="#C9694A" stroke="#6B4A3A" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M8 22 C 14 12, 20 26, 30 18 S 46 8, 56 15" fill="none" stroke="#F1C9A6" stroke-width="3.5" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</svg>
+<div id="app" data-screen="lobby" data-phase="lobby">
+  <noscript><p class="noscript">Bacon Elevator needs JavaScript to run.</p></noscript>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
 </html>
