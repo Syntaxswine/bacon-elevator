@@ -24,6 +24,9 @@ export const PLAQUES = Object.freeze([200, 400, 800, 1500])
 export const ROOF_BONUS = 3
 export const PHASES = ['lobby', 'floor', 'keypad', 'moving', 'falling', 'pit', 'repair', 'trivia', 'fact', 'roof', 'descending']
 export const SCREENS = ['lobby', 'picker', 'rules', 'ride', 'roof', 'factbook', 'workshop', 'grownups']
+// Timeline name → the phase the game is parked in while it plays. `ride.inFlight = {name, to}` is
+// saved the moment a timeline starts, so a save taken mid-ride can be settled by hydrate().
+export const IN_FLIGHT = Object.freeze({ ride: 'moving', express: 'moving', fall: 'falling', descend: 'descending' })
 
 export function initialState(salt) {
   return {
@@ -81,8 +84,23 @@ function newRide(state, seed) {
   return {
     seed: seed >>> 0, floor: 0, target: 1, cleared: [], tray: 0, banked: 0, phase: 'floor', problem: null, typed: '',
     tries: 0, streak: 0, stepDowns: 0, comeback: [], passengersDone: [], retrying: false, forfeit: false, typedWrong: '',
-    falls: 0, draws: 0, ctx: initialCtx(), lastKind: null, fallFloor: 0,
+    falls: 0, draws: 0, ctx: initialCtx(), lastKind: null, fallFloor: 0, inFlight: null,
   }
+}
+
+// Settle a ride that was saved mid-timeline (a tab killed during a ride, a fall or the descent):
+// the timeline is played to its end here, before anything renders, so the game resumes at the
+// stable state it was heading for — the Repair card after a fall, never a keypad that could fall
+// again for the same sum. Pure; the rng is the ride's own (main.js passes rngFor(state)).
+export function hydrate(state, rng) {
+  const r = state.ride
+  if (!r || !r.inFlight) return state
+  const { name, to } = r.inFlight
+  const phase = IN_FLIGHT[name]
+  if (!phase || (name === 'fall' && !r.problem)) return { ...state, ride: { ...r, inFlight: null, retrying: r.retrying && r.floor === -1 } }
+  const parked = { ...state, phase, screen: 'ride', car: { ...initialCar(), floor: r.floor }, pending: { name, car: { ...initialCar(), floor: to } }, trivia: null, roof: null }
+  const settled = reduce(parked, { type: 'timeline-done' }, rng).state
+  return { ...settled, ride: settled.ride ? { ...settled.ride, phase: settled.phase, inFlight: null } : null, phase: 'lobby', screen: 'lobby', trivia: null, roof: null, pending: null, hint: false, message: '' }
 }
 
 function seedFor(state) {
@@ -114,9 +132,11 @@ function askPassenger(state, rng) {
   return { fact, choices, answer, chosen: null, result: null }
 }
 
-// The car the reducer believes in while a timeline plays: the pre-ride car. `pending` holds the end state.
+// The car the reducer believes in while a timeline plays: the pre-ride car. `pending` holds the end
+// state; `ride.inFlight` persists enough of it for hydrate() to settle a save taken mid-timeline.
 function startTimeline(state, name, r, phase) {
-  return { state: { ...state, phase, pending: { car: r.car, name }, hint: false }, effect: T(name, r) }
+  const ride = state.ride ? { ...state.ride, inFlight: { name, to: r.car.floor } } : state.ride
+  return { state: { ...state, ride, phase, pending: { car: r.car, name }, hint: false }, effect: T(name, r) }
 }
 
 function recordAnswer(state, problem, correct, fell) {
@@ -144,7 +164,7 @@ function arrive(state, rng) {
   const collected = floor >= 1 && floor <= 9 && !r.cleared.includes(floor) && !r.forfeit
   const cleared = collected ? r.cleared.concat(floor).sort((x, y) => x - y) : r.cleared
   const tray = r.tray + (collected ? 1 : 0)
-  let s = { ...state, car: { ...initialCar(), floor }, ride: { ...r, floor, cleared, tray, retrying: false, forfeit: false, typed: '', typedWrong: '', problem: null, fallFloor: 0 }, hint: false, message: '' }
+  let s = { ...state, car: { ...initialCar(), floor }, ride: { ...r, floor, cleared, tray, retrying: false, forfeit: false, typed: '', typedWrong: '', problem: null, fallFloor: 0, inFlight: null }, hint: false, message: '' }
   const effects = []
   if (floor === FLOORS.ROOF) {
     const gained = s.ride.tray - s.ride.banked
@@ -317,7 +337,7 @@ export function reduce(state, action, rng) {
         const res = sequence(closing, [{ type: 'openDoors' }, { type: 'closeDoors' }, { type: 'move' }])
         if (res.blocked) return same(state)
         const st = startTimeline(state, 'ride', res, 'moving')
-        return { state: st.state, effects: [st.effect, SOUND('click')] }
+        return { state: st.state, effects: [st.effect, SOUND('click'), SAVE] }
       }
       return same(state)
     }
@@ -338,7 +358,7 @@ export function reduce(state, action, rng) {
           if (res.blocked) return same(state)
           const shifted = { ...res, timeline: res.timeline.map((e) => ({ ...e, t: e.t + 600 })), duration: res.duration + 600 }
           const st = startTimeline({ ...state, message: '', lastResult: 'correct' }, 'express', shifted, 'moving')
-          return { state: st.state, effects: [st.effect, SOUND('click')] }
+          return { state: st.state, effects: [st.effect, SOUND('click'), SAVE] }
         }
         const s = stable({ ...state, ride: { ...r, tries: r.tries + 1, forfeit: true, typedWrong: r.typed, typed: '' }, message: '', lastResult: 'wrong' }, 'repair')
         return { state: s, effects: [SAVE] }
@@ -350,7 +370,7 @@ export function reduce(state, action, rng) {
         if (res.blocked) return same(state)
         const shifted = { ...res, timeline: res.timeline.map((e) => ({ ...e, t: e.t + 600 })), duration: res.duration + 600 }
         const st = startTimeline({ ...s, message: '', lastResult: 'correct' }, 'ride', shifted, 'moving')
-        return { state: st.state, effects: [st.effect, SOUND('click')] }
+        return { state: st.state, effects: [st.effect, SOUND('click'), SAVE] }
       }
 
       if (state.settings.secondTry && r.tries === 0) {
@@ -364,7 +384,7 @@ export function reduce(state, action, rng) {
       const shifted = { ...res, timeline: res.timeline.map((e) => ({ ...e, t: e.t + 1200 })), duration: res.duration + 1200 }
       s = { ...s, ride: { ...s.ride, typedWrong: r.typed, typed: '', retrying: true, falls: s.ride.falls + 1, fallFloor: r.floor }, message: '', lastResult: 'fall' }
       const st = startTimeline(s, 'fall', shifted, 'falling')
-      return { state: st.state, effects: [st.effect] }
+      return { state: st.state, effects: [st.effect, SAVE] }
     }
 
     case 'timeline-done': {
@@ -374,7 +394,7 @@ export function reduce(state, action, rng) {
         return arrive({ ...state, car: p.car, pending: null }, rng)
       }
       if (p.name === 'fall') {
-        const s = stable({ ...state, car: p.car, ride: { ...r, floor: -1 } }, 'repair')
+        const s = stable({ ...state, car: p.car, ride: { ...r, floor: -1, inFlight: null } }, 'repair')
         return { state: s, effects: [SAVE] }
       }
       if (p.name === 'descend') {
@@ -421,7 +441,7 @@ export function reduce(state, action, rng) {
         const res = sequence(state.car, [{ type: 'closeDoors' }, { type: 'descend', to: 0 }])
         if (res.blocked) return same(state)
         const st = startTimeline({ ...state, screen: 'ride', roof: null }, 'descend', res, 'descending')
-        return { state: st.state, effects: [SCREEN('ride'), st.effect] }
+        return { state: st.state, effects: [SCREEN('ride'), st.effect, SAVE] }
       }
       if (!STABLE.has(phase)) return same(state)
       let s = state

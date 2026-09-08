@@ -169,9 +169,14 @@ export function createShaft(container, opts = {}) {
   carInner.appendChild(el('rect', { x: CAR_X, y: -CAR_H, width: CAR_W, height: CAR_H, rx: 4, fill: '#E9E4D8', stroke: '#6B6B6B', 'stroke-width': 3 }))
   carInner.appendChild(el('rect', { x: OPEN_X, y: -CAR_H + OPEN_Y, width: OPEN_W, height: OPEN_H, fill: '#F8F5EE', stroke: '#6B6B6B', 'stroke-width': 2 }))
   const rider = el('g', { class: 'rider', visibility: 'hidden' })
-  rider.appendChild(el('circle', { cx: 180, cy: -CAR_H + OPEN_Y + 14, r: 8, fill: '#8A8578' }))
-  rider.appendChild(el('path', { d: `M168 ${-CAR_H + OPEN_Y + OPEN_H} v-22 a12 12 0 0 1 24 0 v22 z`, fill: '#8A8578' }))
+  rider.appendChild(el('circle', { cx: 192, cy: -CAR_H + OPEN_Y + 14, r: 8, fill: '#8A8578' }))
+  rider.appendChild(el('path', { d: `M180 ${-CAR_H + OPEN_Y + OPEN_H} v-22 a12 12 0 0 1 24 0 v22 z`, fill: '#8A8578' }))
   carInner.appendChild(rider)
+  // The collected strip rides inside the car (behind the doors) until the next ride starts — through
+  // a fall too, so "no bacon is ever lost" is shown, not just said.
+  const carStrip = el('use', { class: 'strip', href: '#bacon', x: 143, y: -CAR_H + OPEN_Y + 27, width: 34, height: 17, visibility: 'hidden' })
+  carStrip.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#bacon')
+  carInner.appendChild(carStrip)
   const clip = el('clipPath', { id: 'door-clip' }, [el('rect', { x: OPEN_X, y: -CAR_H + OPEN_Y, width: OPEN_W, height: OPEN_H })])
   carInner.appendChild(clip)
   const doors = el('g', { id: 'doors', 'data-state': 'open', 'clip-path': 'url(#door-clip)' })
@@ -208,6 +213,9 @@ export function createShaft(container, opts = {}) {
   let lit = null // lantern floor
   let lastIndicator = ''
   let riderIn = false
+  let strip = false          // the last collected strip is in the car
+  let stripPending = false   // the bacon step fired; the strip lands when its slide ends
+  function setStrip(on) { strip = !!on; carStrip.setAttribute('visibility', strip ? 'visible' : 'hidden') }
 
   function resize() {
     const r = container.getBoundingClientRect()
@@ -350,7 +358,10 @@ export function createShaft(container, opts = {}) {
         flight.setAttribute('visibility', 'visible')
         const x = 40 + (150 - 40) * ease(p), yy = s - 22 - 20 * Math.sin(p * Math.PI)
         flight.setAttribute('transform', `translate(${x} ${yy})`)
-      } else flight.setAttribute('visibility', 'hidden')
+      } else {
+        flight.setAttribute('visibility', 'hidden')
+        if (stripPending) { stripPending = false; setStrip(true) }
+      }
     }
     scrollTo(y)
   }
@@ -372,6 +383,7 @@ export function createShaft(container, opts = {}) {
       riderIn = state.phase === 'trivia' || state.phase === 'fact'
       rider.setAttribute('visibility', riderIn ? 'visible' : 'hidden')
       if (riderIn && r) { const L = landings.get(r.floor); if (L && L.waiter) L.waiter.setAttribute('visibility', 'hidden') }
+      if (!r || !cleared.length) { stripPending = false; if (strip) setStrip(false) } // a fresh building: nothing collected yet
       if (!anim) {
         idle = { floor: state.car.floor, doorsOpen: state.car.doors === 'open' || state.car.doors === 'opening' ? 1 : 0, arrow: 'none', floorLabel: label(state.car.floor) }
         car.setAttribute('data-motion', 'idle')
@@ -389,13 +401,15 @@ export function createShaft(container, opts = {}) {
       const impact = steps.find((s) => s.ev === 'impact')
       const bacon = steps.find((s) => s.ev === 'bacon')
       const to = arrive ? arrive.floor : name === 'fall' ? -1 : from
+      // After a wrong retry the strip stays on its plate (ride.forfeit): no slide, no strip in the car.
+      const forfeit = !!(state.ride && state.ride.forfeit)
       anim = {
-        name, steps, duration, from, to,
+        name, steps, duration, from, to, forfeit,
         msPerFloor: name === 'ride' ? DURATIONS.floor : DURATIONS.express,
         moveStart: move ? move.t : null,
         fallStart: fallStart ? fallStart.t : Infinity,
         impactAt: impact ? impact.t : Infinity,
-        baconAt: bacon ? bacon.t : null,
+        baconAt: bacon && !forfeit ? bacon.t : null,
         door: null,
         sillPassed: null,
         lastElapsed: 0,
@@ -418,20 +432,21 @@ export function createShaft(container, opts = {}) {
         case 'doors-closed': doors.setAttribute('data-state', 'closed'); setLantern(null); break
         case 'doors-opening': { const n = nextOf('doors-open'); a.door = { from: a.door ? a.door.to : 0, to: 1, t0: step.t, t1: n ? n.t : step.t + DURATIONS.doors }; doors.setAttribute('data-state', 'opening'); break }
         case 'doors-open': doors.setAttribute('data-state', 'open'); break
-        case 'move-start': break
+        case 'move-start': stripPending = false; setStrip(false); break // the next ride starts: the strip is on the tray now
         case 'lantern': setLantern(step.floor, a.name === 'descend' ? 'down' : 'up'); break
         case 'sill': a.sillPassed = step.floor; setIndicator(label(step.floor), a.name === 'fall' ? 'none' : a.name === 'descend' ? 'down' : step.floor === a.to ? 'none' : 'up'); break
         case 'arrive': car.setAttribute('data-motion', 'idle'); setIndicator(label(step.floor), 'none'); break
         case 'fall-start': break
         case 'impact': car.setAttribute('data-motion', 'idle'); setIndicator('P', 'none'); break
         case 'brake': break
-        case 'bacon': { const L = landings.get(step.floor); if (L && L.plate) L.plate.setAttribute('visibility', 'hidden'); break }
+        case 'bacon': { if (a.forfeit) break; const L = landings.get(step.floor); if (L && L.plate) L.plate.setAttribute('visibility', 'hidden'); stripPending = true; break }
         default: break
       }
     },
     frame(elapsed) { if (anim) draw(elapsed) },
-    end() { anim = null; flight.setAttribute('visibility', 'hidden') },
+    end() { anim = null; flight.setAttribute('visibility', 'hidden'); if (stripPending) { stripPending = false; setStrip(true) } },
     isAnimating() { return !!anim },
+    hasStrip() { return strip },
     doorsClosingNow() { return anim && anim.door && anim.door.to === 0 && anim.lastElapsed < anim.door.t1 && (anim.moveStart === null || anim.lastElapsed < anim.moveStart) },
   }
   if (opts.reduced) reduced = true

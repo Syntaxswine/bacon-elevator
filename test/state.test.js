@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { reduce, initialState, PARTS } from '../src/state.js'
+import { reduce, initialState, PARTS, hydrate } from '../src/state.js'
 import { serialize, parse } from '../src/save.js'
 import { fresh, makeRng, run, startRide, answer, answerTrivia, playBuilding, typeValue } from './_helpers.js'
 
@@ -282,4 +282,138 @@ test('passengers: never → no trivia; often → floors 3, 6, 9 and 18 bacon per
   t = reduce(t, { type: 'set-setting', key: 'passengers', value: 'often' }, rng).state
   t = playBuilding(startRide(t, rng), rng)
   assert.equal(t.roof.gained, 15); assert.equal(t.lunchbox, 18)
+})
+
+test('hydrate: a save taken mid-ride settles at the next floor before anything renders', () => {
+  const rng = makeRng(20)
+  let s = startRide(fresh(20), rng)
+  s = reduce(s, { type: 'press-floor', floor: 1 }, rng).state
+  s = typeValue(s, s.ride.problem.answer, rng)
+  const r = reduce(s, { type: 'go' }, rng)
+  assert.equal(r.state.phase, 'moving'); assert.deepEqual(r.state.ride.inFlight, { name: 'ride', to: 1 })
+  assert.ok(r.effects.some((e) => e.type === 'save'), 'the reducer saves the moment a timeline starts')
+  let back = parse(serialize(r.state))
+  assert.deepEqual(back.ride.inFlight, { name: 'ride', to: 1 }); assert.equal(back.ride.phase, 'keypad')
+  back = reduce(back, { type: 'load-facts', facts: s.pool }, rng).state
+  const h = hydrate(back, rng)
+  assert.equal(h.phase, 'lobby'); assert.equal(h.screen, 'lobby'); assert.equal(h.ride.inFlight, null); assert.equal(h.pending, null)
+  assert.equal(h.ride.floor, 1); assert.equal(h.ride.tray, 1); assert.deepEqual(h.ride.cleared, [1]); assert.equal(h.ride.phase, 'floor'); assert.equal(h.ride.problem, null)
+  assert.equal(h.history.correct, 1, 'the answer given before the tab died still counts')
+  const t = run(h, { type: 'ride-start' }, rng).state
+  assert.equal(t.phase, 'floor'); assert.equal(t.ride.target, 2); assert.equal(t.car.floor, 1); assert.equal(t.car.doors, 'open')
+  // a ride into a passenger floor settles into the passenger (the pool is loaded before hydrate)
+  let u = startRide(fresh(24), rng)
+  for (let i = 0; i < 3; i++) u = answer(u, rng, true).state
+  u = reduce(u, { type: 'press-floor', floor: 4 }, rng).state
+  u = typeValue(u, u.ride.problem.answer, rng)
+  u = reduce(u, { type: 'go' }, rng).state
+  const hu = hydrate(reduce(parse(serialize(u)), { type: 'load-facts', facts: s.pool }, rng).state, rng)
+  assert.equal(hu.ride.phase, 'trivia'); assert.equal(hu.ride.floor, 4); assert.equal(hu.ride.tray, 4)
+  const tu = run(hu, { type: 'ride-start' }, rng).state
+  assert.equal(tu.phase, 'trivia'); assert.ok(tu.trivia && tu.trivia.choices.length === 3)
+  // no in-flight save: hydrate is the identity
+  const plain = parse(serialize(startRide(fresh(23), rng)))
+  assert.equal(hydrate(plain, rng), plain)
+})
+
+test('hydrate: a save taken mid-fall resumes at the Repair card, never at a keypad that could fall again', () => {
+  const rng = makeRng(21)
+  let f = fresh(21)
+  f = reduce(f, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
+  f = startRide(f, rng); f = answer(f, rng, true).state
+  f = reduce(f, { type: 'press-floor', floor: 2 }, rng).state
+  const problem = f.ride.problem
+  f = typeValue(f, problem.answer + 1, rng)
+  const r = reduce(f, { type: 'go' }, rng)
+  assert.equal(r.state.phase, 'falling'); assert.deepEqual(r.state.ride.inFlight, { name: 'fall', to: -1 })
+  assert.ok(r.effects.some((e) => e.type === 'save'))
+  const back = parse(serialize(r.state))
+  assert.equal(back.ride.retrying, true, 'retrying survives the migration while the fall is in flight')
+  assert.equal(back.ride.floor, 1, 'the car had not landed when the save was taken')
+  const h = hydrate(reduce(back, { type: 'load-facts', facts: f.pool }, rng).state, rng)
+  assert.equal(h.ride.phase, 'repair'); assert.equal(h.ride.floor, -1); assert.equal(h.ride.retrying, true); assert.deepEqual(h.ride.problem, problem)
+  assert.equal(h.ride.typedWrong, String(problem.answer + 1)); assert.equal(h.ride.tray, 1); assert.deepEqual(h.ride.cleared, [1]); assert.equal(h.history.falls, 1)
+  let t = run(h, { type: 'ride-start' }, rng).state
+  assert.equal(t.phase, 'repair'); assert.equal(t.car.floor, -1); assert.equal(t.screen, 'ride')
+  // the retry rides express (never a second fall for the same sum) and the miss is not counted twice
+  t = run(t, { type: 'card-continue' }, rng).state
+  assert.equal(t.phase, 'keypad'); assert.equal(t.ride.retrying, true); assert.equal(t.ride.problem.key, problem.key)
+  const hist = JSON.stringify(t.history)
+  const rr = answer(t, rng, true)
+  assert.equal(rr.raw.effects.find((e) => e.type === 'timeline').name, 'express')
+  assert.deepEqual(rr.raw.state.ride.inFlight, { name: 'express', to: 2 })
+  // mid-express: settles at the target with the strip collected
+  const he = hydrate(reduce(parse(serialize(rr.raw.state)), { type: 'load-facts', facts: f.pool }, rng).state, rng)
+  assert.equal(he.ride.floor, 2); assert.deepEqual(he.ride.cleared, [1, 2]); assert.equal(he.ride.tray, 2); assert.equal(he.ride.phase, 'floor'); assert.equal(he.ride.retrying, false)
+  assert.equal(JSON.stringify(he.history), hist, 'the retry recorded nothing')
+  // a corrupt in-flight fall without its problem cannot strand the game
+  const odd = parse(serialize({ ...r.state, ride: { ...r.state.ride, problem: null } }))
+  const ho = hydrate(odd, rng)
+  assert.equal(ho.ride.inFlight, null); assert.equal(ho.ride.phase, 'floor')
+})
+
+test('hydrate: a save taken mid-descent lands in the lobby with the lunchbox already banked', () => {
+  const rng = makeRng(22)
+  const d = playBuilding(startRide(fresh(22), rng), rng)
+  const r = reduce(d, { type: 'to-lobby' }, rng)
+  assert.equal(r.state.phase, 'descending'); assert.deepEqual(r.state.ride.inFlight, { name: 'descend', to: 0 })
+  assert.ok(r.effects.some((e) => e.type === 'save'))
+  const back = parse(serialize(r.state))
+  assert.equal(back.ride.phase, 'roof')
+  const h = hydrate(back, rng)
+  assert.equal(h.ride, null); assert.equal(h.phase, 'lobby'); assert.equal(h.screen, 'lobby'); assert.equal(h.lunchbox, 16); assert.equal(h.buildings, 1)
+  const t = run(h, { type: 'ride-start' }, rng).state
+  assert.equal(t.ride.floor, 0); assert.equal(t.ride.tray, 0)
+})
+
+test('the retry answer after a fall is never recorded a second time: history, ring, skills, streak and comeback stay put', () => {
+  const rng = makeRng(30)
+  let s = fresh(30)
+  s = reduce(s, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
+  s = startRide(s, rng)
+  for (let i = 0; i < 2; i++) s = answer(s, rng, true).state
+  s = answer(s, rng, false).state // the fall
+  assert.equal(s.phase, 'repair'); assert.equal(s.history.answered, 3); assert.equal(s.history.falls, 1)
+  const snap = { history: JSON.stringify(s.history), streak: s.ride.streak, comeback: JSON.stringify(s.ride.comeback), ctx: JSON.stringify(s.ride.ctx), step: s.step, stepDowns: s.ride.stepDowns }
+  s = run(s, { type: 'card-continue' }, rng).state
+  const r = answer(s, rng, true)
+  assert.equal(r.raw.effects.find((e) => e.type === 'timeline').name, 'express')
+  s = r.state
+  assert.equal(JSON.stringify(s.history), snap.history, 'history untouched by the retry')
+  assert.equal(s.ride.streak, snap.streak); assert.equal(JSON.stringify(s.ride.comeback), snap.comeback); assert.equal(JSON.stringify(s.ride.ctx), snap.ctx)
+  assert.equal(s.step, snap.step); assert.equal(s.ride.stepDowns, snap.stepDowns)
+  assert.equal(s.ride.floor, 3); assert.equal(s.ride.tray, 3)
+  // wrong again after a fall is not a second miss either, and the eventual right answer is not a hit
+  let t = fresh(31)
+  t = reduce(t, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
+  t = startRide(t, rng); t = answer(t, rng, false).state
+  const snap2 = JSON.stringify(t.history)
+  t = run(t, { type: 'card-continue' }, rng).state
+  t = answer(t, rng, false).state
+  assert.equal(t.phase, 'repair'); assert.equal(JSON.stringify(t.history), snap2); assert.equal(t.history.falls, 1); assert.equal(t.ride.forfeit, true)
+  t = run(t, { type: 'card-continue' }, rng).state
+  t = answer(t, rng, true).state
+  assert.equal(JSON.stringify(t.history), snap2); assert.equal(t.history.answered, 1)
+})
+
+test('set-level never overwrites a parent\'s explicit secondTry choice (or any other setting)', () => {
+  const rng = makeRng(40)
+  let s = fresh(40)
+  s = reduce(s, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
+  for (const id of ['hotel', 'office', 'sky', 'megatall', 'custom', 'corner']) {
+    const before = JSON.stringify(s.settings)
+    s = reduce(s, { type: 'set-level', id }, rng).state
+    assert.equal(s.level, id); assert.equal(s.settings.secondTry, false, `set-level ${id} flipped secondTry`)
+    assert.equal(JSON.stringify(s.settings), before, `set-level ${id} changed a setting`)
+  }
+  s = reduce(s, { type: 'set-setting', key: 'secondTry', value: true }, rng).state
+  s = reduce(s, { type: 'set-level', id: 'megatall' }, rng).state
+  assert.equal(s.settings.secondTry, true)
+  // a parked building's level change keeps it too, and only ends the building
+  let t = startRide(fresh(41), rng); t = answer(t, rng, true).state
+  t = reduce(t, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
+  t = reduce(t, { type: 'to-lobby' }, rng).state
+  const before = JSON.stringify(t.settings)
+  t = reduce(t, { type: 'set-level', id: 'hotel' }, rng).state
+  assert.equal(JSON.stringify(t.settings), before); assert.equal(t.ride, null); assert.equal(t.lunchbox, 1)
 })

@@ -7,7 +7,8 @@
   "scripts": {
     "test": "node --test \"test/**/*.test.js\"",
     "serve": "node tools/serve.js",
-    "drive": "node tools/phone-drive.mjs"
+    "drive": "node tools/phone-drive.mjs",
+    "headless": "node tools/headless-play.mjs"
   },
   "devDependencies": {
     "puppeteer-core": "25.10.0"

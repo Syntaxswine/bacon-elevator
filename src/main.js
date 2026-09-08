@@ -1,11 +1,12 @@
 // Bacon Elevator — the DOM side. Dispatches from taps, plays effects and timelines off rAF.
 import { VERSION } from './version.js'
 import { mulberry32 } from './rng.js'
-import { initialState, reduce, currentLevel } from './state.js'
+import { initialState, reduce, hydrate, currentLevel } from './state.js'
 import { serialize, parse, SAVE_KEY, decodeCode } from './save.js'
 import * as storage from './storage.js'
 import { loadFacts } from './trivia.js'
 import { DURATIONS, scale, speedAt, label } from './elevator.js'
+import { createPlayer } from './timeline.js'
 import { allowsNegatives } from './math.js'
 import { explain } from './explain.js'
 import { createShaft } from './render/shaft.js'
@@ -72,7 +73,7 @@ app.innerHTML = `
     </div>
     <div class="shaft" id="shaft"><div class="hint" id="hint" hidden></div></div>
     <div class="right">
-      <div class="display"><div id="message" aria-live="polite"></div><div id="question" aria-live="polite" class="text"></div></div>
+      <div class="display"><div id="question" aria-live="polite" class="text"></div><div id="message" aria-live="polite"></div></div>
       <div class="panel" id="panel" role="group" aria-label="Elevator panel"></div>
     </div>
     <div id="sheet"></div>
@@ -89,9 +90,24 @@ const panel = createPanel(document.getElementById('panel'))
 const display = createDisplay(document.getElementById('question'), document.getElementById('message'))
 const hintBox = document.getElementById('hint')
 const sheetBox = document.getElementById('sheet')
-const ui = { resetArmedAt: 0, gearAt: 0, codeMsg: '', resetMsg: '', transient: null }
+const carEl = document.getElementById('car')
+const ui = { resetArmedAt: 0, gearAt: 0, codeMsg: '', resetMsg: '', transient: null, factVisible: false, factTimer: 0, prevPhase: null, lastMotion: '' }
+
+// ---- drive log (only under ?drive=1) ----------------------------------------------------
+// events: timeline step names and the car's motion transitions, in the order they happened;
+// actions: every dispatched action type. Both are read by tools/drive-scenarios.mjs.
+const events = []
+const actions = []
+function noteMotion() {
+  const m = carEl.getAttribute('data-motion')
+  if (m === ui.lastMotion) return
+  ui.lastMotion = m
+  if (DRIVE) events.push('motion:' + m)
+}
 
 // ---- timeline player ---------------------------------------------------------------------
+// The pure player (src/timeline.js) owns the clock arithmetic; this side feeds it performance.now()
+// off requestAnimationFrame and keeps a setTimeout fallback so a hidden tab still finishes the ride.
 let play = null
 function cancelTimeline() {
   if (!play) return
@@ -105,32 +121,44 @@ function startTimeline(effect) {
   const steps = effect.steps.slice().sort((a, b) => a.t - b.t)
   const move = steps.find((s) => s.ev === 'move-start')
   const arrive = steps.find((s) => s.ev === 'arrive')
+  const now = performance.now()
   play = {
-    name: effect.name, steps, duration: effect.duration, ts, t0: performance.now(), i: 0, done: false, raf: 0, timer: 0,
+    name: effect.name, player: createPlayer(steps, ts, now, effect.duration), raf: 0, timer: 0,
     from: state.car.floor, to: arrive ? arrive.floor : state.car.floor, moveStart: move ? move.t : null,
     msPerFloor: effect.name === 'ride' ? DURATIONS.floor : DURATIONS.express,
   }
   shaft.setReduced(reducedMotion())
   shaft.begin(effect.name, steps, effect.duration, state)
+  noteMotion()
   ui.transient = null
   tick()
-  play.timer = setTimeout(finishTimeline, effect.duration * ts + 80)
+  if (play) play.timer = setTimeout(flushTimeline, Math.max(0, play.player.endMs - performance.now()) + 80)
 }
 function tick() {
-  if (!play || play.done) return
-  const el = (performance.now() - play.t0) / play.ts
-  while (play.i < play.steps.length && play.steps[play.i].t <= el) fireStep(play.steps[play.i++])
+  if (!play) return
+  const now = performance.now()
+  const { fired, done } = play.player.advance(now)
+  for (const s of fired) fireStep(s)
+  if (!play) return // a step's dispatch may have cancelled the timeline
+  const el = play.player.elapsed(now)
   shaft.frame(el)
   if (play.moveStart !== null && el >= play.moveStart && play.from !== play.to) audio.motor(speedAt(play.from, play.to, el - play.moveStart, play.msPerFloor))
-  if (el >= play.duration) finishTimeline()
+  if (done) finishTimeline()
   else play.raf = requestAnimationFrame(tick)
 }
+// The hidden-tab path: rAF is paused, the fallback timer fires, every pending step fires at once.
+function flushTimeline() {
+  if (!play) return
+  const { fired } = play.player.flush()
+  for (const s of fired) fireStep(s)
+  finishTimeline()
+}
 function finishTimeline() {
-  if (!play || play.done) return
-  play.done = true
+  if (!play) return
   cancelAnimationFrame(play.raf); clearTimeout(play.timer)
-  while (play.i < play.steps.length) fireStep(play.steps[play.i++])
-  shaft.frame(play.duration)
+  const { fired } = play.player.flush()
+  for (const s of fired) fireStep(s)
+  shaft.frame(play.player.duration)
   shaft.end(); audio.stopMotor()
   play = null
   ui.transient = null
@@ -138,14 +166,16 @@ function finishTimeline() {
 }
 const STEP_SOUND = { 'doors-closing': 'doorHum', 'doors-opening': 'doorHum', ding: 'ding', ding2: 'ding2', 'fall-start': 'whoosh', impact: 'boing', bacon: 'bacon' }
 function fireStep(step) {
+  if (DRIVE) events.push(step.ev)
   shaft.event(step)
+  noteMotion()
   if (STEP_SOUND[step.ev]) audio.play(STEP_SOUND[step.ev])
   if (step.ev === 'arrive') {
     const f = step.floor
     ui.transient = { html: f === 0 ? 'Ground floor' : f === 10 ? 'Roof' : `Floor ${label(f)}`, cls: 'text', msg: '' }
     display.render(state, ui.transient)
   } else if (step.ev === 'brake') {
-    ui.transient = { html: 'Safety brake on.', cls: 'text small', msg: '' }
+    ui.transient = { html: 'Safety brake on.', cls: 'text small', msg: 'Nobody is hurt. Nothing is lost.' }
     display.render(state, ui.transient)
   } else if (step.ev === 'doors-closing' || step.ev === 'doors-closed' || step.ev === 'move-start') {
     renderPanel()
@@ -154,6 +184,7 @@ function fireStep(step) {
 
 // ---- dispatch and effects ---------------------------------------------------------------
 function dispatch(action) {
+  if (DRIVE) actions.push(action.type)
   const r = reduce(state, action, rngFor(state))
   state = r.state
   for (const e of r.effects) {
@@ -205,6 +236,7 @@ function render() {
   if (s === 'ride' && lastScreen !== 'ride') shaft.resize()
   lastScreen = s
   shaft.setState(state)
+  noteMotion()
   renderPanel()
   display.render(state, ui.transient)
   // hint overlay
@@ -214,12 +246,24 @@ function render() {
     const key = r.problem.key + '|' + shaftBox.clientWidth
     if (key !== lastHintKey) { hintBox.innerHTML = hintHTML(r.problem); lastHintKey = key }
   } else lastHintKey = ''
-  // sheets over the ride
-  const sheet = state.phase === 'fact' && state.screen === 'ride' ? screens.factSheet(state) : ''
+  // The on-panel beat after a trivia choice: the buttons show the result and the display band
+  // says so; the Fact sheet follows after a beat (never under 300 ms) and never auto-dismisses.
+  const beat = state.phase === 'fact' && state.screen === 'ride'
+  if (beat) {
+    if (!ui.factVisible && !ui.factTimer) {
+      if (ui.prevPhase === 'trivia') ui.factTimer = setTimeout(() => { ui.factTimer = 0; ui.factVisible = true; render() }, Math.max(300, 900 * timescale()))
+      else ui.factVisible = true
+    }
+  } else {
+    ui.factVisible = false
+    if (ui.factTimer) { clearTimeout(ui.factTimer); ui.factTimer = 0 }
+  }
+  const sheet = beat && ui.factVisible ? screens.factSheet(state) : ''
   if (sheetBox.innerHTML !== sheet) sheetBox.innerHTML = sheet
   if (sheet && sheetBox.firstElementChild) sheetBox.firstElementChild.querySelector('.body').scrollTop = 0
   if (s !== 'ride') for (const sec of Object.values(sections)) if (sec.classList.contains('active')) { const p = sec.querySelector('.page, .body'); if (p && ui.scrollReset) p.scrollTop = 0 }
   ui.scrollReset = false
+  ui.prevPhase = state.phase
 }
 
 // ---- hint renderers ------------------------------------------------------------------------
@@ -362,10 +406,17 @@ app.addEventListener('pointerdown', () => {
   if (state.settings.sound && !audio.created) audio.enable(true)
   audio.resume()
 }, { passive: true })
-document.addEventListener('visibilitychange', () => { if (document.hidden) audio.suspend() })
-window.addEventListener('resize', () => { shaft.resize(); display.fit() })
-window.addEventListener('orientationchange', () => setTimeout(() => { shaft.resize(); display.fit() }, 60))
-window.addEventListener('pagehide', () => { if (state.phase !== 'moving' && state.phase !== 'falling' && state.phase !== 'descending') save() })
+document.addEventListener('visibilitychange', () => { if (document.hidden) { audio.suspend(); save() } })
+// The shaft re-measures whenever the viewport changes: a rotation, a resize, iOS Safari's toolbar
+// growing or shrinking (visualViewport), or the shaft box itself changing size (ResizeObserver).
+const onResize = () => { shaft.resize(); display.fit() }
+window.addEventListener('resize', onResize)
+window.addEventListener('orientationchange', () => setTimeout(onResize, 60))
+if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize)
+if (window.ResizeObserver) new ResizeObserver(onResize).observe(shaftBox)
+// The save always holds enough to resume: a timeline in flight is recorded as ride.inFlight and
+// settled by hydrate() on the next load, so saving mid-ride is safe.
+window.addEventListener('pagehide', save)
 
 // ---- service worker + update chip -----------------------------------------------------
 let waitingWorker = null
@@ -404,11 +455,23 @@ if (DRIVE) {
     get timescale() { return timescale() },
     get durations() { return scale(DURATIONS, speedScale()) },
     audioCreated: () => audio.created,
+    events, actions,
+    inFlight: () => play !== null,
   }
 }
-render()
-shaft.resize()
-fetch('./data/trivia.json').then((r) => r.json()).then((json) => {
-  const { facts } = loadFacts(json)
-  dispatch({ type: 'load-facts', facts })
-}).catch((err) => { console.warn('trivia bank did not load; passengers stay home', err); dispatch({ type: 'load-facts', facts: [] }) })
+const factsLoading = fetch('./data/trivia.json').then((r) => r.json()).then((json) => loadFacts(json).facts)
+  .catch((err) => { console.warn('trivia bank did not load; passengers stay home', err); return [] })
+async function boot() {
+  if (state.ride && state.ride.inFlight) {
+    // A tab killed mid-ride: settle the timeline before anything renders. Arriving at a passenger
+    // floor needs the fact pool, so wait for it (briefly) first.
+    const facts = await Promise.race([factsLoading, new Promise((res) => setTimeout(() => res(null), 4000))])
+    if (facts) state = reduce(state, { type: 'load-facts', facts }, rngFor(state)).state
+    state = hydrate(state, rngFor(state))
+    save()
+  }
+  render()
+  shaft.resize()
+  factsLoading.then((facts) => dispatch({ type: 'load-facts', facts }))
+}
+boot()

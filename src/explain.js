@@ -1,75 +1,128 @@
 // The Repair card's maths. Pure.
-// explain(problem) → [{text, value}] — every text is `<expression> = <value>` and the last value is the answer.
+// explain(problem) → [{text, expr, value}] — `expr` is an arithmetic expression that evaluates to
+// `value` (the tests re-evaluate every one) and `text` is what the card shows: either the equation
+// `<expr> = <value>` or, for the counting strategies, one prose clause. The last value is the answer.
+// No worked line ever merely restates the big line (0 + 1, 4 + 0, 3 − 2, 1 − 0 all get a real method).
 // classify(problem, typed) → {cls, clause}; repair(problem, typed) → {big, small, worked, clause}.
 // Failure copy never contains "Oops", "wrong", "no", "✗" or an exclamation mark.
 
 import { fmt, MINUS, trueText } from './math.js'
 
-const line = (text, value) => ({ text, value })
+const line = (expr, value, text) => ({ text: text || `${expr} = ${fmt(value)}`, expr, value })
 const tens = (n) => Math.floor(n / 10) * 10
 const ones = (n) => n % 10
 const hundreds = (n) => Math.floor(n / 100) * 100
+const range = (from, to, step) => { const out = []; for (let n = from; step > 0 ? n <= to : n >= to; n += step) out.push(n); return out }
+const list = (arr) => arr.map(fmt).join(', ')
+
+// Counting strategies (one clause each).
+const countOn = (from, by) => line(`${from} + ${by}`, from + by, `Start at ${from}, count ${by} more: ${list(range(from + 1, from + by, 1))}`)
+const countBack = (from, by) => line(`${from} ${MINUS} ${by}`, from - by, `Start at ${from}, count ${by} back: ${list(range(from - 1, from - by, -1))}`)
+const countUp = (a, b) => { const d = a - b; return line(`${a} ${MINUS} ${b}`, d, `From ${b} count up to ${a}: ${list(range(b + 1, a, 1))} — that is ${d} ${d === 1 ? 'jump' : 'jumps'}`) }
+const countOnBy = (from, unit, n) => line(`${from} + ${unit * n}`, from + unit * n, `Count on in ${unit}s from ${from}: ${list(range(from + unit, from + unit * n, unit))}`)
+const countBackBy = (from, unit, n) => line(`${from} ${MINUS} ${unit * n}`, from - unit * n, `Count back in ${unit}s from ${from}: ${list(range(from - unit, from - unit * n, -unit))}`)
+const skipCount = (a, n) => line(`${a} × ${n}`, a * n, `Count in ${a}s: ${list(range(a, a * n, a))}`)
+const skipCountTo = (b, q, expr) => line(expr, q, `Count in ${b}s to ${b * q}: ${list(range(b, b * q, b))} — that is ${q} ${q === 1 ? 'lot' : 'lots'} of ${b}`)
 
 function explainAdd(a, b) {
   const ans = a + b
+  if (b === 0) return [line(`${a} + 0`, a, `${a} + 0 stays ${a}`)]
+  if (a === 0) return b <= 10 ? [countOn(0, b)] : [line(`0 + ${b}`, b, `0 + ${b} stays ${b}`)]
   if (a >= 100 || b >= 100) {
     const h = hundreds(a) + hundreds(b), t = tens(a % 100) + tens(b % 100), o = ones(a) + ones(b)
-    return [line(`${hundreds(a)} + ${hundreds(b)} = ${h}`, h), line(`${tens(a % 100)} + ${tens(b % 100)} = ${t}`, t), line(`${ones(a)} + ${ones(b)} = ${o}`, o), line(`${h} + ${t} + ${o} = ${ans}`, ans)]
-  }
-  if (a >= 10 && b >= 10) {
-    const t = tens(a) + tens(b), o = ones(a) + ones(b)
-    return [line(`${tens(a)} + ${tens(b)} = ${t}`, t), line(`${ones(a)} + ${ones(b)} = ${o}`, o), line(`${t} + ${o} = ${ans}`, ans)]
+    return [line(`${hundreds(a)} + ${hundreds(b)}`, h), line(`${tens(a % 100)} + ${tens(b % 100)}`, t), line(`${ones(a)} + ${ones(b)}`, o), line(`${h} + ${t} + ${o}`, ans)]
   }
   const [big, small] = a >= b ? [a, b] : [b, a]
-  if (ones(big) !== 0 && ones(big) + small > 10) {
-    const toTen = 10 - ones(big), next = big + toTen, rest = small - toTen
-    return [line(`${big} + ${toTen} = ${next}`, next), line(`${next} + ${rest} = ${ans}`, ans)]
+  if (a >= 10 && b >= 10) {
+    if (ones(small) === 0) return [countOnBy(big, 10, small / 10)]        // 34 + 20, 30 + 20
+    if (ones(big) === 0) return [countOnBy(small, 10, big / 10)]          // 20 + 34
+    const t = tens(a) + tens(b), o = ones(a) + ones(b)
+    return [line(`${tens(a)} + ${tens(b)}`, t), line(`${ones(a)} + ${ones(b)}`, o), line(`${t} + ${o}`, ans)]
   }
-  return [line(`${a} + ${b} = ${ans}`, ans)]
+  if (ones(big) !== 0 && ones(big) + small > 10) {
+    const toTen = 10 - ones(big), next = big + toTen, rest = small - toTen   // make ten: 8 + 5 = 8 + 2 + 3
+    return [line(`${big} + ${toTen}`, next), line(`${next} + ${rest}`, ans)]
+  }
+  if (small <= 3) return [countOn(big, small)]                             // count on from the larger addend
+  if (ans <= 10 && big !== small && big - small <= 2) return [line(`${small} + ${small}`, 2 * small), line(`${2 * small} + ${big - small}`, ans)] // near doubles
+  if (ans <= 10 || ones(big) === 0) return [countOn(big, small)]
+  const o = ones(big) + small                                              // 12 + 5: 2 + 5 = 7, 10 + 7 = 17
+  return [line(`${ones(big)} + ${small}`, o), line(`${tens(big)} + ${o}`, ans)]
 }
 
 function explainSub(a, b) {
   const ans = a - b
-  if (a < b) {
-    const d = b - a
-    return [line(`${b} ${MINUS} ${a} = ${d}`, d), line(`${a} ${MINUS} ${b} = ${fmt(ans)}`, ans)]
-  }
+  if (a === 0 && b > 0) return [line(`0 ${MINUS} ${b}`, ans, `${b} below 0 is ${fmt(ans)}`)]
+  if (a < b) return [line(`${a} ${MINUS} ${a}`, 0), line(`0 ${MINUS} ${b - a}`, ans)]   // down to zero, then below
+  if (b === 0) return [line(`${a} ${MINUS} 0`, a, `${a} ${MINUS} 0 stays ${a}`)]
+  if (a === b) return [line(`${a} ${MINUS} ${b}`, 0, `${a} take away all ${b} leaves 0`)]
   if (a >= 100 || b >= 100) {
-    const s1 = a - hundreds(b), s2 = s1 - tens(b % 100)
-    return [line(`${a} ${MINUS} ${hundreds(b)} = ${s1}`, s1), line(`${s1} ${MINUS} ${tens(b % 100)} = ${s2}`, s2), line(`${s2} ${MINUS} ${ones(b)} = ${ans}`, ans)]
+    const parts = [hundreds(b), tens(b % 100), ones(b)].filter((p) => p > 0)
+    if (parts.length === 1) { const unit = parts[0] >= 100 ? 100 : parts[0] >= 10 ? 10 : 1; return unit === 1 ? [countBack(a, b)] : [countBackBy(a, unit, b / unit)] }
+    const steps = []
+    let cur = a
+    for (const p of parts) { steps.push(line(`${cur} ${MINUS} ${p}`, cur - p)); cur -= p }
+    return steps
   }
   if (b >= 10) {
+    if (ones(b) === 0) return [countBackBy(a, 10, b / 10)]                   // 50 − 20, 57 − 20
     const s1 = a - tens(b)
-    return [line(`${a} ${MINUS} ${tens(b)} = ${s1}`, s1), line(`${s1} ${MINUS} ${ones(b)} = ${ans}`, ans)]
+    return [line(`${a} ${MINUS} ${tens(b)}`, s1), line(`${s1} ${MINUS} ${ones(b)}`, ans)]
   }
-  if (a >= 10 && ones(a) < b && ones(a) > 0) {
-    const down = ones(a), rest = b - down, mid = a - down
-    return [line(`${a} ${MINUS} ${down} = ${mid}`, mid), line(`${mid} ${MINUS} ${rest} = ${ans}`, ans)]
+  if (b <= 3) return [countBack(a, b)]                                       // 9 ▼ 3: 8, 7, 6
+  if (a <= 10 || ans <= 3) return [countUp(a, b)]                             // 9 − 5: from 5 count up to 9
+  if (ones(a) === 0) return [line(`10 ${MINUS} ${b}`, 10 - b), line(`${a - 10} + ${10 - b}`, ans)]   // 20 − 6
+  if (ones(a) < b) {
+    const down = ones(a), rest = b - down, mid = a - down                     // down through ten: 23 − 7
+    return [line(`${a} ${MINUS} ${down}`, mid), line(`${mid} ${MINUS} ${rest}`, ans)]
   }
-  return [line(`${a} ${MINUS} ${b} = ${ans}`, ans)]
+  const o = ones(a) - b                                                       // 17 − 5: 7 − 5 = 2, 10 + 2 = 12
+  return [line(`${ones(a)} ${MINUS} ${b}`, o), line(`${tens(a)} + ${o}`, ans)]
 }
 
 function explainMul(a, b) {
   const ans = a * b
+  if (a === 0 || b === 0) return [line(`${a} × ${b}`, 0, 'Anything times 0 is 0')]
+  if (a === 1 || b === 1) return [line(`${a} × ${b}`, ans, `${a} × ${b}: one lot of ${ans} is ${ans}`)]
+  if (a === 10 || b === 10) {
+    const n = a === 10 ? b : a                                                // 7 × 10: count in 10s; 99 × 10: 99 tens
+    return n <= 12 ? [skipCount(10, n)] : [line(`${a} × ${b}`, ans, `${a} × ${b}: ${n} tens is ${ans}`)]
+  }
+  if (a >= 10 && b >= 10) {
+    if (ones(b) === 0) { const x = a * (b / 10); return [line(`${a} × ${b / 10}`, x), line(`${x} × 10`, ans)] }
+    if (ones(a) === 0) { const x = (a / 10) * b; return [line(`${a / 10} × ${b}`, x), line(`${x} × 10`, ans)] }
+    const x = a * tens(b), y = a * ones(b)
+    return [line(`${a} × ${tens(b)}`, x), line(`${a} × ${ones(b)}`, y), line(`${x} + ${y}`, ans)]
+  }
+  if (a >= 10) {
+    if (ones(a) === 0) { const x = (a / 10) * b; return [line(`${a / 10} × ${b}`, x), line(`${x} × 10`, ans)] }   // 30 × 7
+    const x = tens(a) * b, y = ones(a) * b
+    return [line(`${tens(a)} × ${b}`, x), line(`${ones(a)} × ${b}`, y), line(`${x} + ${y}`, ans)]
+  }
   if (b >= 10) {
     const x = a * tens(b), y = a * ones(b)
-    if (y === 0) return [line(`${a} × ${b} = ${ans}`, ans)]
-    return [line(`${a} × ${tens(b)} = ${x}`, x), line(`${a} × ${ones(b)} = ${y}`, y), line(`${x} + ${y} = ${ans}`, ans)]
+    return [line(`${a} × ${tens(b)}`, x), line(`${a} × ${ones(b)}`, y), line(`${x} + ${y}`, ans)]
   }
-  if (a >= 10 && b <= 9) {
-    const x = tens(a) * b, y = ones(a) * b
-    if (y === 0) return [line(`${a} × ${b} = ${ans}`, ans)]
-    return [line(`${tens(a)} × ${b} = ${x}`, x), line(`${ones(a)} × ${b} = ${y}`, y), line(`${x} + ${y} = ${ans}`, ans)]
-  }
-  if (b > 5) {
-    const x = a * 5, y = a * (b - 5)
-    return [line(`${a} × 5 = ${x}`, x), line(`${a} × ${b - 5} = ${y}`, y), line(`${x} + ${y} = ${ans}`, ans)]
-  }
-  if (b >= 2) {
-    const terms = Array(b).fill(String(a)).join(' + ')
-    return [line(`${terms} = ${ans}`, ans)]
-  }
-  return [line(`${a} × ${b} = ${ans}`, ans)]
+  if (b <= 5) return [skipCount(a, b)]                                        // 4 × 3: count in 4s
+  if (a <= 5) return [skipCount(b, a)]                                        // 3 × 8: count in 8s
+  const x = a * 5, y = a * (b - 5)                                            // distributive split: 6 × 7 = 6 × 5 + 6 × 2
+  return [line(`${a} × 5`, x), line(`${a} × ${b - 5}`, y), line(`${x} + ${y}`, ans)]
+}
+
+function explainDiv(a, b) {
+  const q = a / b
+  if (q <= 10) return [skipCountTo(b, q, `${a} ÷ ${b}`)]                    // 42 ÷ 6: count in 6s to 42
+  if (ones(q) === 0) { const x = q / 10; return [line(`${x * b} ÷ ${b}`, x), line(`${x} × 10`, q)] }   // 440 ÷ 4
+  const tq = tens(q), oq = q - tq                                             // chunk: 456 ÷ 4 = 440 ÷ 4 + 16 ÷ 4
+  return [line(`${tq * b} ÷ ${b}`, tq), line(`${oq * b} ÷ ${b}`, oq), line(`${tq} + ${oq}`, q)]
+}
+
+function explainMissAdd(a, c) {
+  const m = c - a
+  if (m === 0) return [line(`${c} ${MINUS} ${a}`, 0, `${a} + 0 stays ${a}, so the missing number is 0`)]
+  if (a === 0) return [line(`${c} ${MINUS} 0`, c, `0 + ${c} is ${c}, so the missing number is ${c}`)]
+  if (c <= 20) return [countUp(c, a)]                                         // 3 + ▮ = 7: from 3 count up to 7
+  return [line(`${c} ${MINUS} ${a}`, m)]
 }
 
 export function explain(p) {
@@ -77,19 +130,14 @@ export function explain(p) {
     case 'add': case 'up': return explainAdd(p.a, p.b)
     case 'sub': case 'down': return explainSub(p.a, p.b)
     case 'mul': return explainMul(p.a, p.b)
-    case 'div': {
-      const q = p.a / p.b
-      return [line(`${p.b} × ${q} = ${p.a}`, p.a), line(`${p.a} ÷ ${p.b} = ${q}`, q)]
-    }
-    case 'missAdd': {
-      const c = Number.isInteger(p.c) ? p.c : p.a + p.b
-      return [line(`${c} ${MINUS} ${p.a} = ${c - p.a}`, c - p.a)]
-    }
+    case 'div': return explainDiv(p.a, p.b)
+    case 'missAdd': return explainMissAdd(p.a, Number.isInteger(p.c) ? p.c : p.a + p.b)
     case 'missMul': {
       const c = Number.isInteger(p.c) ? p.c : p.a * p.b
-      return [line(`${c} ÷ ${p.b} = ${c / p.b}`, c / p.b)]
+      const q = c / p.b
+      return q <= 10 ? [skipCountTo(p.b, q, `${c} ÷ ${p.b}`)] : [line(`${c} ÷ ${p.b}`, q)]
     }
-    default: return [line(trueText(p), p.answer)]
+    default: return [line(String(p.answer), p.answer)]
   }
 }
 

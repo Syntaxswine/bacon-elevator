@@ -23,7 +23,10 @@
   --op-sub: #5B6B7A;
   --op-mul: #7A4B8C;
   --op-div: #2E8B74;
-  --cell: 56px;
+  /* The panel cell shrinks with the viewport so the shaft keeps ≥ 200 px on any height:
+     vh − top bar 48 − display 90 − shaft 200 − panel padding and gaps 38, over five rows. */
+  --vh: 100vh;
+  --cell: clamp(48px, calc((var(--vh) - 48px - 90px - 200px - 38px) / 5), 56px);
   --gap: 6px;
   --display: 90px;
   --topbar: 48px;
@@ -32,6 +35,7 @@
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --body: 18px;
 }
+@supports (height: 100dvh) { :root { --vh: 100dvh; } }
 html.big { --body: 21px; }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -54,7 +58,8 @@ body { position: fixed; inset: 0; overflow: hidden; -webkit-user-select: none; u
 }
 .noscript { padding: 24px; }
 
-button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; touch-action: manipulation; cursor: pointer; -webkit-appearance: none; appearance: none; }
+/* Every button is a thumb target: 48 px minimum, ≥ 16 px text. */
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; min-height: 48px; min-width: 48px; font-size: max(16px, 1em); touch-action: manipulation; cursor: pointer; -webkit-appearance: none; appearance: none; }
 button:disabled, button[aria-disabled="true"] { cursor: default; }
 button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 [hidden] { display: none !important; }
@@ -116,6 +121,8 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .radio.locked { opacity: 0.55; }
 
 /* ---------- ride ---------- */
+.ride { position: relative; }
+.right { display: contents; }
 .topbar { flex: 0 0 var(--topbar); height: var(--topbar); display: flex; align-items: stretch; gap: 4px; padding: 0 4px; border-bottom: 2px solid #cfc9bb; background: var(--paper); }
 .topbar .tb { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 48px; min-height: 48px; padding: 0 8px; border-radius: 10px; font-weight: 700; font-size: 17px; }
 .topbar .tb.nav { color: var(--go); }
@@ -131,6 +138,7 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .hint svg { position: static; width: 100%; height: 100%; }
 .hint .worked { font-family: var(--mono); font-size: 22px; text-align: center; }
 
+/* The display band: the question (or status) on top, a second status line under it. */
 .display { flex: 0 0 var(--display); height: var(--display); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2px 8px; background: #fff; border-top: 2px solid #cfc9bb; border-bottom: 2px solid #cfc9bb; }
 #question { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 40px; line-height: 1.1; white-space: nowrap; letter-spacing: 1px; }
 #question.text { font-family: var(--font); font-size: 28px; font-weight: 700; letter-spacing: 0; }
@@ -143,7 +151,7 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 #question .blank { display: inline-block; min-width: 0.6em; border-bottom: 4px solid var(--go); color: var(--go); }
 #question .blank.empty::after { content: "▮"; color: #b9c6d4; }
 #question .tick { color: var(--sage-deep); }
-#message { min-height: 20px; font-size: 16px; color: var(--ink-soft); }
+#message { min-height: 20px; font-size: 16px; line-height: 1.25; color: var(--ink-soft); text-align: center; }
 #message:empty { display: none; }
 
 .panel { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: var(--cell); gap: var(--gap); padding: var(--gap); background: var(--paper); }
@@ -156,7 +164,7 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .panel .key.hint-key { font-size: 17px; letter-spacing: 1px; }
 .panel .spacer { background: transparent; }
 .panel .floor { background: transparent; }
-.panel .floor .face { width: 54px; height: 54px; border-radius: 50%; border: 3px solid var(--line); background: #fff; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 0 0 0 rgba(232, 176, 74, 0); transition: box-shadow 200ms ease, background 200ms ease; }
+.panel .floor .face { width: min(54px, calc(var(--cell) - 2px)); height: min(54px, calc(var(--cell) - 2px)); border-radius: 50%; border: 3px solid var(--line); background: #fff; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 0 0 0 rgba(232, 176, 74, 0); transition: box-shadow 200ms ease, background 200ms ease; }
 .panel .floor:disabled .face { color: #9a968c; border-color: #b5b0a3; background: #f2efe8; }
 .panel .floor.target .face { border-color: #9A7A2A; }
 .panel .floor.target .face { animation: pulse 1s ease-in-out infinite; }
@@ -166,17 +174,25 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .panel .bell { font-size: 24px; }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 176, 74, 0); background: #fff; } 50% { box-shadow: 0 0 0 6px rgba(232, 176, 74, 0.45); background: #FFF0CC; } }
 
-/* trivia mode */
+/* trivia mode: the question over two rows, three lettered choices; after a choice the right one
+   fills sage, the chosen one keeps a thin outline, the third dims */
 .panel .tq { grid-column: span 3; grid-row: span 2; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 17.5px; line-height: 1.25; padding: 0 4px; font-weight: 600; overflow: hidden; }
-.panel .choice { grid-column: span 3; background: #fff; border: 3px solid var(--line); border-radius: 12px; font-size: 18px; font-weight: 600; line-height: 1.2; padding: 4px 10px; text-align: center; white-space: normal; box-shadow: 0 3px 0 #b9b3a4; }
-.panel .choice.right { background: var(--sage-fill); border-color: var(--sage-edge); color: #fff; box-shadow: 0 3px 0 var(--sage-edge); }
-.panel .choice.chosen { box-shadow: inset 0 0 0 3px var(--go); }
+.panel .choice { grid-column: span 3; display: flex; align-items: center; justify-content: flex-start; gap: 10px; background: #fff; border: 3px solid var(--line); border-radius: 12px; font-size: 18px; font-weight: 600; line-height: 1.2; padding: 4px 10px; text-align: left; white-space: normal; box-shadow: 0 3px 0 #b9b3a4; transition: background 200ms ease, opacity 200ms ease; }
+.panel .choice .letter { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); font-size: 14px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.panel .choice .ctext { flex: 1 1 auto; min-width: 0; }
+.panel .choice:disabled { cursor: default; }
+.panel .choice[data-result="right"] { background: var(--sage-fill); border-color: var(--sage-edge); color: #fff; box-shadow: 0 3px 0 var(--sage-edge); }
+.panel .choice[data-result="right"] .letter { border-color: #fff; }
+.panel .choice[data-result="chosen"] { box-shadow: inset 0 0 0 3px var(--go), 0 3px 0 #b9b3a4; }
+.panel .choice[data-result="dim"] { opacity: 0.55; }
 
-/* card mode (repair) */
-.panel .card { grid-column: span 3; grid-row: span 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; background: #fff; border: 3px solid var(--line); border-radius: 14px; padding: 8px 12px; overflow: hidden; }
+/* card mode (repair): four rows, the text centred while it fits and scrolling inside the card if it ever does not */
+.panel .card { grid-column: span 3; grid-row: span 4; display: flex; flex-direction: column; text-align: center; background: #fff; border: 3px solid var(--line); border-radius: 14px; padding: 6px 12px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+.panel .card .inner { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .panel .card .big { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 34px; font-weight: 700; }
 .panel .card .small { font-size: 16px; color: var(--ink-soft); }
-.panel .card .worked { font-family: var(--mono); font-size: 17px; line-height: 1.3; }
+.panel .card .worked { font-family: var(--mono); font-size: 17px; line-height: 1.3; overflow-wrap: anywhere; }
+.panel .card .worked.long { font-size: 15px; }
 .panel .card .clause { font-size: 17px; font-weight: 600; color: var(--op-add); }
 .panel .key.continue { grid-column: span 3; background: var(--sage-fill); border-color: var(--sage-edge); color: #fff; box-shadow: 0 3px 0 var(--sage-edge); font-size: 22px; }
 
@@ -190,19 +206,27 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .fact .verdict.right { color: var(--sage-deep); font-weight: 700; }
 .fact .factline { font-size: 18px; line-height: 1.45; margin: 10px 0; }
 .fact .src { font-size: 15px; color: var(--ink-soft); margin: 4px 0; word-break: break-word; }
-.rules .pics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
-.rules .pic { background: #fff; border: 3px solid var(--line); border-radius: 12px; padding: 8px; text-align: center; font-weight: 600; font-size: 16px; }
-.rules .pic svg { width: 100%; height: 84px; display: block; margin-bottom: 4px; }
-.rules p { line-height: 1.45; }
+/* the Rules card: five pictures and two sentences, all on one screen at 360 × 640 */
+.rules .body { padding: 6px 14px 8px; }
+.rules h1 { font-size: 24px; margin: 2px 0 4px; }
+.rules .pics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0; }
+.rules .pic { background: #fff; border: 3px solid var(--line); border-radius: 12px; padding: 6px; text-align: center; font-weight: 600; font-size: 15px; line-height: 1.25; }
+.rules .pic svg { width: 100%; height: 56px; display: block; margin-bottom: 4px; }
+.rules .pic.wide { grid-column: span 2; display: flex; align-items: center; gap: 10px; text-align: left; padding: 6px 10px; }
+.rules .pic.wide svg { width: 84px; height: 56px; flex: 0 0 auto; margin: 0; }
+.rules p { font-size: 16px; line-height: 1.35; margin: 6px 0; }
+.rules p.never { font-size: 17px; margin-top: 8px; }
 
 /* ---------- roof ---------- */
 .roof { align-items: center; text-align: center; }
 .roof .page { width: 100%; display: flex; flex-direction: column; align-items: center; }
-.roof .picnic { width: min(300px, 80vw); height: auto; }
+.roof .picnic-wrap { position: relative; width: min(300px, 80vw); }
+.roof .picnic { display: block; width: 100%; height: auto; }
 .roof .gain { font-size: 24px; font-weight: 700; margin: 6px 0; }
+/* the drift stays inside the picnic band: never over the text or the buttons */
 .roof .drift { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .roof .drift svg { position: absolute; width: 44px; height: 22px; animation: drift 2s ease-out forwards; }
-@keyframes drift { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-140px); opacity: 0; } }
+@keyframes drift { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-70px); opacity: 0; } }
 
 /* update chip */
 .chip-update { position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: #fff; border-radius: 999px; padding: 12px 20px; min-height: 48px; font-size: 16px; z-index: 20; }
@@ -212,15 +236,22 @@ html.reduced .panel .floor.target .face { animation: none; background: #FFF0CC; 
 html.reduced .roof .drift { display: none; }
 html.reduced * { transition-duration: 0ms !important; }
 
-/* ---------- small heights and landscape ---------- */
-@media (max-height: 660px) { :root { --cell: 52px; --display: 76px; } }
+/* ---------- short viewports and landscape ---------- */
+@media (max-height: 600px) { :root { --display: 76px; } }
+/* Under 500 px tall in landscape the ride becomes two columns: top bar over the shaft on the
+   left, display over the panel on the right. 60 + 5 × 48 + 6 × 4 = 324 px fits a 360 px-tall phone. */
 @media (max-height: 500px) and (orientation: landscape) {
-  .ride { flex-direction: row; flex-wrap: wrap; }
-  .topbar { flex: 0 0 100%; width: 100%; }
-  .shaft { flex: 1 1 40%; min-height: 0; }
-  .right { flex: 0 0 auto; width: 372px; display: flex; flex-direction: column; }
-  :root { --cell: 48px; --display: 64px; }
+  :root { --cell: 48px; --gap: 4px; --display: 60px; }
+  /* the left column may shrink below the top bar's natural width (the level name ellipsises), so nothing ever overflows the viewport */
+  .ride.active { display: grid; grid-template-columns: minmax(0, 1fr) minmax(288px, 320px); grid-template-rows: var(--display) 1fr; grid-template-areas: 'top display' 'shaft panel'; }
+  .ride .topbar { grid-area: top; height: var(--display); flex: none; min-width: 0; gap: 2px; padding: 0 2px; border-bottom: none; }
+  .ride .topbar .tb { padding: 0 4px; }
+  .ride .shaft { grid-area: shaft; min-height: 0; }
+  .ride .display { grid-area: display; border-top: none; border-left: 2px solid #cfc9bb; }
+  .ride .panel { grid-area: panel; align-self: start; }
+  #question { font-size: 30px; }
+  #question .op { font-size: 30px; }
+  #question.text { font-size: 24px; }
+  .panel .tq { font-size: 16px; }
+  .panel .card .big { font-size: 28px; }
 }
-.ride { position: relative; }
-.right { display: contents; }
-@media (max-height: 500px) and (orientation: landscape) { .right { display: flex; } }

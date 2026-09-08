@@ -6,7 +6,7 @@ const ASSETS = [
   './', './index.html', './manifest.webmanifest', './favicon.ico',
   './css/app.css',
   './src/version.js', './src/main.js', './src/rng.js', './src/levels.js', './src/math.js', './src/explain.js',
-  './src/elevator.js', './src/trivia.js', './src/state.js', './src/save.js', './src/storage.js', './src/audio.js',
+  './src/elevator.js', './src/timeline.js', './src/trivia.js', './src/state.js', './src/save.js', './src/storage.js', './src/audio.js',
   './src/render/shaft.js', './src/render/panel.js', './src/render/screens.js',
   './data/trivia.json',
   './assets/icon.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/apple-touch-icon.png', './assets/favicon-32.png',

@@ -80,6 +80,8 @@ const PIC = {
   solve: `<svg viewBox="0 0 120 84"><text x="60" y="52" text-anchor="middle" font-size="26" font-weight="700" fill="#2B2B2B" font-family="ui-monospace, monospace">7 <tspan fill="#2F7A8C">+</tspan> 5 = <tspan fill="#4A7BAA">12</tspan></text></svg>`,
   up: `<svg viewBox="0 0 120 84"><rect x="40" y="26" width="40" height="46" rx="3" fill="#E9E4D8" stroke="#6B6B6B" stroke-width="3"/><path d="M60 6 l12 14 h-8 v6 h-8 v-6 h-8 z" fill="#6E9B6E" stroke="#4E7B4E" stroke-width="2"/><use href="#bacon" x="84" y="40" width="32" height="16"/></svg>`,
   fall: `<svg viewBox="0 0 120 84"><rect x="22" y="8" width="36" height="40" rx="3" fill="#E9E4D8" stroke="#6B6B6B" stroke-width="3"/><path d="M40 52 l-8 -10 h16 z" fill="#5B6B7A"/><path d="M26 78 l6 -14 l6 14 M38 78 l6 -14 l6 14 M50 78 l6 -14 l6 14" fill="#9A9A9A" stroke="#6B6B6B" stroke-width="2" stroke-linejoin="round"/><path d="M84 70 V20" stroke="#6E9B6E" stroke-width="5" stroke-linecap="round"/><path d="M72 32 l12 -14 l12 14" fill="none" stroke="#6E9B6E" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  // A faceless passenger inside the car, and the question mark that tags their floors.
+  passenger: `<svg viewBox="0 0 120 84"><rect x="30" y="6" width="56" height="72" rx="3" fill="#E9E4D8" stroke="#6B6B6B" stroke-width="3"/><rect x="40" y="11" width="36" height="9" rx="2" fill="#2B2B2B"/><rect x="42" y="26" width="32" height="48" fill="#F8F5EE" stroke="#6B6B6B" stroke-width="2"/><circle cx="58" cy="41" r="7" fill="#8A8578"/><path d="M47 74 v-18 a11 11 0 0 1 22 0 v18 z" fill="#8A8578"/><circle cx="102" cy="42" r="14" fill="#4A7BAA"/><text x="102" y="50" text-anchor="middle" font-size="22" font-weight="800" fill="#fff" font-family="system-ui">?</text></svg>`,
 }
 
 export function rules(state) {
@@ -92,12 +94,11 @@ export function rules(state) {
         <div class="pic">${PIC.solve}Work out the sum</div>
         <div class="pic">${PIC.up}Right: up one floor, bacon</div>
         <div class="pic">${PIC.fall}Wrong: a fall, then back up</div>
+        <div class="pic wide">${PIC.passenger}<span>A passenger may ask a question. Falls only happen for wrong sums. <strong>A passenger's question never falls.</strong></span></div>
       </div>
-      <p>Right answer: the doors close, the elevator goes up one floor, one ding, the bacon slides in.</p>
-      <p>Wrong answer: the panel shows the true sum, then the elevator falls onto the springy spikes in the pit. The safety brake catches it. Nobody is hurt. A repair card shows how the sum works, and the same sum is asked again.</p>
-      <p><strong>Falls only happen for wrong sums. A passenger's question never falls.</strong></p>
-      <p><strong>Nothing is ever lost.</strong> Bacon stays on the tray. There is no clock and no lives.</p>
-      <p>At the roof your bacon goes into your lunchbox for good.</p>
+      <p>Right: the doors close, the elevator goes up one floor, one ding, the bacon slides in.</p>
+      <p>Wrong: the panel shows the true sum, then the elevator falls onto the springy spikes. The safety brake catches it. A repair card shows the sum, and you answer it again.</p>
+      <p class="never"><strong>Bacon is never lost. There is no clock.</strong></p>
     </div>
     <div class="foot"><button class="btn sage wide" data-continue data-tap aria-label="${from}">${from}</button></div>
   </div>`
@@ -110,17 +111,20 @@ export function roof(state) {
   const unlockedNames = info.unlocked.map((id) => (PARTS.find((p) => p.id === id) || {}).name).filter(Boolean)
   const offerName = info.offer ? (LEVELS.find((l) => l.id === info.offer) || {}).name : null
   const taken = info.offerTaken ? (LEVELS.find((l) => l.id === info.offerTaken) || {}).name : null
-  const drift = Array.from({ length: 6 }, (_, i) => `<svg viewBox="0 0 64 32" style="left:${10 + i * 15}%;bottom:${20 + (i % 3) * 12}%;animation-delay:${i * 120}ms"><use href="#bacon"/></svg>`).join('')
+  // Six strips drift up for 2 s inside the picnic band only (never across the text or the buttons); none under reduced motion.
+  const drift = Array.from({ length: 6 }, (_, i) => `<svg viewBox="0 0 64 32" style="left:${6 + i * 15}%;bottom:${6 + (i % 3) * 10}%;animation-delay:${i * 120}ms"><use href="#bacon"/></svg>`).join('')
   return `<div class="page">
-    <div class="drift" aria-hidden="true">${drift}</div>
     <h1>Roof picnic</h1>
-    <svg class="picnic" viewBox="0 0 300 120" aria-hidden="true">
-      <rect x="0" y="96" width="300" height="24" fill="#B9B3A4"/>
-      <rect x="20" y="70" width="260" height="30" fill="#E9DFC8" stroke="#6B6B6B" stroke-width="3"/>
-      ${Array.from({ length: 13 }, (_, i) => `<rect x="${20 + i * 20}" y="${70 + (i % 2) * 15}" width="20" height="15" fill="#C9694A" opacity="0.3"/>`).join('')}
-      <rect x="110" y="30" width="80" height="44" rx="6" fill="#4A7BAA" stroke="#35618A" stroke-width="3"/><rect x="130" y="20" width="40" height="12" rx="4" fill="#35618A"/><rect x="110" y="48" width="80" height="4" fill="#35618A"/>
-      <use href="#bacon" x="40" y="40" width="56" height="28"/><use href="#bacon" x="204" y="40" width="56" height="28"/>
-    </svg>
+    <div class="picnic-wrap">
+      <svg class="picnic" viewBox="0 0 300 120" aria-hidden="true">
+        <rect x="0" y="96" width="300" height="24" fill="#B9B3A4"/>
+        <rect x="20" y="70" width="260" height="30" fill="#E9DFC8" stroke="#6B6B6B" stroke-width="3"/>
+        ${Array.from({ length: 13 }, (_, i) => `<rect x="${20 + i * 20}" y="${70 + (i % 2) * 15}" width="20" height="15" fill="#C9694A" opacity="0.3"/>`).join('')}
+        <rect x="110" y="30" width="80" height="44" rx="6" fill="#4A7BAA" stroke="#35618A" stroke-width="3"/><rect x="130" y="20" width="40" height="12" rx="4" fill="#35618A"/><rect x="110" y="48" width="80" height="4" fill="#35618A"/>
+        <use href="#bacon" x="40" y="40" width="56" height="28"/><use href="#bacon" x="204" y="40" width="56" height="28"/>
+      </svg>
+      <div class="drift" aria-hidden="true">${drift}</div>
+    </div>
     <p class="gain">Tray ${info.gained} → lunchbox</p>
     <p class="gain">+${info.bonus} roof bonus</p>
     <p class="total">${LUNCH} <span id="lunchbox-roof">${state.lunchbox}</span> ${BACON()}</p>

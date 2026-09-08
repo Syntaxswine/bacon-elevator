@@ -15,7 +15,7 @@ test('sw.js and src/version.js carry the same VERSION literal', () => {
 
 test('sw.js caches every src module and registers relative paths only', () => {
   const sw = read('../sw.js')
-  for (const f of ['main', 'rng', 'levels', 'math', 'explain', 'elevator', 'trivia', 'state', 'save', 'storage', 'audio', 'version', 'render/shaft', 'render/panel', 'render/screens']) assert.ok(sw.includes(`./src/${f}.js`), f)
+  for (const f of ['main', 'rng', 'levels', 'math', 'explain', 'elevator', 'timeline', 'trivia', 'state', 'save', 'storage', 'audio', 'version', 'render/shaft', 'render/panel', 'render/screens']) assert.ok(sw.includes(`./src/${f}.js`), f)
   assert.ok(sw.includes('skipWaiting'))
   assert.ok(!/['"]\/(?:src|css|data|assets|sw\.js|manifest|favicon)/.test(sw), 'no root-absolute paths in sw.js')
 })
@@ -37,7 +37,7 @@ test('index.html, manifest and css use only relative paths', () => {
 })
 
 test('pure modules never touch window, document, localStorage, setTimeout or Date', () => {
-  for (const f of ['rng', 'levels', 'math', 'explain', 'elevator', 'trivia', 'state', 'save']) {
+  for (const f of ['rng', 'levels', 'math', 'explain', 'elevator', 'timeline', 'trivia', 'state', 'save']) {
     const code = read(`../src/${f}.js`).replace(/\/\/.*$/gm, '')
     for (const bad of ['window', 'document', 'localStorage', 'setTimeout', 'Date', 'requestAnimationFrame']) assert.ok(!new RegExp(`\\b${bad}\\b`).test(code), `${f}.js references ${bad}`)
   }

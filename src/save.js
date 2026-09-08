@@ -97,6 +97,9 @@ function migrateRide(r) {
   if (phase === 'roof' && floor !== 10) phase = 'floor'
   const cleared = Array.isArray(r.cleared) ? [...new Set(r.cleared.filter((x) => Number.isInteger(x) && x >= 1 && x <= 9))].sort((x, y) => x - y) : []
   const target = Math.max(1, Math.min(10, int(r.target, floor + 1)))
+  // A save taken mid-timeline: {name, to}; hydrate() plays it to its end before anything renders.
+  const f = isObj(r.inFlight) ? r.inFlight : null
+  const inFlight = f && ['ride', 'express', 'fall', 'descend'].includes(f.name) && Number.isInteger(f.to) && f.to >= -1 && f.to <= 10 ? { name: f.name, to: f.to } : null
   return {
     seed: int(r.seed, 1) >>> 0,
     floor,
@@ -112,7 +115,7 @@ function migrateRide(r) {
     stepDowns: Math.max(0, int(r.stepDowns, 0)),
     comeback: Array.isArray(r.comeback) ? r.comeback.filter((x) => isObj(x) && isObj(x.problem) && Number.isInteger(x.due)) : [],
     passengersDone: Array.isArray(r.passengersDone) ? r.passengersDone.filter(Number.isInteger) : [],
-    retrying: bool(r.retrying, false) && floor === -1,
+    retrying: bool(r.retrying, false) && (floor === -1 || (inFlight !== null && inFlight.name === 'fall')),
     forfeit: bool(r.forfeit, false),
     typedWrong: typeof r.typedWrong === 'string' ? r.typedWrong : '',
     falls: Math.max(0, int(r.falls, 0)),
@@ -120,6 +123,7 @@ function migrateRide(r) {
     ctx: isObj(r.ctx) ? r.ctx : null,
     lastKind: oneOf(r.lastKind, ['elevator', 'math'], null),
     fallFloor: Math.max(0, int(r.fallFloor, 0)),
+    inFlight,
   }
 }
 
