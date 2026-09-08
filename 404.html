@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Bacon Elevator — that floor is not here</title>
+<link rel="icon" href="./favicon.ico">
+<style>
+  :root { --paper: #F4F1EA; --ink: #2B2B2B; --ink-soft: #55534E; --line: #6B6B6B; --go: #3D6E9D; --go-deep: #35618A; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-size: 18px; }
+  main { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; }
+  h1 { font-size: 30px; margin: 0; }
+  p { margin: 0; line-height: 1.4; color: var(--ink-soft); max-width: 26em; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 56px; padding: 0 22px; border-radius: 14px; border: 3px solid var(--go-deep); background: var(--go); color: #fff; font-size: 18px; font-weight: 600; text-decoration: none; }
+  svg { width: 120px; height: 150px; }
+</style>
+</head>
+<body>
+<main>
+  <svg viewBox="0 0 120 150" aria-hidden="true">
+    <rect x="6" y="6" width="108" height="138" fill="#D9D4C7" stroke="#6B6B6B" stroke-width="4"/>
+    <rect x="26" y="46" width="68" height="80" rx="3" fill="#E9E4D8" stroke="#6B6B6B" stroke-width="4"/>
+    <rect x="36" y="22" width="48" height="18" rx="3" fill="#2B2B2B"/>
+    <text x="60" y="37" text-anchor="middle" font-family="ui-monospace, monospace" font-weight="700" font-size="14" fill="#E8B04A">- -</text>
+    <line x1="60" y1="50" x2="60" y2="122" stroke="#6B6B6B" stroke-width="3"/>
+  </svg>
+  <h1>That floor is not here</h1>
+  <p>The elevator does not stop at this address. The button below takes you back to the lobby.</p>
+  <a class="btn" id="back" href="./">Back to the lobby</a>
+</main>
+<script>
+  // A 404 can be served for any depth under the site, so the way back is computed from the path
+  // rather than hard-coded: the first segment is the project (a user/organisation page has none).
+  var seg = location.pathname.split('/').filter(Boolean)[0]
+  document.getElementById('back').setAttribute('href', location.origin + (seg ? '/' + seg : '') + '/')
+</script>
+</body>
+</html>

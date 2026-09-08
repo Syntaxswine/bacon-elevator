@@ -35,7 +35,18 @@ independent readers before it was allowed in. An unverifiable fact is cut, not s
    within about 6.5 inches" claim (one manufacturer's illustrative figure; code stopping
    distances depend on speed). Three near-duplicates researched by more than one theme were
    folded (Otis 1854, the Eiffel lifts' annual distance, the 21 m/s record), leaving **67 items:
-   42 elevator, 25 maths.**
+   40 elevator, 27 maths.** (Round 2 re-filed two arithmetic word problems — the counterweight
+   subtraction and the floors-per-second division — from `elevator` to `math`: they are sums, and
+   `pickFact` alternates on the category, so filing them as elevator could hand a child two maths
+   word problems in a row while the picker believed it had alternated.)
+
+## What an item may carry beyond the schema
+
+`maths: {max}` declares the largest number a child must handle to ANSWER the question. Difficulty
+and question length do not band arithmetic: at `numbers to 10` the bank could serve `8 capsules x 5
+seats` (40) and `1, 1, 2, 3, 5, 8, 13 — what is next?` (8 + 13). `TRIVIA_LIMITS` bands it by the
+same ladder the level tables use, so a passenger never asks a child to do maths their own building
+does not. An item with no arithmetic to do carries no `maths` field.
 
 ## Adding a fact later
 

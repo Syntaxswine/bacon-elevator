@@ -4,7 +4,10 @@ import { validProblem } from './math.js'
 
 export const SAVE_KEY = 'bacon-elevator.save.v1'
 
-const PERSIST = ['v', 'created', 'salt', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'plaques']
+// `writes` is the record's own monotone write counter: main.js refuses to overwrite a record whose
+// counter has moved past the one this tab last wrote, which is what stops a second tab holding an
+// older snapshot from zeroing the lunchbox the moment it is backgrounded.
+const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'plaques']
 
 export function serialize(state) {
   const out = {}
@@ -34,6 +37,7 @@ export function migrate(obj) {
     obj = { ...obj, lunchbox: obj.lunchbox ?? obj.bacon, level: obj.level ?? obj.levelId }
   }
   s.created = int(obj.created, base.created)
+  s.writes = clampInt(obj.writes, 0, MAX_COUNT, 0)
   s.lunchbox = clampInt(obj.lunchbox, 0, MAX_BACON, 0)
   s.buildings = clampInt(obj.buildings, 0, 1e6, 0)
   s.level = oneOf(obj.level, ['corner', 'hotel', 'office', 'sky', 'megatall', 'custom'], 'corner')
@@ -42,7 +46,7 @@ export function migrate(obj) {
   s.pinnedStep = Math.max(1, Math.min(3, int(obj.pinnedStep, 1)))
   s.rulesSeen = bool(obj.rulesSeen, false)
   s.step3Run = Math.max(0, int(obj.step3Run, 0))
-  s.plaques = strArr(obj.plaques)
+  s.plaques = [...new Set(strArr(obj.plaques))]   // an older save may hold the same plaque many times
   const st = isObj(obj.settings) ? obj.settings : {}
   s.settings = {
     sound: bool(st.sound, SETTINGS_DEFAULTS.sound),
@@ -62,7 +66,12 @@ export function migrate(obj) {
   }
   if (s.settings.custom.min >= s.settings.custom.max) s.settings.custom.min = 0
   const f = isObj(obj.facts) ? obj.facts : {}
-  s.facts = { seen: strArr(f.seen), right: strArr(f.right), retry: Array.isArray(f.retry) ? f.retry.filter((r) => isObj(r) && typeof r.id === 'string' && Number.isInteger(r.at)) : [] }
+  // ONE ENTRY PER FACT, most recent last. An older save appended on every answer including repeats,
+  // so the list — and the BE1- code built from it — grew without bound; de-duplicating on the way in
+  // makes an upgraded save the same shape as a new one. `at` moved from "seen.length when it was
+  // missed" to the monotone question count, so a legacy value is clamped to a count that exists.
+  const seen = strArr(f.seen).filter((id, i, a) => a.lastIndexOf(id) === i)
+  s.facts = { seen, right: strArr(f.right), retry: Array.isArray(f.retry) ? f.retry.filter((r) => isObj(r) && typeof r.id === 'string' && Number.isInteger(r.at)) : [] }
   s.unlocks = strArr(obj.unlocks)
   const eq = isObj(obj.equipped) ? obj.equipped : {}
   s.equipped = {
@@ -87,6 +96,7 @@ export function migrate(obj) {
     // the live problem gets: makeProblem hands a due entry straight to the renderer.
     comeback: (Array.isArray(h.comeback) ? h.comeback : []).map((x) => (isObj(x) ? { problem: validProblem(x.problem), due: clampInt(x.due, 0, MAX_COUNT, -1) } : null)).filter((x) => x && x.problem && x.due >= 0).slice(-12),
   }
+  s.facts.retry = s.facts.retry.map((r) => ({ id: r.id, at: Math.max(0, Math.min(s.history.count, r.at)) }))
   s.ride = migrateRide(obj.ride)
   s.phase = 'lobby'
   s.screen = 'lobby'

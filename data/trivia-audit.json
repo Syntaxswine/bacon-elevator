@@ -325,7 +325,7 @@
         "Thomas Edison",
         "Gustave Eiffel"
       ],
-      "fact": "In 1880 Werner von Siemens built the world's first electric passenger elevator. It was shown at a trade exhibition in Mannheim, Germany, where it carried visitors up a 20-metre lookout tower. The next year his company ran the world's first electric streetcar, near Berlin.",
+      "fact": "In 1880 Werner von Siemens built the world's first electric passenger elevator. It was the sensation of the Pfalzgau exhibition in Mannheim, Germany, where more than 8,000 visitors paid 20 pfennigs to ride it up the 20-metre observation tower of the customs office.",
       "difficulty": 2,
       "sources": [
         {
@@ -337,6 +337,11 @@
           "title": "Siemens company history, phase 2: 1866-1896 - Siemens Historical Institute (PDF)",
           "url": "https://assets.new.siemens.com/siemens/assets/api/uuid:b124794f4ca360167468ce93e91f7d9a3d145c88/071-company-history-phase2-1866-1896-en.pdf",
           "quote": "In 1880, the electrical engineering company installed the world's first passenger elevator in a building in Mannheim, Germany."
+        },
+        {
+          "title": "First elevator presented in Mannheim in 1880 — Kurpfälzer Meile der Innovationen",
+          "url": "https://www.meile-der-innovationen.de/en/innovationen/1880-erster-fahrstuhl-praesentiert-in-mannheim-werner-von-siemens",
+          "quote": "The elevator mounted on the 20-meter-high observation tower of the main customs office becomes the sensation of the Pfalzgau exhibition located between the castle and the park ring. More than 8,000 visitors let themselves be transported by the electric elevator for 20 pfennigs."
         }
       ],
       "verified": true,
@@ -876,9 +881,9 @@
       "difficulty": 2,
       "sources": [
         {
-          "title": "Cal. Code Regs. Tit. 8, § 1604.25 - Hoisting and Counterweight Ropes, and Rope Connections (Cornell LII)",
-          "url": "https://www.law.cornell.edu/regulations/california/8-CCR-1604.25",
-          "quote": "The minimum number of hoisting ropes used shall be three for traction hoists and two for drum type hoists."
+          "title": "Cal. Code Regs. Tit. 8, § 3042 — Hoisting Ropes and Their Connections (California DIR, Elevator Safety Orders)",
+          "url": "https://www.dir.ca.gov/title8/3042.html",
+          "quote": "The minimum number of hoisting ropes used shall be three for traction elevators, and two for drum-type elevators."
         },
         {
           "title": "Ropes (Hoists) - TK Elevator Classroom On Demand",
@@ -1334,7 +1339,7 @@
     {
       "id": "elevator-records-tallest-lift-in-a-building",
       "category": "elevator",
-      "question": "In 2016 Guinness certified the tallest lift inside any building, in the Shanghai Tower in China. About how far does that lift travel from bottom to top?",
+      "question": "Guinness lists the tallest lift inside any building, in the Shanghai Tower in China. About how far does that lift travel from bottom to top?",
       "answer": "About 578 m",
       "distractors": [
         "About 250 m",
@@ -2268,7 +2273,7 @@
     {
       "id": "elevator-culture-etiquette-nearest-doors",
       "category": "elevator",
-      "question": "According to Otis's elevator safety tips, who should move first when the elevator doors open?",
+      "question": "According to Otis's elevator safety tips, who should step out or in first when the elevator doors open?",
       "answer": "The passengers nearest the doors",
       "distractors": [
         "The tallest passenger",
@@ -2802,7 +2807,7 @@
     {
       "id": "math-numbers-chessboard-doubling",
       "category": "math",
-      "question": "In the old wheat-and-chessboard puzzle, 1 grain goes on square 1, 2 on square 2, 4 on square 3, doubling every square. How long is the number of grains on all 64 squares?",
+      "question": "In the old wheat-and-chessboard puzzle, 1 grain goes on square 1, 2 on square 2, 4 on square 3, doubling every square. How many digits long is the number of grains on all 64 squares?",
       "answer": "A 20-digit number",
       "distractors": [
         "A 7-digit number",
@@ -3208,7 +3213,7 @@
     },
     {
       "id": "math-everyday-counterweight-subtraction",
-      "category": "elevator",
+      "category": "math",
       "question": "An empty elevator car weighs 1000 kg and its counterweight weighs 1500 kg. Then 300 kg of people get in. Now how much heavier is the counterweight than the car with the people inside?",
       "answer": "200 kg",
       "distractors": [
@@ -3247,7 +3252,7 @@
     },
     {
       "id": "math-everyday-floors-per-second",
-      "category": "elevator",
+      "category": "math",
       "question": "The Burj Khalifa's fastest elevators climb 10 metres every second; if each floor were 4 metres tall, how many floors would they pass each second?",
       "answer": "2.5 floors",
       "distractors": [

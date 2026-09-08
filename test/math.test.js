@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mulberry32 } from '../src/rng.js'
 import { LEVELS, levelById, customLevel } from '../src/levels.js'
 import { SETTINGS_DEFAULTS } from '../src/state.js'
-import { makeProblem, afterAnswer, solve, keyOf, checkAnswer, adaptStep, initialCtx, textOf, trueText, BLANK, stepOf } from '../src/math.js'
+import { makeProblem, afterAnswer, solve, keyOf, checkAnswer, adaptStep, initialCtx, textOf, trueText, BLANK, stepOf, validProblem } from '../src/math.js'
 
 const N = 20000
 const maxOf = (level, step) => Math.max(...stepOf(level, step).kinds.map((k) => k.max))
@@ -220,4 +220,83 @@ test('Corner Shop keeps 0 as a teaching point at steps 1–2 and drops it at ste
   }
   assert.ok(zeros[0] > 0 && zeros[1] > 0, `0 is the teaching point at steps 1–2: ${zeros.join('/')}`)
   assert.equal(zeros[2], 0, `${zeros[2]}/5000 step-3 sums still carry a 0 operand`)
+})
+
+
+// ---- round 2 -----------------------------------------------------------------------------------
+
+// r2-autism-fit-02 / r2-math-05: `0 + 0 = ?` and `0 - 0 = ?` are the one cell of the bonds table
+// with nothing in it, and Corner Shop steps 1 and 2 drew them freely: one fresh save in fifty opened
+// on one, and one in six opened on an answer of 0 (`5 - 5`, `2 down 2`). 0 stays a teaching point
+// (the test above pins that); a sum with no number in it is not a question.
+test('no sum has both operands zero, at any level or step, and no save opens on an answer of 0', () => {
+  const levels = LEVELS.concat(customLevel({ ops: ['add', 'sub', 'mul', 'div', 'missAdd', 'up', 'down'], min: 0, max: 20, negatives: true }))
+  let both = 0, draws = 0
+  for (const level of levels) for (let step = 1; step <= level.steps.length; step++) {
+    const rng = mulberry32(77 + step)
+    let ctx = initialCtx()
+    for (let i = 0; i < 20000; i++) {
+      const p = makeProblem(level, step, ctx, rng)
+      if (p.a === 0 && p.b === 0) both++
+      draws++
+      ctx = afterAnswer(ctx, p, true)
+      if (i % 9 === 8) ctx = { ...ctx, sameSeen: false }
+    }
+  }
+  assert.ok(draws > 200000, `only ${draws} draws swept`)
+  assert.equal(both, 0, `${both}/${draws} sums had nothing in them`)
+  // and the very first question of a brand-new save is a sum, not an identity
+  const corner = levelById('corner')
+  let zeroFirst = 0
+  for (let salt = 0; salt < 1500; salt++) {
+    const p = makeProblem(corner, 1, initialCtx(), mulberry32(salt))
+    if (p.answer === 0) zeroFirst++
+  }
+  assert.equal(zeroFirst, 0, `${zeroFirst}/1500 fresh saves opened on an answer of 0`)
+})
+
+// r2-math-01: afterAnswer queued TWO entries per miss and removed only ONE on a re-miss, so a late
+// comeback re-armed itself while its twin was already overdue and fired again on the very next
+// question (8.5 % of questions at 60 % accuracy; 31 identical questions in a row once one key
+// saturated the 12-entry queue). And because a struggling child always had something due, EVERY
+// question was a comeback and the pool collapsed to five sums with no new sum ever drawn again.
+test('a struggling child is never asked the same sum twice running, and still meets new sums', () => {
+  for (const acc of [0.4, 0.6, 0.8]) {
+    for (const id of ['corner', 'office', 'sky']) {
+      const level = levelById(id)
+      const rng = mulberry32(3)
+      const roll = mulberry32(90210)
+      let ctx = initialCtx()
+      let prev = null, backToBack = 0, comebacks = 0
+      const keys = new Set(), lateKeys = new Set()
+      const N = 1200
+      for (let i = 0; i < N; i++) {
+        const p = makeProblem(level, 2, ctx, rng)
+        if (prev && p.key === prev) backToBack++
+        if (p.comeback) comebacks++
+        keys.add(p.key)
+        if (i >= N - 200) lateKeys.add(p.key)
+        prev = p.key
+        ctx = afterAnswer(ctx, p, roll() < acc)
+        // the reducer's own clamp on the queue (state.js recordQuestion)
+        ctx = { ...ctx, comeback: ctx.comeback.filter((x) => x.due >= ctx.count - 40).slice(-12) }
+        if (i % 9 === 8) ctx = { ...ctx, sameSeen: false }
+      }
+      assert.equal(backToBack, 0, `${id} at ${acc}: ${backToBack}/${N} questions repeated the one before`)
+      assert.ok(comebacks / N <= 0.55, `${id} at ${acc}: ${(100 * comebacks / N).toFixed(0)} % comebacks starves the generator`)
+      assert.ok(lateKeys.size >= 20, `${id} at ${acc}: only ${lateKeys.size} distinct sums in the last 200 questions (of ${keys.size} all told)`)
+    }
+  }
+})
+
+// r2-code-hostile-07: checkAnswer's regex and typedCap both stop at TYPED_MAX digits, so a problem
+// whose answer is wider is a sum the keypad physically cannot enter. No generator draws one; a
+// hand-edited save or a hostile BE1- code can, and it fell every time and re-queued itself.
+test('validProblem refuses an answer the keypad cannot type', () => {
+  const ok = { kind: 'add', a: 999999, b: 0, answer: 999999, text: `999999 + 0 = ${BLANK}`, key: 'add:0:999999' }
+  assert.ok(validProblem(ok), 'six digits is the cap, not one under it')
+  const wide = { kind: 'add', a: 1234567, b: 1, answer: 1234568, text: `1234567 + 1 = ${BLANK}`, key: 'add:1:1234567' }
+  assert.equal(validProblem(wide), null, 'a seven-digit answer must not reach the panel')
+  const negWide = { kind: 'sub', a: 1, b: 1234567, answer: -1234566, text: `1 ${'\u2212'} 1234567 = ${BLANK}`, key: 'sub:1:1234567' }
+  assert.equal(validProblem(negWide), null)
 })

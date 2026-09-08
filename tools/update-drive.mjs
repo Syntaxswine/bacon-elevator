@@ -165,12 +165,16 @@ try {
   assert(after.version === '1.0.0', `assert 3: the running session stays on 1.0.0 until the tap (got ${after.version})`)
 
   // 4 — the new cache holds the NEW files, not the ones the HTTP cache was still holding.
+  // The cache name is `be-<VERSION>-<BUILD>` now: BUILD is the hash of everything the worker
+  // precaches, which is what makes sw.js's OWN bytes move on a content-only deploy.
   const cached = await page.evaluate(async () => {
-    const c = await caches.open('be-1.0.1')
+    const name = (await caches.keys()).find((k) => k.startsWith('be-1.0.1'))
+    if (!name) return null
+    const c = await caches.open(name)
     const r = await c.match('./src/version.js')
     return r ? (await r.text()).trim() : null
   })
-  assert(cached && cached.includes('1.0.1'), `assert 4: be-1.0.1 holds VERSION 1.0.1 (got ${JSON.stringify(cached)})`)
+  assert(cached && cached.includes('1.0.1'), `assert 4: the be-1.0.1 cache holds VERSION 1.0.1 (got ${JSON.stringify(cached)})`)
 
   // 5 — and it holds them because install actually went to the network for every asset.
   const assets = new Set(log.filter((p) => !p.endsWith('/sw.js')))
@@ -178,7 +182,7 @@ try {
 
   // 6 — the tap: exactly one navigation, the new version, and back to the SUM.
   navs.length = 0
-  await click('#update-chip')
+  await click('#update-chip [data-update]')   // the chip is a pill of two buttons now: take it, or `not now`
   await page.waitForFunction(() => window.__bacon && window.__bacon.version === '1.0.1', { timeout: 15000 }).catch(() => {})
   await wait(600)
   const back = await peek()

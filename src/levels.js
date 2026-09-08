@@ -1,6 +1,10 @@
 // Level tables. One row per level and step, data not formulas (docs/DESIGN.md §4).
 // `name` is the full name (lobby chip, picker, Grown-ups); `short` (≤ 6 characters) is what the
 // ride's top-bar chip shows, which has only 43–70 px beside the step bar.
+// A level is a maths band, not a height: every building is G, 1-9, R (docs/DESIGN.md §2), and the
+// `floors: 3|6|9` field each level used to declare was read by nothing in src/, test/ or tools/.
+// Dead data in the one file a maintainer reads to learn what a level IS, so it is gone rather than
+// left looking like a knob. Making the buildings differ AS ELEVATORS is a v2 proposal, not a field.
 // kind ∈ add|sub|mul|div|missAdd|missMul|up|down
 // Each kind entry: {kind, weight, a:[lo,hi], b:[lo,hi], max, regroup, tables, ...flags}
 //   a, b      ranges for the two operands (for div: b is the divisor, a/b the quotient range in `q`)
@@ -18,7 +22,7 @@ const K = (kind, weight, o = {}) => ({ kind, weight, ...o })
 
 export const LEVELS = [
   {
-    id: 'corner', name: 'Corner Shop', short: 'Shop', tag: 'numbers to 10', floors: 3,
+    id: 'corner', name: 'Corner Shop', short: 'Shop', tag: 'numbers to 10',
     steps: [
       { kinds: [K('add', 3, { a: [0, 5], b: [0, 5], max: 5 }), K('sub', 3, { a: [0, 5], b: [0, 5], max: 5 }), K('up', 1, { a: [0, 5], b: [1, 5], max: 5 }), K('down', 1, { a: [1, 5], b: [1, 5], max: 5 })] },
       { kinds: [K('add', 3, { a: [0, 10], b: [0, 10], max: 10 }), K('sub', 3, { a: [0, 10], b: [0, 10], max: 10 }), K('up', 1, { a: [0, 9], b: [1, 10], max: 10 }), K('down', 1, { a: [1, 10], b: [1, 10], max: 10 })] },
@@ -28,7 +32,7 @@ export const LEVELS = [
     ],
   },
   {
-    id: 'hotel', name: 'Hotel', short: 'Hotel', tag: 'numbers to 20; tables 2, 5, 10', floors: 6,
+    id: 'hotel', name: 'Hotel', short: 'Hotel', tag: 'numbers to 20; tables 2, 5, 10',
     steps: [
       { kinds: [K('add', 3, { a: [2, 18], b: [2, 18], max: 20, regroup: false }), K('sub', 3, { a: [2, 20], b: [2, 18], max: 20, regroup: false }), K('up', 1, { a: [2, 9], b: [2, 8], max: 10 })] },
       { kinds: [K('add', 3, { a: [2, 18], b: [2, 18], max: 20, regroup: true }), K('sub', 3, { a: [2, 20], b: [2, 18], max: 20, regroup: true }), K('add', 1, { a: [2, 10], b: [2, 10], max: 20, double: true }), K('down', 1, { a: [2, 10], b: [2, 9], max: 10 })] },
@@ -36,7 +40,7 @@ export const LEVELS = [
     ],
   },
   {
-    id: 'office', name: 'Office Block', short: 'Office', tag: 'numbers to 100', floors: 9,
+    id: 'office', name: 'Office Block', short: 'Office', tag: 'numbers to 100',
     steps: [
       { kinds: [K('add', 2, { a: [11, 89], b: [2, 9], max: 100, regroup: false }), K('sub', 2, { a: [11, 99], b: [2, 9], max: 100, regroup: false }), K('add', 1, { a: [10, 90], b: [10, 90], max: 100, tens: true }), K('sub', 1, { a: [20, 100], b: [10, 90], max: 100, tens: true })] },
       { kinds: [K('add', 2, { a: [11, 89], b: [2, 9], max: 100, regroup: true }), K('sub', 2, { a: [11, 99], b: [2, 9], max: 100, regroup: true }), K('mul', 2, { a: [2, 10], b: [3, 4], max: 40, tables: [3, 4] })] },
@@ -44,15 +48,21 @@ export const LEVELS = [
     ],
   },
   {
-    id: 'sky', name: 'Skyscraper', short: 'Sky', tag: 'times tables', floors: 9,
+    id: 'sky', name: 'Skyscraper', short: 'Sky', tag: 'times tables',
     steps: [
-      { kinds: [K('mul', 3, { a: [2, 10], b: [2, 10], max: 100, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10] }), K('div', 2, { q: [2, 10], b: [2, 10], max: 100, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10] })] },
-      { kinds: [K('mul', 3, { a: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }), K('missMul', 2, { a: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] })] },
+      // A PROMOTION MAY NOT NARROW THE QUESTION SET. Skyscraper step 1 used to be Office Block step
+      // 3's mul/div rows verbatim (tables 2-10, max 100), so every one of its 126 reachable sums was
+      // one the child had just been answering, out of the 5 656 Office step 3 serves — a strictly
+      // easier, 45x narrower pool arriving on the screen that says "Try Skyscraper?", and six correct
+      // answers to climb back. The 11s and 12s move here, which is what the building is FOR; step 2
+      // still owns the missing-factor form and step 3 the squares, division within 144 and regrouping.
+      { kinds: [K('mul', 3, { a: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }), K('div', 2, { q: [2, 10], b: [2, 10], max: 100, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10] })] },
+      { kinds: [K('mul', 2, { a: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }), K('missMul', 2, { a: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }), K('div', 1, { q: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] })] },
       { kinds: [K('div', 2, { q: [2, 12], b: [2, 12], max: 144, tables: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] }), K('mul', 1, { a: [2, 12], b: [2, 12], max: 144, square: true }), K('add', 1, { a: [11, 89], b: [11, 89], max: 100, regroup: true }), K('sub', 1, { a: [11, 99], b: [11, 89], max: 100, regroup: true })] },
     ],
   },
   {
-    id: 'megatall', name: 'Megatall', short: 'Mega', tag: 'big numbers', floors: 9,
+    id: 'megatall', name: 'Megatall', short: 'Mega', tag: 'big numbers, and below zero',
     steps: [
       { kinds: [K('add', 3, { a: [100, 899], b: [100, 899], max: 999, regroups: 2 }), K('sub', 3, { a: [100, 999], b: [100, 899], max: 999, regroups: 2 })] },
       { kinds: [K('mul', 3, { a: [11, 99], b: [2, 9], max: 900 }), K('add', 2, { a: [100, 899], b: [100, 899], max: 999, regroups: 2 })] },
@@ -101,5 +111,9 @@ export function customLevel({ ops = ['add', 'sub'], min = 0, max = 20, negatives
   // `numbers 50 to 60` over a `15 ÷ 3`.
   const lo = Math.min(...kinds.map((k) => (k.a ? k.a[0] : k.q[0])))
   const hi = Math.max(...kinds.map((k) => k.max))
-  return { id: 'custom', name: 'Custom', short: 'Custom', tag: `numbers ${lo} to ${hi}`, floors: 9, custom: true, negatives: !!negatives, steps: [{ kinds }] }
+  // ▲ and ▼ are bounded by the BUILDING, not by the knobs: a floor move cannot leave G-1-9-R, so
+  // like × and ÷ above they are relaxed out of the Smallest/Largest range — and, unlike × and ÷,
+  // they were relaxed silently. `ops ▲▼, 9997 to 9999` read `numbers 0 to 9999` over a `9 ▲ 1`.
+  const floorOps = OPS.has('up') || OPS.has('down')
+  return { id: 'custom', name: 'Custom', short: 'Custom', tag: `numbers ${lo} to ${hi}${floorOps ? '; ▲▼ inside the building, 0 to 10' : ''}`, custom: true, negatives: !!negatives, steps: [{ kinds }] }
 }

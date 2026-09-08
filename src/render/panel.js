@@ -97,7 +97,11 @@ function doorFlags(state, ctx) {
 function floorMode(state, ctx) {
   const { canOpen, canClose } = doorFlags(state, ctx)
   return [
-    `<button class="cell key bell" data-bell data-tap ${busy(state) ? 'disabled' : ''} aria-label="Rules">🔔</button>`,
+    // A CAPTION, not a bare glyph. The one route back to the Rules card was an unlabelled bell —
+    // and on a real elevator panel the bell is the ALARM, so for this audience the button that opens
+    // the instructions looked like the one you are told not to press. Its row-mate HINT has carried
+    // a word all along; this now matches it, and the lobby carries a `How it works` button as well.
+    `<button class="cell key bell" data-bell data-tap ${busy(state) ? 'disabled' : ''} aria-label="Rules">🔔 RULES</button>`,
     floorButton(10, state),
     `<div class="cell spacer" aria-hidden="true"></div>`,
     floorButton(7, state), floorButton(8, state), floorButton(9, state),
@@ -199,6 +203,8 @@ function patchTrivia(container, state) {
 function floorName(f) {
   return f === 0 ? 'Ground floor' : f === 10 ? 'Roof' : f === -1 ? 'Pit' : `Floor ${f}`
 }
+const OP_GLOSS = { up: '▲ means go up: add.', down: '▼ means go down: take away.' }
+function opGloss(p) { return (p && OP_GLOSS[p.kind]) || '' }
 function doorsLine(state) {
   const open = state.car.doors === 'open' || state.car.doors === 'opening'
   return `${floorName(state.car.floor)}. Doors ${open ? 'open' : 'closed'}.`
@@ -226,8 +232,12 @@ export function createDisplay(questionEl, messageEl) {
     if (transient) { set(transient.html, transient.cls, transient.msg); return }
     const r = state.ride
     switch (state.phase) {
-      case 'floor': set(`Press ${esc(label(r ? r.target : 1))}`, 'text', state.message || doorsLine(state)); break
-      case 'keypad': set(equationHTML(r.problem.text, r.typed), '', state.message || (r.retrying ? 'Same sum. Ride back up.' : '')); break
+      case 'floor': set(`Press ${esc(label(r ? r.target : 1))}`, 'text', state.message || state.stepNote || doorsLine(state)); break
+      // ▲ and ▼ ARE OPERATORS THE GAME NEVER DEFINED. A quarter of first-ever questions use one,
+      // the rules card only ever shows `7 + 5 = 12`, and the same two glyphs mean DIRECTION on the
+      // hall calls and the lantern on the same screen. The gloss sits under the sum itself, where a
+      // child who has just met the glyph is looking, and yields to any real message.
+      case 'keypad': set(equationHTML(r.problem.text, r.typed), '', state.message || (r.retrying ? 'Same sum. Ride back up.' : opGloss(r.problem))); break
       case 'moving': set(r && r.problem ? equationHTML(r.problem.text, '', r.problem.answer) + '<span class="tick"> ✓</span>' : 'Going up', r && r.problem ? '' : 'text', ''); break
       case 'falling': set(r && r.problem ? equationHTML(r.problem.text, '', r.problem.answer) : '', '', ''); break
       case 'pit': case 'repair': set('Safety brake on.', 'text small', 'Nobody is hurt. Nothing is lost.'); break

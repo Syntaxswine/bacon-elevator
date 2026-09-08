@@ -458,3 +458,123 @@ screen).
 - **The Hotel tag now wraps to two lines at 320 px** (the picker row grows 74 → 92 px). Measured, no
   overflow, drive green — but it is the first level tag that does not fit on one line, and a sixth
   level would want a shorter form.
+
+## Round 2 — hostile review (2026-09-08)
+
+Forty-nine findings, all reproduced by at least one verifier before they reached me. Forty-five
+fixed, one fixed in part, three skipped with reasons below. One defect nobody reported was found
+while measuring the save's growth and fixed with the rest.
+
+**Instruments before → after:** `npm test` 148 → **173 passing**; `npm run drive` 45 → **70 passing**
+(9 → 14 scenarios × 5 phones); `npm run drive:update` **15/15**. Every fix below is pinned by a test
+in `test/` or a scenario in `tools/drive-scenarios.mjs` that fails without it; the two that could
+only be shown in a browser were mutation-tested by reverting the fix and watching the new scenario
+go red (`door-interlock`: the ◁▷ key lit in 33 of 58 frames where it could do nothing; `two-tabs`:
+"an untouched tab took the tray from 7 to null").
+
+### High
+
+| id | what changed, and why | pinned by |
+|---|---|---|
+| r2-mobile-ux-001 | **Landscape put GO off the screen.** The short-landscape rule pinned `--cell 48 / --gap 4 / --display 60` in a grid row only `vh − display` tall, so the panel needed 324 px of viewport height — arithmetic done against the DEVICE height. A browser hands a 360 × 640 Android ~304 px and a 320 × 568 iPhone ~276, and `#app` is `overflow: hidden`: GO measured 32 px, then 4 px, of its 48, with no scroll anywhere and nothing saying to turn the phone back. The ride is now a three-row grid whose panel spans all three rows, so the panel gets the WHOLE viewport height; `--cell` is computed from it with amendment 8's 48 px floor; the keys sit at the bottom of the column; and under the 258 px five keys need, the panel scrolls inside its own box. Measured after: GO whole at 331, 304 and 276, and reachable by scrolling at 232. | drive `layout`: four landscape turns at browser heights, `{ride, go}` at each, plus a new panel-reachability check that scrolls the panel and asserts every key lands inside its box; `test/dom-contract.test.js` asserts the PROPERTIES (panel spans the height, cell computed from `--vh`, panel scrolls) rather than one grid string |
+| r2-code-hostile-01 | **Two tabs wiped the lunchbox.** `save()` wrote `serialize(state)` blindly on every effect, on `visibilitychange` and on `pagehide`, so a second tab opened from a bookmark and never touched wrote its boot snapshot over three buildings of play the moment it was backgrounded — total, silent, no tap needed in the offending tab. The save now carries a monotone `writes` counter: a tab whose counter is behind the record on disk ADOPTS what is there instead of overwriting it, and a `storage` listener re-hydrates an idle tab from a foreign write (never mid-ride: nothing moves under the child's finger). | drive `two-tabs` (a real second page, `bringToFront` both ways, no taps in it); mutation-tested |
+| r2-deploy-pages-01 | **A content-only deploy never reached a child who already had the game.** The browser's update check compares `sw.js`'s bytes and nothing else; three of the last four deploys changed shipped assets without touching it, so no worker installed and the cache-first handler never asked the network again. `sw.js` now carries `BUILD`, a hash of every file it precaches, and the cache is `be-<VERSION>-<BUILD>`, so any content change moves sw.js's own bytes. `tools/build-stamp.mjs` writes it. | `test/version.test.js` recomputes the hash and goes RED until the stamp is moved — the message names the command; `npm run drive:update` still 15/15 |
+
+### Medium
+
+| id | what changed, and why | pinned by |
+|---|---|---|
+| r2-autism-fit-01 / r2-math-02 | **HINT was a 2 px smudge on the smallest phone.** `.hint` was 46 % of a shaft the short tiers had collapsed to 82 px, and a fixed 320 × 110 viewBox letterboxed the whole drawing into a 16 px box: the 0–10 tick labels painted at 2.0 CSS px. The card now has a 64 px floor and both renderers derive their viewBox HEIGHT from the box's aspect, so the drawing is width-limited and fills what it is given; under 34 px the worked line takes over. Measured after at 320 × 454: labels **12.0 px**, drawing fills **74 %** of the width. | drive `layout` `{hint: true}` measures the PAINTED label height (≥ 9 px) and the fraction of the width filled — the old check counted `<path>` elements and could not see any of it |
+| r2-math-01 | **The comeback queue served the same sum twice running and starved the generator.** `afterAnswer` queued two entries per miss and removed one on a re-miss, so a late comeback re-armed itself while its twin was overdue; and because a struggling child always had something due, every question was a comeback. The queue is de-duplicated by key, serving clears every DUE entry for that key, and `ctx.lastComeback` stops two comebacks in a row. | `test/math.test.js` (three levels × 40/60/80 % accuracy: zero back-to-back, ≤ 55 % comebacks, ≥ 20 distinct sums in the last 200) and the new imperfect-child sweep in `test/headless-play.test.js` |
+| r2-math-04 | **The ladder went down at Office → Skyscraper.** Skyscraper step 1 was Office step 3's mul/div rows verbatim, so all 126 of its reachable sums were already reachable at Office step 3, which serves 5 500 more. Step 1 now carries the 2–12 tables (the 11s and 12s are what the building is FOR) and step 2 keeps the missing-factor form and widens division to 144. | `test/levels.test.js`: for every consecutive pair, the next level's step 1 must reach keys the previous step 3 cannot, and may not top out lower |
+| r2-math-03 / r2-autism-fit-06 | **▲ and ▼ were operators the game never defined**, while the same glyphs mean DIRECTION on the hall calls and the lantern of the same screen. `▲ means go up: add.` now rides in the band under the sum whenever one is on screen, and the Rules card names both. | drive `rules-route` plays until a ▲/▼ sum comes up and asserts the band says so |
+| r2-autism-fit-03 | **After the first play the rules were reachable only through an unlabelled bell**, in floor mode, with the car standing still. The lobby carries `How it works`, the bell key carries the word RULES, and `card-continue` now decides where to return from the PHASE (a parked ride whose phase is `lobby` used to land the child on the ride screen with the reducer in the lobby). | drive `rules-route`; `test/state.test.js` for the return branch |
+| r2-elevator-feel-01 | **The ◁▷ key stayed lit ~1.6 s after it could do anything**, then greyed itself out when pressed. `tick()` fired the timeline's steps before advancing the shaft's clock, so the two re-renders at `doors-closed` and `move-start` both read the previous frame and re-armed the key. The clock leads the steps now. | drive `door-interlock`, at timescale 1 (`?fast=1` compresses the whole ride into 270 ms and hides it); mutation-tested |
+| r2-elevator-feel-02 / r2-trivia-truth-02 | **The three-ropes card cited the wrong regulation.** §1604.25 is Construction Safety Orders, Article 14 "Construction Hoists" — different machines, and its factor table stops at 10.70, so it does not carry the "nearly 12 times" the fact quotes. The shown source is now §3042, the Elevator Safety Orders section the fact names, with its verbatim quote; the hostile lens moved to the construction-hoist rule, which is exactly the check that failed. | `test/trivia.test.js`, generalised: any fact naming `section NNNN` must show a source carrying it |
+| r2-mobile-ux-002 | **The drive's landscape turns used device heights**, so the gate could not see finding 001. They are the browser-visible heights now (667 × 331, 640 × 304, 568 × 276, 568 × 232). | itself: the same turns fail on the pre-fix CSS |
+| r2-mobile-ux-003 | **`Bigger text` was a no-op on every screen the child reads.** 67 absolute `font-size: Npx` rules meant `html.big` raised only the Grown-ups labels — the one screen a parent is looking at while deciding whether it worked. Every child-facing size is now `calc(var(--body) / 18 * N)`, byte-identical at the 18 px default. | drive `settings` turns it on and asserts the lobby's Ride button, the level tag, the sum and the panel keys all grow |
+| r2-code-hostile-02 | **A refused write was swallowed.** `storage.js`'s in-memory fallback keeps the session working, and `main.js` discarded the boolean, so the child played a whole session and the lunchbox was 0 on the next load with nothing on any screen to say so. The lobby and Grown-ups now say it, and point at the save code. | drive `storage-refused` (every `bacon-elevator` write throws) |
+| r2-deploy-pages-02 | **`?reset=1` refilled from the browser's own HTTP cache.** The deletes were undone within 266 ms by the surviving worker, so the child paid their whole lunchbox and stayed on the superseded build. The reset now re-fetches every precached path with `cache: 'reload'`. | `test/version.test.js` asserts `RESET_ASSETS` equals `sw.js`'s `ASSETS` exactly, so the two lists cannot drift |
+| r2-autism-fit-02 / r2-math-05 | **`0 + 0` and `0 − 0` are not questions**, and one fresh save in six opened on an answer of 0. Both operands zero is refused at every level and step, and the FIRST question of a brand-new save never answers 0. 0 stays the teaching point at Corner Shop steps 1 and 2 that `levels.js` describes, and the shipped test for that still passes unchanged. | `test/math.test.js`: 200 000+ draws across every level and step, and 1 500 fresh saves |
+
+### Low — all fixed
+
+`r2-autism-fit-04` a scroll cue on the fact and rules sheets (pure CSS, no listener) · `r2-autism-fit-05`
+a step change says so in words (`Bigger numbers now.`) in the band that carries `Try once more.` ·
+`r2-autism-fit-07` one colour for the button that carries you forward; sage now means only ON ·
+`r2-autism-fit-08` the Rules card says where the bacon goes · `r2-autism-fit-09` the three-ropes lens
+now reads a second document; the two items that were genuinely checked twice against one source are
+NAMED in the test and amendment 1 is narrowed to what the record shows · `r2-math-07` the tag-honesty
+guard parses the leading bound out of any tag and measures every level and every step (it had been
+`/^numbers to (\d+)$/`, so adding `; tables 2, 5, 10` made it skip the level it was written for) ·
+`r2-math-08` an imperfect-child sweep beside the perfect one · `r2-math-09` two arithmetic word
+problems re-filed from `elevator` to `math` (mix 42/25 → 40/27) · `r2-math-10` `TRIVIA_LIMITS` gains
+`maxNumber` and items declare `maths: {max}`, so a `numbers to 10` child is not asked 8 × 5 (Corner
+Shop band 22 → 20 items, both kinds still stocked) · `r2-math-11` two questions reworded to be
+answerable before reading the options · `r2-elevator-feel-03` the dead `floors:` field deleted ·
+`r2-elevator-feel-05` the landing's hall call lights while the car is called · `r2-elevator-feel-07`
+a disabled floor key answers the press by re-stating which button is lit · `r2-elevator-feel-08` a
+counted run keeps a non-breaking space before its last number · `r2-mobile-ux-004` `pan-y pinch-zoom`
+· `r2-mobile-ux-005` / `r2-deploy-pages-04` the chip speaks the game's register and can be put away ·
+`r2-code-hostile-03` a short portrait window gives the panel the scroll · `r2-code-hostile-04`
+`normaliseRide` clamps the ride's counters, not only its geometry (an import could make the lunchbox
+NaN) · `r2-code-hostile-05` `load-facts` re-validates its payload · `r2-code-hostile-06` `facts.seen`
+holds one entry per fact and the missed-fact clock moved to `history.count` · `r2-code-hostile-07`
+`validProblem` refuses an answer wider than the keypad can type · `r2-code-hostile-08` Custom's tag
+names where its floor moves live · `r2-code-hostile-09` no entry, no `you pressed 0` ·
+`r2-code-hostile-10` digits, Backspace and Enter from a paired keyboard · `r2-trivia-truth-01` one
+card, one date · `r2-trivia-truth-03` the Siemens exhibition and the 20-metre tower are cited (and
+the uncited streetcar clause is gone) · `r2-deploy-pages-03` a `404.html` that says Bacon Elevator
+and computes its own way back.
+
+### Found in passing, not reported
+
+**A plaque was hung again on every roof.** `PLAQUES` holds numbers and `state.plaques` holds strings,
+so `state.plaques.includes(p)` was never true: past 200 bacon the roof card announced "A plaque for
+200 bacon hangs in the Lobby" on every single building, the Lobby drew the same plaque over and
+over, and the list grew without bound. Found while measuring the save code's growth for
+r2-code-hostile-06 — the growth that survived the `facts.seen` fix was this. Pinned by
+`test/state.test.js` (four roofs from lunchbox 199: announced once, never again) and repaired for
+existing saves in `migrate`.
+
+### Skipped, and why
+
+- **r2-elevator-feel-04 — the Fact card and the roof are full-screen takeovers.** Both are the spec:
+  amendment 3 defines the Fact card as "a full-height sheet over shaft and panel", and §Screens makes
+  the roof picnic its own screen. Rendering them inside the panel band contradicts that and the
+  vertical budget it sits in — at 320 × 454 the panel's four text rows are 204 px, which the longest
+  fact (434 characters) does not fit, and the shaft would then be paying for a text card. This is a
+  design change for the lead, not a defect fix.
+- **r2-elevator-feel-06 — a long passenger question shrinks the shaft to 79 px at 320 × 454.** Both
+  offered fixes contradict something shipped. Capping questions at ~110 characters reverses amendment
+  3, which dropped the ≤ 90 cap deliberately and states that a question is "never truncated"; making
+  the question scroll inside its own box trips the shipped `worst-trivia` gate ("the longest question
+  is clipped"), which is the assertion that keeps the bank readable. The shaft yielding IS amendment
+  8's documented trade, and `.shaft.tiny` already blanks a cropped sliver rather than showing one.
+- **r2-mobile-ux-006 — the shaft gets 82 px of 454 on the smallest phone.** The finding calls it "a
+  nicety rather than a defect" and a deliberate, documented trade, and it is: no key may ever be
+  pushed off the bottom. The harm it actually names — the elevator unreadable at a glance because the
+  HINT over it is a smudge — is fixed by r2-autism-fit-01, and a third short tier trimming the
+  display band and the gaps would take the Repair card's four-row box from 204 px to ~201, which the
+  drive's card check is already close to failing at Megatall.
+- **r2-math-06 — partly.** Megatall's tag now reads `big numbers, and below zero` and the Grown-ups
+  Level list shows every level's tag, so a parent choosing it is told. A per-preset negatives switch
+  is NOT built: it needs a level-override field in the save schema and a second source of truth
+  beside `levels.js`, and Custom already exposes the knob. **The lead should decide** whether the
+  preset levels get their own overrides or the answer stays "use Custom".
+
+### Handed on
+
+- **`tools/build-stamp.mjs` must be the last thing run before a commit that changes a shipped file**,
+  or `npm test` is red. That is the point — but it means the stamp is a merge-conflict magnet on any
+  branch that touches `src/`, `css/`, `index.html` or `data/`. If that becomes a nuisance, compute
+  the hash in the worker at install time instead and compare it there.
+- **Two items are still checked twice against the same document** (`elevator-engineering-infrared-light-curtain`,
+  `elevator-records-space-elevator-orbit-height`). They are named in `test/trivia.test.js` so a third
+  cannot join them unremarked; re-running the hostile lens against a genuinely different source is a
+  research task, not an engineering one.
+- **The `two-tabs` guard resolves a genuine double-play by adopting whichever record is newer**, which
+  means a tab that was ALSO played can lose its own progress rather than the other tab's. That is
+  strictly better than the silent wipe, and it is the shape the review asked for, but a real merge
+  (take the larger lunchbox, the union of the facts) is the honest end state.
+- **`settings.secondTry` is still `true` at every level** — round 1's open question, unchanged.

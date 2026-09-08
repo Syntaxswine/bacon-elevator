@@ -42,6 +42,12 @@
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --body: 18px;
+  /* THE TYPE SCALE. `Bigger text` in Grown-ups raises --body from 18 px to 21 px, and every size
+     below is written as calc(var(--body) / 18 * N) - N is the px it renders at the 18 px default, so
+     the shipped look is byte-identical with the setting off and everything the child reads grows
+     with it. Sixty-seven absolute `font-size: Npx` rules made the toggle a no-op on every screen
+     except the Grown-ups page it is turned on from, which is the one screen a parent is looking at
+     while deciding whether it worked. calc(var(--body) ...), not `em`, so nesting cannot compound. */
 }
 @supports (height: 100dvh) { :root { --vh: 100dvh; } }
 html.big { --body: 21px; }
@@ -76,22 +82,26 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .screen.active { display: flex; }
 
 /* ---------- generic screens (lobby, picker, book, workshop, grown-ups) ---------- */
-.page { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 16px 24px; touch-action: pan-y; overscroll-behavior: contain; }
+/* `pan-y pinch-zoom`, not `pan-y`: the bare value keeps the double-tap-zoom suppression that
+   motivated it AND removes pinch-zoom, over exactly the screens with the smallest text (the Fact
+   Book's sources, the Grown-ups notes, the save code). index.html deliberately leaves user scaling
+   on; this is the one place that was quietly taking it away again. */
+.page { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 16px 24px; touch-action: pan-y pinch-zoom; overscroll-behavior: contain; }
 /* The way out of a long page is reachable at ANY scroll position: the header bar pins itself.
    (Grown-ups is 2100–2350 px tall; its Lobby button used to scroll away at the top.) The negative
    margins and top: -12px cancel .page's own padding so the bar spans the width and pins flush. */
 .page > .row.spread:first-child { position: sticky; top: -12px; z-index: 3; background: var(--paper); margin: -12px -16px 0; padding: 8px 16px 6px; border-bottom: 2px solid #cfc9bb; }
-.page h1 { font-size: 30px; margin: 8px 0 4px; letter-spacing: 0.5px; }
-.page h2 { font-size: 20px; margin: 18px 0 8px; }
+.page h1 { font-size: calc(var(--body) / 18 * 30); margin: 8px 0 4px; letter-spacing: 0.5px; }
+.page h2 { font-size: calc(var(--body) / 18 * 20); margin: 18px 0 8px; }
 .page p { margin: 6px 0; line-height: 1.4; }
 .muted { color: var(--ink-soft); }
-.small { font-size: 15px; }
+.small { font-size: calc(var(--body) / 18 * 15); }
 .row { display: flex; gap: 10px; align-items: center; }
 .row.wrap { flex-wrap: wrap; }
 .spread { justify-content: space-between; }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; min-width: 56px; padding: 0 18px; border-radius: var(--radius); background: #fff; border: 3px solid var(--line); font-size: 18px; font-weight: 600; color: var(--ink); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; min-width: 56px; padding: 0 18px; border-radius: var(--radius); background: #fff; border: 3px solid var(--line); font-size: calc(var(--body) / 18 * 18); font-weight: 600; color: var(--ink); }
 .btn.wide { width: 100%; }
-.btn.tall { min-height: 72px; font-size: 24px; }
+.btn.tall { min-height: 72px; font-size: calc(var(--body) / 18 * 24); }
 .btn.primary { background: var(--go); border-color: var(--go-deep); color: #fff; }
 .btn.sage { background: var(--sage-fill); border-color: var(--sage-edge); color: #fff; }
 .btn.quiet { background: transparent; border-color: transparent; font-weight: 500; }
@@ -101,11 +111,11 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
 .lobby-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 12px 0 10px; }
 .lobby-head .title-art { width: min(220px, 60vw); height: auto; }
-.total { display: inline-flex; align-items: center; gap: 10px; font-size: 24px; font-weight: 700; }
+.total { display: inline-flex; align-items: center; gap: 10px; font-size: calc(var(--body) / 18 * 24); font-weight: 700; }
 .total .bacon-icon { width: 40px; height: 20px; }
 .bacon-icon { width: 28px; height: 14px; display: inline-block; vertical-align: middle; }
 .plaques { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
-.plaque { border: 3px solid #8A6A2A; background: #E8D8A8; color: #4A3A1A; border-radius: 6px; padding: 4px 10px; font-weight: 700; font-size: 15px; }
+.plaque { border: 3px solid #8A6A2A; background: #E8D8A8; color: #4A3A1A; border-radius: 6px; padding: 4px 10px; font-weight: 700; font-size: calc(var(--body) / 18 * 15); }
 .chip { display: inline-flex; align-items: center; gap: 10px; }
 .stepbar { display: inline-flex; gap: 3px; }
 .stepbar i { display: block; width: 14px; height: 8px; border-radius: 2px; background: #cfc9bb; border: 1px solid #a8a293; }
@@ -113,20 +123,20 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .level-list { display: flex; flex-direction: column; gap: 10px; }
 .level { display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 6px 12px; text-align: left; }
 .level svg { width: 48px; height: 56px; flex: 0 0 auto; }
-.level .name { font-weight: 700; font-size: 19px; }
-.level .tag { font-size: 15px; color: var(--ink-soft); }
+.level .name { font-weight: 700; font-size: calc(var(--body) / 18 * 19); }
+.level .tag { font-size: calc(var(--body) / 18 * 15); color: var(--ink-soft); }
 .level.current { border-color: var(--sage-deep); background: #E8F0E4; }
 .book-item { border: 2px solid #cfc9bb; border-radius: 10px; padding: 10px 12px; margin: 8px 0; background: #fff; }
 .book-item .q { font-weight: 600; }
-.book-item .src { font-size: 15px; color: var(--ink-soft); word-break: break-word; }
+.book-item .src { font-size: calc(var(--body) / 18 * 15); color: var(--ink-soft); word-break: break-word; }
 .book-item a { color: var(--go); }
 .setting { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 56px; padding: 4px 0; border-bottom: 1px solid #d9d4c7; }
 .setting .label { flex: 1 1 auto; }
-.setting .label small { display: block; color: var(--ink-soft); font-size: 14px; }
+.setting .label small { display: block; color: var(--ink-soft); font-size: calc(var(--body) / 18 * 14); }
 .stepper { display: inline-flex; align-items: center; gap: 4px; }
 .stepper .btn { min-width: 52px; padding: 0 12px; }
 .stepper .val { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
-.code { font-family: var(--mono); font-size: 14px; word-break: break-all; background: #fff; border: 2px solid #cfc9bb; border-radius: 8px; padding: 8px; max-height: 96px; overflow: auto; -webkit-user-select: text; user-select: text; }
+.code { font-family: var(--mono); font-size: calc(var(--body) / 18 * 14); word-break: break-all; background: #fff; border: 2px solid #cfc9bb; border-radius: 8px; padding: 8px; max-height: 96px; overflow: auto; -webkit-user-select: text; user-select: text; }
 .radio-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .radio { min-height: 56px; min-width: 56px; padding: 0 14px; border-radius: var(--radius); border: 3px solid var(--line); background: #fff; font-weight: 600; text-align: left; }
 .radio[aria-checked="true"] { background: var(--sage-fill); border-color: var(--sage-edge); color: #fff; }
@@ -136,12 +146,12 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .ride { position: relative; }
 .right { display: contents; }
 .topbar { flex: 0 0 var(--topbar); height: var(--topbar); display: flex; align-items: stretch; gap: 4px; padding: 0 4px; border-bottom: 2px solid #cfc9bb; background: var(--paper); }
-.topbar .tb { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 48px; min-height: 48px; padding: 0 8px; border-radius: 10px; font-weight: 700; font-size: 17px; }
+.topbar .tb { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 48px; min-height: 48px; padding: 0 8px; border-radius: 10px; font-weight: 700; font-size: calc(var(--body) / 18 * 17); }
 .topbar .tb.nav { color: var(--go); }
 .topbar .tb.nav:disabled { color: #9A968C; }
-.topbar .chip { flex: 1 1 auto; justify-content: center; min-width: 0; font-size: 13px; font-weight: 600; color: var(--ink-soft); gap: 6px; }
+.topbar .chip { flex: 1 1 auto; justify-content: center; min-width: 0; font-size: calc(var(--body) / 18 * 13); font-weight: 600; color: var(--ink-soft); gap: 6px; }
 .topbar .chip .lname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.topbar .count { font-variant-numeric: tabular-nums; font-size: 19px; }
+.topbar .count { font-variant-numeric: tabular-nums; font-size: calc(var(--body) / 18 * 19); }
 .topbar .lunch-icon { width: 24px; height: 20px; }
 .tb.speaker[aria-pressed="true"] { background: #E8F0E4; }
 /* At 320 wide the chip is 79 px and the step bar leaves 17–43 px: no name fits, so none is shown.
@@ -155,16 +165,22 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .shaft svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .shaft.tiny > svg { display: none; }  /* the world only: the HINT card keeps its own drawing */
 .shaft .cropped { visibility: hidden; }
-.hint { position: absolute; z-index: 2; left: 8px; right: 8px; bottom: 8px; height: 46%; background: rgba(255, 255, 255, 0.94); border: 3px solid var(--line); border-radius: 12px; padding: 8px; display: flex; align-items: center; justify-content: center; }
+/* THE HINT CARD IS NOT A PERCENTAGE OF A COLLAPSED SHAFT. At 320 x 454 the shaft is 82 px, so
+   46 % of it left a 16 px drawing box and the number line rendered its 0-10 tick labels at 2 CSS px
+   — the one help the child can ask for, unreadable on the smallest phone the project ships for.
+   `max(64px, 46%)` gives the card a floor (max-height still keeps it inside the shaft), and
+   main.js sizes the drawing's viewBox to the box it actually gets instead of letterboxing a fixed
+   320 x 110 into it. */
+.hint { position: absolute; z-index: 2; left: 8px; right: 8px; bottom: 8px; height: max(64px, 46%); max-height: calc(100% - 12px); background: rgba(255, 255, 255, 0.94); border: 3px solid var(--line); border-radius: 12px; padding: 8px; display: flex; align-items: center; justify-content: center; }
 .hint svg { position: static; width: 100%; height: 100%; }
-.hint .worked { font-family: var(--mono); font-size: 22px; text-align: center; }
+.hint .worked { font-family: var(--mono); font-size: calc(var(--body) / 18 * 22); text-align: center; }
 
 /* The display band: the question (or status) on top, a second status line under it. */
 .display { flex: 0 0 var(--display); height: var(--display); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2px 8px; background: #fff; border-top: 2px solid #cfc9bb; border-bottom: 2px solid #cfc9bb; }
-#question { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 40px; line-height: 1.1; white-space: nowrap; letter-spacing: 1px; }
-#question.text { font-family: var(--font); font-size: 28px; font-weight: 700; letter-spacing: 0; }
-#question.small { font-size: 22px; }
-#question .op { display: inline-block; font-size: 40px; line-height: 1; }
+#question { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: calc(var(--body) / 18 * 40); line-height: 1.1; white-space: nowrap; letter-spacing: 1px; }
+#question.text { font-family: var(--font); font-size: calc(var(--body) / 18 * 28); font-weight: 700; letter-spacing: 0; }
+#question.small { font-size: calc(var(--body) / 18 * 22); }
+#question .op { display: inline-block; font-size: 1em; line-height: 1; }
 #question .op-add, #question .op-up { color: var(--op-add); }
 #question .op-sub, #question .op-down { color: var(--op-sub); }
 #question .op-mul { color: var(--op-mul); font-size: 0.8em; font-weight: 300; }
@@ -172,24 +188,24 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 #question .blank { display: inline-block; min-width: 0.6em; border-bottom: 4px solid var(--go); color: var(--go); }
 #question .blank.empty::after { content: "▮"; color: #b9c6d4; }
 #question .tick { color: var(--sage-deep); }
-#message { min-height: 20px; font-size: 16px; line-height: 1.25; color: var(--ink-soft); text-align: center; }
+#message { min-height: 20px; font-size: calc(var(--body) / 18 * 16); line-height: 1.25; color: var(--ink-soft); text-align: center; }
 #message:empty { display: none; }
 
 .panel { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: var(--cell); gap: var(--gap); padding: var(--gap); background: var(--paper); }
-.panel .cell { display: flex; align-items: center; justify-content: center; min-height: var(--cell); min-width: 48px; border-radius: 12px; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; position: relative; }
+.panel .cell { display: flex; align-items: center; justify-content: center; min-height: var(--cell); min-width: 48px; border-radius: 12px; font-size: calc(var(--body) / 18 * 26); font-weight: 700; font-variant-numeric: tabular-nums; position: relative; }
 .panel .key { background: #fff; border: 3px solid var(--line); box-shadow: 0 3px 0 #b9b3a4; }
 .panel .key:active:not(:disabled) { box-shadow: 0 1px 0 #b9b3a4; transform: translateY(2px); }
-.panel .key.go { grid-column: span 2; background: var(--go); border-color: var(--go-deep); color: #fff; box-shadow: 0 3px 0 var(--go-deep); font-size: 28px; letter-spacing: 2px; }
+.panel .key.go { grid-column: span 2; background: var(--go); border-color: var(--go-deep); color: #fff; box-shadow: 0 3px 0 var(--go-deep); font-size: calc(var(--body) / 18 * 28); letter-spacing: 2px; }
 .panel .key.go:disabled { background: #b9c6d4; border-color: #9aaabb; box-shadow: 0 3px 0 #9aaabb; color: #fff; opacity: 1; }
 /* One `cannot act` look for the whole panel — the same three colours the disabled floor face uses,
    so there is no red, no cross and no washed-out glyph the contrast reader would then fail.
    The door keys were already disabled and still drew as live white keys. */
 .panel .key:disabled { background: #F2EFE8; border-color: #B5B0A3; color: #9A968C; box-shadow: 0 3px 0 #D5D0C4; }
-.panel .key.small-label { font-size: 18px; }
-.panel .key.hint-key { font-size: 17px; letter-spacing: 1px; }
+.panel .key.small-label { font-size: calc(var(--body) / 18 * 18); }
+.panel .key.hint-key { font-size: calc(var(--body) / 18 * 17); letter-spacing: 1px; }
 .panel .spacer { background: transparent; }
 .panel .floor { background: transparent; }
-.panel .floor .face { width: min(54px, calc(var(--cell) - 2px)); height: min(54px, calc(var(--cell) - 2px)); border-radius: 50%; border: 3px solid var(--line); background: #fff; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 0 0 0 rgba(232, 176, 74, 0); transition: box-shadow 200ms ease, background 200ms ease; }
+.panel .floor .face { width: min(54px, calc(var(--cell) - 2px)); height: min(54px, calc(var(--cell) - 2px)); border-radius: 50%; border: 3px solid var(--line); background: #fff; display: flex; align-items: center; justify-content: center; font-size: calc(var(--body) / 18 * 24); box-shadow: 0 0 0 0 rgba(232, 176, 74, 0); transition: box-shadow 200ms ease, background 200ms ease; }
 .panel .floor:disabled .face { color: #9a968c; border-color: #b5b0a3; background: #f2efe8; }
 .panel .floor.target .face { border-color: #9A7A2A; }
 .panel .floor.target .face { animation: pulse 1s ease-in-out infinite; }
@@ -198,8 +214,8 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
    skips anything inside a disabled button. */
 .panel .floor.lit .face { animation: none; background: var(--amber); color: var(--ink); box-shadow: 0 0 0 6px rgba(232, 176, 74, 0.45); border-color: #9A7A2A; }
 .panel .floor .tag { position: absolute; top: 2px; right: 22px; width: 22px; height: 22px; border-radius: 50%; background: var(--go); color: #fff; font-size: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; }
-.panel .door-key { font-size: 24px; letter-spacing: -2px; }
-.panel .bell { font-size: 24px; }
+.panel .door-key { font-size: calc(var(--body) / 18 * 24); letter-spacing: -2px; }
+.panel .bell { font-size: calc(var(--body) / 18 * 17); letter-spacing: 1px; }
 @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 176, 74, 0); background: #fff; } 50% { box-shadow: 0 0 0 6px rgba(232, 176, 74, 0.45); background: #FFF0CC; } }
 
 /* trivia mode: the question over two rows, three lettered choices; after a choice the right one
@@ -208,8 +224,8 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
    the ≤ 90 / ≤ 40 caps), so trivia rows are sized by their text, not by the cell: the question is
    exactly as tall as it needs and each choice grows past its 48 px floor rather than clipping. */
 .panel[data-mode="trivia"] { grid-auto-rows: minmax(var(--cell), auto); }
-.panel .tq { grid-column: span 3; display: flex; align-items: center; justify-content: center; text-align: center; font-size: clamp(14px, 4.6vw, 17.5px); line-height: 1.25; padding: 2px 4px; font-weight: 600; }
-.panel .choice { grid-column: span 3; display: flex; align-items: center; justify-content: flex-start; gap: 10px; background: #fff; border: 3px solid var(--line); border-radius: 12px; font-size: clamp(16px, 4.6vw, 18px); font-weight: 600; line-height: 1.2; padding: 6px 10px; min-height: var(--cell); height: auto; text-align: left; white-space: normal; box-shadow: 0 3px 0 #b9b3a4; transition: background 200ms ease, opacity 200ms ease; }
+.panel .tq { grid-column: span 3; display: flex; align-items: center; justify-content: center; text-align: center; font-size: clamp(calc(var(--body) / 18 * 14), 4.6vw, calc(var(--body) / 18 * 17.5)); line-height: 1.25; padding: 2px 4px; font-weight: 600; }
+.panel .choice { grid-column: span 3; display: flex; align-items: center; justify-content: flex-start; gap: 10px; background: #fff; border: 3px solid var(--line); border-radius: 12px; font-size: clamp(calc(var(--body) / 18 * 16), 4.6vw, calc(var(--body) / 18 * 18)); font-weight: 600; line-height: 1.2; padding: 6px 10px; min-height: var(--cell); height: auto; text-align: left; white-space: normal; box-shadow: 0 3px 0 #b9b3a4; transition: background 200ms ease, opacity 200ms ease; }
 .panel .choice .letter { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); font-size: 14px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
 .panel .choice .ctext { flex: 1 1 auto; min-width: 0; }
 .panel .choice:disabled { cursor: default; }
@@ -221,40 +237,56 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 /* card mode (repair): four rows, the text centred while it fits and scrolling inside the card if it ever does not */
 .panel .card { grid-column: span 3; grid-row: span 4; display: flex; flex-direction: column; text-align: center; background: #fff; border: 3px solid var(--line); border-radius: 14px; padding: 6px 12px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .panel .card .inner { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.panel .card .big { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 34px; font-weight: 700; }
-.panel .card .small { font-size: 16px; color: var(--ink-soft); }
-.panel .card .worked { font-family: var(--mono); font-size: 17px; line-height: 1.3; overflow-wrap: anywhere; }
-.panel .card .worked.long { font-size: 15px; }
-.panel .card .clause { font-size: 17px; font-weight: 600; color: var(--op-add); }
-.panel .key.continue { grid-column: span 3; background: var(--sage-fill); border-color: var(--sage-edge); color: #fff; box-shadow: 0 3px 0 var(--sage-edge); font-size: 22px; }
+.panel .card .big { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: calc(var(--body) / 18 * 34); font-weight: 700; }
+.panel .card .small { font-size: calc(var(--body) / 18 * 16); color: var(--ink-soft); }
+.panel .card .worked { font-family: var(--mono); font-size: calc(var(--body) / 18 * 17); line-height: 1.3; overflow-wrap: anywhere; }
+.panel .card .worked.long { font-size: calc(var(--body) / 18 * 15); }
+.panel .card .clause { font-size: calc(var(--body) / 18 * 17); font-weight: 600; color: var(--op-add); }
+/* One colour for "the button that carries you forward": GO blue, on the panel and on every sheet.
+   `Ride` was blue in the lobby and green on the Rules card one tap later, `Next building` blue and
+   `Try again` green — the same job in two colours for a child who navigates by colour and shape.
+   Sage now means one thing only: a state that is ON (a chosen setting, the right trivia answer). */
+.panel .key.continue { grid-column: span 3; background: var(--go); border-color: var(--go-deep); color: #fff; box-shadow: 0 3px 0 var(--go-deep); font-size: calc(var(--body) / 18 * 22); }
 
 /* ---------- sheets (fact card, rules) ---------- */
 .sheet { position: absolute; inset: 0; background: var(--paper); display: flex; flex-direction: column; z-index: 5; }
-.sheet .body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px; touch-action: pan-y; overscroll-behavior: contain; }
+/* The scroll cue: a soft shadow at whichever edge still has content past it, and none when the
+   card fits. On a 320 px phone the fact card's sources sit below the fold and the `Got it` bar sits
+   flush against the cut, which reads as the end of the card. Pure CSS (the two `local` gradients
+   paint over the two `scroll` shadows as the content reaches each end) — no listener, no chevron. */
+.sheet .body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px;
+  touch-action: pan-y pinch-zoom; overscroll-behavior: contain;
+  background:
+    linear-gradient(var(--paper) 40%, rgba(244, 241, 234, 0)) top / 100% 20px no-repeat local,
+    linear-gradient(rgba(244, 241, 234, 0), var(--paper) 60%) bottom / 100% 20px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(43, 43, 43, 0.20), rgba(43, 43, 43, 0)) top / 100% 11px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(43, 43, 43, 0.20), rgba(43, 43, 43, 0)) bottom / 100% 11px no-repeat scroll;
+}
 .sheet .foot { flex: 0 0 auto; padding: 8px 12px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--paper); border-top: 2px solid #cfc9bb; }
 .sheet .foot .btn { min-height: 60px; }
-.fact .q { font-weight: 700; font-size: 19px; margin: 0 0 8px; }
-.fact .verdict { font-size: 18px; margin: 4px 0; }
+.fact .q { font-weight: 700; font-size: calc(var(--body) / 18 * 19); margin: 0 0 8px; }
+.fact .verdict { font-size: calc(var(--body) / 18 * 18); margin: 4px 0; }
 .fact .verdict.right { color: var(--sage-deep); font-weight: 700; }
-.fact .factline { font-size: 18px; line-height: 1.45; margin: 10px 0; }
-.fact .src { font-size: 15px; color: var(--ink-soft); margin: 4px 0; word-break: break-word; }
+.fact .factline { font-size: calc(var(--body) / 18 * 18); line-height: 1.45; margin: 10px 0; }
+.fact .src { font-size: calc(var(--body) / 18 * 15); color: var(--ink-soft); margin: 4px 0; word-break: break-word; }
 /* the Rules card: five pictures and two sentences, all on one screen at 360 × 640 */
 .rules .body { padding: 6px 14px 8px; }
-.rules h1 { font-size: 24px; margin: 2px 0 4px; }
+.rules h1 { font-size: calc(var(--body) / 18 * 24); margin: 2px 0 4px; }
 .rules .pics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0; }
-.rules .pic { background: #fff; border: 3px solid var(--line); border-radius: 12px; padding: 6px; text-align: center; font-weight: 600; font-size: 15px; line-height: 1.25; }
-.rules .pic svg { width: 100%; height: 56px; display: block; margin-bottom: 4px; }
+.rules .pic { background: #fff; border: 3px solid var(--line); border-radius: 12px; padding: 6px; text-align: center; font-weight: 600; font-size: calc(var(--body) / 18 * 15); line-height: 1.25; }
+.rules .pic svg { width: 100%; height: 48px; display: block; margin-bottom: 4px; }
 .rules .pic.wide { grid-column: span 2; display: flex; align-items: center; gap: 10px; text-align: left; padding: 6px 10px; }
-.rules .pic.wide svg { width: 84px; height: 56px; flex: 0 0 auto; margin: 0; }
-.rules p { font-size: 16px; line-height: 1.35; margin: 6px 0; }
-.rules p.never { font-size: 17px; margin-top: 8px; }
+.rules .pic.wide svg { width: 74px; height: 48px; flex: 0 0 auto; margin: 0; }
+.rules p { font-size: calc(var(--body) / 18 * 16); line-height: 1.35; margin: 6px 0; }
+.rules p.never { font-size: calc(var(--body) / 18 * 17); margin-top: 8px; }
 
 /* ---------- roof ---------- */
 .roof { align-items: center; text-align: center; }
 .roof .page { width: 100%; display: flex; flex-direction: column; align-items: center; }
 .roof .picnic-wrap { position: relative; width: min(300px, 80vw); }
 .roof .picnic { display: block; width: 100%; height: auto; }
-.roof .gain { font-size: 24px; font-weight: 700; margin: 6px 0; }
+.roof .gain { font-size: calc(var(--body) / 18 * 24); font-weight: 700; margin: 6px 0; }
 /* the drift stays inside the picnic band: never over the text or the buttons */
 .roof .drift { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .roof .drift svg { position: absolute; width: 44px; height: 22px; animation: drift 2s ease-out forwards; }
@@ -273,10 +305,17 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
   max-width: calc(100% - 24px);
   background: var(--ink); color: #fff;
   border: 2px solid #fff; border-radius: 999px;
-  padding: 10px 18px; min-height: 48px;
-  font-size: 15px; line-height: 1.2; text-align: center;
+  padding: 4px 6px 4px 14px; min-height: 48px;
+  font-size: calc(var(--body) / 18 * 15); line-height: 1.2; text-align: center;
   z-index: 20;
+  display: flex; align-items: center; gap: 4px;
 }
+/* The chip stays until it is answered, so it needs a way to be answered with `not now`: without one
+   it is a grown-up's banner parked over the elevator for the rest of the session, on the one thing
+   the child came for. Dismissing hides it for this tab; the waiting worker keeps waiting. */
+.chip-update .chip-take { flex: 1 1 auto; color: #fff; font: inherit; text-align: left; min-height: 44px; padding: 2px 4px; }
+.chip-update .chip-later { flex: 0 0 auto; color: #fff; font-size: calc(var(--body) / 18 * 18); min-width: 44px; min-height: 44px; border-radius: 999px; }
+.chip-update button:active { filter: brightness(0.85); }
 
 /* ---------- motion ---------- */
 html.reduced .panel .floor.target .face { animation: none; background: #FFF0CC; box-shadow: 0 0 0 6px rgba(232, 176, 74, 0.45); }
@@ -288,54 +327,71 @@ html.reduced * { transition-duration: 0ms !important; }
    and trim the Rules card to one screen. The landscape block below comes last and still wins. */
 @media (max-height: 620px) {
   :root { --display: 72px; --gap: 4px; }
-  #question { font-size: 34px }
-  #question .op { font-size: 1em }        /* the base pins operators at an absolute 40 px; they must shrink with the band */
+  #question { font-size: calc(var(--body) / 18 * 34) }
   #question .op-mul { font-size: 0.8em }  /* × stays smaller and thinner: the shape, not the colour, carries the difference */
-  #question.text { font-size: 24px }
-  #question.small { font-size: 19px }
-  #message { font-size: 15px; min-height: 18px; line-height: 1.2 }
+  #question.text { font-size: calc(var(--body) / 18 * 24) }
+  #question.small { font-size: calc(var(--body) / 18 * 19) }
+  #message { font-size: calc(var(--body) / 18 * 15); min-height: 18px; line-height: 1.2 }
   .rules .body { padding: 4px 12px 6px }
-  .rules h1 { font-size: 20px; margin: 0 0 4px }
+  .rules h1 { font-size: calc(var(--body) / 18 * 20); margin: 0 0 4px }
   .rules .pics { gap: 6px; margin: 4px 0 }
-  .rules .pic { font-size: 14px; padding: 4px; line-height: 1.2 }
+  .rules .pic { font-size: calc(var(--body) / 18 * 14); padding: 4px; line-height: 1.2 }
   .rules .pic svg { height: 44px; margin-bottom: 2px }
   .rules .pic.wide svg { width: 64px; height: 44px }
-  .rules p { font-size: 15px; margin: 4px 0; line-height: 1.3 }
-  .rules p.never { font-size: 16px; margin-top: 6px }
+  .rules p { font-size: calc(var(--body) / 18 * 15); margin: 4px 0; line-height: 1.3 }
+  .rules p.never { font-size: calc(var(--body) / 18 * 16); margin-top: 6px }
   .rules .foot { padding: 6px 10px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)) }
   .rules .foot .btn { min-height: 52px }
-}
-@media (max-height: 500px) {
-  :root { --display: 60px; }
-  #question { font-size: 30px }
-  #question.text { font-size: 21px }
-  #question.small { font-size: 17px }
-  #message { font-size: 14px; min-height: 16px }
-  .rules h1 { font-size: 18px }
-  .rules .pic { font-size: 12.5px }
-  .rules .pic svg { height: 32px }
-  .rules .pic.wide svg { width: 48px; height: 32px }
-  .rules p { font-size: 14px }
-  .rules .foot .btn { min-height: 48px }
-  /* the one line that goes: it restates the two "Right" pictures directly above it. The "Wrong:"
+  /* The line that goes first: it restates the two "Right" pictures directly above it. The "Wrong:"
      paragraph (the spikes and the brake) is the sensory-risk item and stays at every size. */
   .rules p.detail { display: none }
 }
-/* Under 500 px tall in landscape the ride becomes two columns: top bar over the shaft on the
-   left, display over the panel on the right. 60 + 5 × 48 + 6 × 4 = 324 px fits a 360 px-tall phone. */
+@media (max-height: 500px) {
+  :root { --display: 60px; }
+  #question { font-size: calc(var(--body) / 18 * 30) }
+  #question.text { font-size: calc(var(--body) / 18 * 21) }
+  #question.small { font-size: calc(var(--body) / 18 * 17) }
+  #message { font-size: calc(var(--body) / 18 * 14); min-height: 16px }
+  .rules h1 { font-size: calc(var(--body) / 18 * 18); margin: 0 0 2px }
+  .rules .pic { font-size: calc(var(--body) / 18 * 12.5) }
+  .rules .pic svg { height: 28px }
+  .rules .pic.wide svg { width: 44px; height: 28px }
+  .rules .pics { gap: 5px; margin: 2px 0 }
+  .rules p { font-size: calc(var(--body) / 18 * 14) }
+  .rules .foot .btn { min-height: 48px }
+}
+/* A SHORT PORTRAIT WINDOW (a floating or split-screen window, never a phone held upright): under
+   about 372 px there is no room for the top bar, the display and five rows of 48 px keys, and the
+   two-column rescue below needs width the window does not have. The panel becomes the band that
+   yields — scrolling inside its own box — so no key is ever placed off screen. */
+@media (max-height: 420px) and (max-width: 479px) and (orientation: portrait) {
+  .ride .shaft { flex: 0 1 auto; }
+  .ride .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; }
+}
+/* SHORT LANDSCAPE: the panel is the full-height column, not a 324 px block in a 216 px row.
+   The old rule pinned --cell 48 / --gap 4 / --display 60 and put the display in the panel's own
+   column, so the panel needed 60 + 5x48 + 6x4 = 324 px of the viewport's height. That arithmetic
+   was done against the DEVICE height (360 on a 360x640 Android); the browser hands the page ~304
+   with its toolbar, and 276 on a 320x568 iPhone in Safari. Measured: GO 32 px of 48 visible at
+   640x304 and 4 px at 568x276, with #app overflow:hidden and no way to scroll to it - the child
+   could not press the only control that submits an answer, and nothing said to turn the phone back.
+   The panel now spans all three rows on the right, so it gets the WHOLE viewport height, and --cell
+   is computed from that height with the 48 px floor DESIGN amendment 8 fixed. Below the height that
+   5 x 48 px keys plus their gaps need (258 px), the panel scrolls inside its own box rather than
+   putting a key off screen. */
 @media (max-height: 500px) and (orientation: landscape) {
-  :root { --cell: 48px; --gap: 4px; --display: 60px; }
+  :root { --gap: 3px; --display: 56px; --cell: clamp(48px, calc((var(--vh) - var(--panel-chrome)) / 5), 56px); }
   /* the left column may shrink below the top bar's natural width (the level name ellipsises), so nothing ever overflows the viewport */
-  .ride.active { display: grid; grid-template-columns: minmax(0, 1fr) minmax(288px, 320px); grid-template-rows: var(--display) 1fr; grid-template-areas: 'top display' 'shaft panel'; }
-  .ride .topbar { grid-area: top; height: var(--display); flex: none; min-width: 0; gap: 2px; padding: 0 2px; border-bottom: none; }
+  .ride.active { display: grid; grid-template-columns: minmax(0, 1fr) minmax(288px, 320px); grid-template-rows: var(--topbar) var(--display) 1fr; grid-template-areas: 'top panel' 'display panel' 'shaft panel'; }
+  .ride .topbar { grid-area: top; min-width: 0; gap: 2px; padding: 0 2px; }
   .ride .topbar .tb { padding: 0 4px; }
   .ride .shaft { grid-area: shaft; min-height: 0; }
-  .ride .display { grid-area: display; border-top: none; border-left: 2px solid #cfc9bb; }
-  .ride .panel { grid-area: panel; align-self: start; }
-  #question { font-size: 30px; }
-  #question .op { font-size: 30px; }
-  #question .op-mul { font-size: 24px; }
-  #question.text { font-size: 24px; }
-  .panel .tq { font-size: 16px; }
-  .panel .card .big { font-size: 28px; }
+  .ride .display { grid-area: display; }
+  /* the keys sit at the BOTTOM of the column, where the thumb is, exactly as they do in portrait;
+     `safe end` keeps the first row reachable when the content is taller than the column */
+  .ride .panel { grid-area: panel; align-self: stretch; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; border-left: 2px solid #cfc9bb; align-content: end; align-content: safe end; }
+  #question { font-size: calc(var(--body) / 18 * 30); }
+  #question.text { font-size: calc(var(--body) / 18 * 24); }
+  .panel .tq { font-size: calc(var(--body) / 18 * 16); }
+  .panel .card .big { font-size: calc(var(--body) / 18 * 28); }
 }

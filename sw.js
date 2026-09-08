@@ -1,7 +1,19 @@
 // Bacon Elevator service worker. Network-first index.html, cache-first relative assets.
 // The cache name embeds src/version.js's VERSION (test/version.test.js keeps them equal).
 const VERSION = '1.0.0'
-const CACHE = 'be-' + VERSION
+// BUILD IS THE DEPLOY'S OWN FINGERPRINT: a hash of every file in ASSETS, written by
+// `node tools/build-stamp.mjs` and checked by test/version.test.js, which goes RED until it matches.
+//
+// Why it exists. The browser's update check compares THIS FILE'S BYTES and nothing else. Three of
+// the last four deploys changed shipped assets — a false legal citation, a keypad that could not
+// answer its own sum — without touching sw.js or src/version.js, so no worker installed, no cache
+// was replaced, and the cache-first fetch handler never asked the network again. Measured against
+// the live tree: five opens with an empty HTTP cache each time, and the only request that ever left
+// the browser was /sw.js. A child who already had the game could not be reached by a correction at
+// all, and `Version 1.0.0` on the Grown-ups screen said the same on both builds, so nobody could
+// tell. The cache name is now a function of the CONTENT, not of a literal somebody has to remember.
+const BUILD = '239e82454a4f'
+const CACHE = 'be-' + VERSION + '-' + BUILD
 const ASSETS = [
   './', './index.html', './manifest.webmanifest', './favicon.ico',
   './css/app.css',

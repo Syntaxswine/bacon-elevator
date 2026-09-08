@@ -19,6 +19,10 @@ function evalExpr(expr) {
 }
 const fmt = (n) => (n < 0 ? '−' + String(-n) : String(n))
 const clauses = (text) => text.split('  ·  ').length
+// A counted run keeps a NON-BREAKING space before its last number so the run never wraps to a lone
+// digit on its own line. The expectations below read the run as prose; the rule itself is pinned by
+// its own test at the bottom of this file, which is the one place the character may be asserted.
+const plain = (t) => String(t).replace(/ /g, ' ')
 
 // Every kind from every level table (and the custom level for negatives).
 function problemsOfKind(kind, n) {
@@ -63,7 +67,7 @@ for (const kind of KINDS) {
 }
 
 test('explain uses the named strategies', () => {
-  const texts = (p) => explain(p).map((s) => s.text)
+  const texts = (p) => explain(p).map((s) => plain(s.text))
   assert.deepEqual(texts({ kind: 'add', a: 8, b: 5, answer: 13 }), ['8 + 2 = 10', '10 + 3 = 13'])
   assert.deepEqual(texts({ kind: 'add', a: 34, b: 25, answer: 59 }), ['30 + 20 = 50', '4 + 5 = 9', '50 + 9 = 59'])
   assert.deepEqual(texts({ kind: 'add', a: 4, b: 5, answer: 9 }), ['4 + 4 = 8', '8 + 1 = 9'], 'near doubles')
@@ -108,7 +112,7 @@ test('one-step sums get a real method, never a restatement, in one clause the 4-
   for (const [p, expected] of fixtures) {
     const rep = repair(p, String(p.answer + 1))
     const steps = explain(p)
-    assert.equal(rep.worked, expected, p.text)
+    assert.equal(plain(rep.worked), expected, p.text)
     assert.notEqual(rep.worked, rep.big, `restates: ${p.text}`)
     assert.equal(steps.length, 1, 'one step')
     assert.equal(clauses(rep.worked), 1, 'one clause')
@@ -240,4 +244,38 @@ test('repair carries the true equation big and the typed value small', () => {
   assert.equal(r.small, 'you pressed 11')
   assert.equal(r.clause, 'count again')
   assert.ok(r.worked.includes('= 12'))
+})
+
+
+// ---- round 2 -----------------------------------------------------------------------------------
+
+// r2-elevator-feel-08: `Start at 0, count 5 more: 1, 2, 3, 4,` wrapped and left a lone centred `5`
+// under the middle of the Repair card, which reads as a separate item rather than the end of the run.
+test('r2-elevator-feel-08: a counted run never orphans its last number onto a line of its own', () => {
+  const NBSP = '\u00A0'
+  const runs = [
+    explain({ kind: 'add', a: 0, b: 5, answer: 5 })[0].text,
+    explain({ kind: 'sub', a: 9, b: 3, answer: 6 })[0].text,
+    explain({ kind: 'missMul', a: 7, b: 6, c: 42, answer: 7 })[0].text,
+  ]
+  for (const t of runs) {
+    assert.ok(t.includes(NBSP), `no non-breaking space in "${t}"`)
+    const nums = t.slice(t.indexOf(':') + 1)
+    assert.ok(!/,\s\d+(\s|$)/.test(nums.replace(/[^,\s\d]/g, ' ').split(NBSP)[1] || ''), 'only the last separator is non-breaking')
+  }
+  // one clause, one non-breaking space: the separator before the last number and nowhere else
+  const one = explain({ kind: 'add', a: 0, b: 5, answer: 5 })[0].text
+  assert.equal(one.split(NBSP).length - 1, 1)
+})
+
+// r2-code-hostile-09: `Number('') === 0`, so a resumed save whose typedWrong was dropped (an old
+// save, an imported code) printed `you pressed 0` for an answer the child never gave.
+test('r2-code-hostile-09: no entry, no claim about one', () => {
+  const p = { kind: 'add', a: 7, b: 5, answer: 12, text: '7 + 5 = ▮', key: 'add:5:7' }
+  assert.equal(repair(p, '').small, '')
+  assert.equal(repair(p, null).small, '')
+  assert.equal(repair(p, undefined).small, '')
+  assert.equal(repair(p, '11').small, 'you pressed 11')
+  assert.equal(repair({ kind: 'sub', a: 2, b: 27, answer: -25, text: '2 − 27 = ▮', key: 'sub:2:27' }, '−9').small, 'you pressed −9')
+  assert.equal(repair(p, '0').small, 'you pressed 0', 'a real 0 still says so')
 })

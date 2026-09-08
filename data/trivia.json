@@ -89,7 +89,7 @@
         "Thomas Edison",
         "Gustave Eiffel"
       ],
-      "fact": "In 1880 Werner von Siemens built the world's first electric passenger elevator. It was shown at a trade exhibition in Mannheim, Germany, where it carried visitors up a 20-metre lookout tower. The next year his company ran the world's first electric streetcar, near Berlin.",
+      "fact": "In 1880 Werner von Siemens built the world's first electric passenger elevator. It was the sensation of the Pfalzgau exhibition in Mannheim, Germany, where more than 8,000 visitors paid 20 pfennigs to ride it up the 20-metre observation tower of the customs office.",
       "sources": [
         {
           "title": "Werner von Siemens (1816-1892) - Siemens Historical Institute biography (PDF)",
@@ -100,6 +100,11 @@
           "title": "Siemens company history, phase 2: 1866-1896 - Siemens Historical Institute (PDF)",
           "url": "https://assets.new.siemens.com/siemens/assets/api/uuid:b124794f4ca360167468ce93e91f7d9a3d145c88/071-company-history-phase2-1866-1896-en.pdf",
           "quote": "In 1880, the electrical engineering company installed the world's first passenger elevator in a building in Mannheim, Germany."
+        },
+        {
+          "title": "First elevator presented in Mannheim in 1880 — Kurpfälzer Meile der Innovationen",
+          "url": "https://www.meile-der-innovationen.de/en/innovationen/1880-erster-fahrstuhl-praesentiert-in-mannheim-werner-von-siemens",
+          "quote": "The elevator mounted on the 20-meter-high observation tower of the main customs office becomes the sensation of the Pfalzgau exhibition located between the castle and the park ring. More than 8,000 visitors let themselves be transported by the electric elevator for 20 pfennigs."
         }
       ],
       "verification": [
@@ -484,9 +489,9 @@
       "fact": "California's elevator safety rules (Title 8, section 3042) say a traction elevator must have at least three hoisting ropes, and together the ropes must be at least 7.6 times stronger than the loaded car needs, rising to nearly 12 times for the fastest elevators. The ropes are twisted steel cables that link the car to the counterweight over the drive sheave.",
       "sources": [
         {
-          "title": "Cal. Code Regs. Tit. 8, § 1604.25 - Hoisting and Counterweight Ropes, and Rope Connections (Cornell LII)",
-          "url": "https://www.law.cornell.edu/regulations/california/8-CCR-1604.25",
-          "quote": "The minimum number of hoisting ropes used shall be three for traction hoists and two for drum type hoists."
+          "title": "Cal. Code Regs. Tit. 8, § 3042 — Hoisting Ropes and Their Connections (California DIR, Elevator Safety Orders)",
+          "url": "https://www.dir.ca.gov/title8/3042.html",
+          "quote": "The minimum number of hoisting ropes used shall be three for traction elevators, and two for drum-type elevators."
         },
         {
           "title": "Ropes (Hoists) - TK Elevator Classroom On Demand",
@@ -502,8 +507,8 @@
         },
         {
           "lens": "refute",
-          "source_title": "California Code of Regulations, Title 8, Section 3042. Hoisting Ropes and Their Connections (Elevator Safety Orders)",
-          "source_url": "https://www.dir.ca.gov/title8/3042.html"
+          "source_title": "Cal. Code Regs. Tit. 8, § 1604.25 — Hoisting and Counterweight Ropes (Construction Safety Orders, Cornell LII): the neighbouring rule, which governs construction HOISTS and stops at a factor of 10.70",
+          "source_url": "https://www.law.cornell.edu/regulations/california/8-CCR-1604.25"
         }
       ]
     },
@@ -791,13 +796,16 @@
           "source_title": "Hitachi press release, 27 Sep 2019: Elevator delivered to Guangzhou CTF Finance Centre received a GUINNESS WORLD RECORDS title as the world's fastest",
           "source_url": "https://www.hitachi.com/en/press/articles/2019/09/0927/"
         }
-      ]
+      ],
+      "maths": {
+        "max": 1260
+      }
     },
     {
       "id": "elevator-records-tallest-lift-in-a-building",
       "category": "elevator",
       "difficulty": 2,
-      "question": "In 2016 Guinness certified the tallest lift inside any building, in the Shanghai Tower in China. About how far does that lift travel from bottom to top?",
+      "question": "Guinness lists the tallest lift inside any building, in the Shanghai Tower in China. About how far does that lift travel from bottom to top?",
       "answer": "About 578 m",
       "distractors": [
         "About 250 m",
@@ -991,7 +999,10 @@
           "source_title": "Gateway Arch FAQs (plus NPS Tram System page)",
           "source_url": "https://www.gatewayarch.com/plan-your-visit/faqs/"
         }
-      ]
+      ],
+      "maths": {
+        "max": 40
+      }
     },
     {
       "id": "elevator-records-kone-tytyri-underground-lab",
@@ -1097,7 +1108,10 @@
           "source_title": "The Eiffel Tower's Lifts (official site)",
           "source_url": "https://www.toureiffel.paris/en/the-monument/lifts"
         }
-      ]
+      ],
+      "maths": {
+        "max": 103000
+      }
     },
     {
       "id": "elevator-records-space-elevator-orbit-height",
@@ -1520,7 +1534,7 @@
       "id": "elevator-culture-etiquette-nearest-doors",
       "category": "elevator",
       "difficulty": 1,
-      "question": "According to Otis's elevator safety tips, who should move first when the elevator doors open?",
+      "question": "According to Otis's elevator safety tips, who should step out or in first when the elevator doors open?",
       "answer": "The passengers nearest the doors",
       "distractors": [
         "The tallest passenger",
@@ -1944,7 +1958,7 @@
       "id": "math-numbers-chessboard-doubling",
       "category": "math",
       "difficulty": 3,
-      "question": "In the old wheat-and-chessboard puzzle, 1 grain goes on square 1, 2 on square 2, 4 on square 3, doubling every square. How long is the number of grains on all 64 squares?",
+      "question": "In the old wheat-and-chessboard puzzle, 1 grain goes on square 1, 2 on square 2, 4 on square 3, doubling every square. How many digits long is the number of grains on all 64 squares?",
       "answer": "A 20-digit number",
       "distractors": [
         "A 7-digit number",
@@ -2002,7 +2016,10 @@
           "source_title": "Wikipedia: Binary prefix",
           "source_url": "https://en.wikipedia.org/wiki/Binary_prefix"
         }
-      ]
+      ],
+      "maths": {
+        "max": 1024
+      }
     },
     {
       "id": "math-everyday-manhole-round",
@@ -2187,7 +2204,10 @@
           "source_title": "Fibonacci sequence - Wikipedia",
           "source_url": "https://en.wikipedia.org/wiki/Fibonacci_sequence"
         }
-      ]
+      ],
+      "maths": {
+        "max": 21
+      }
     },
     {
       "id": "math-everyday-mobius-sides",
@@ -2265,7 +2285,7 @@
     },
     {
       "id": "math-everyday-counterweight-subtraction",
-      "category": "elevator",
+      "category": "math",
       "difficulty": 3,
       "question": "An empty elevator car weighs 1000 kg and its counterweight weighs 1500 kg. Then 300 kg of people get in. Now how much heavier is the counterweight than the car with the people inside?",
       "answer": "200 kg",
@@ -2293,11 +2313,14 @@
           "source_title": "Elevator - Wikipedia",
           "source_url": "https://en.wikipedia.org/wiki/Elevator"
         }
-      ]
+      ],
+      "maths": {
+        "max": 1500
+      }
     },
     {
       "id": "math-everyday-floors-per-second",
-      "category": "elevator",
+      "category": "math",
       "difficulty": 2,
       "question": "The Burj Khalifa's fastest elevators climb 10 metres every second; if each floor were 4 metres tall, how many floors would they pass each second?",
       "answer": "2.5 floors",
@@ -2325,7 +2348,10 @@
           "source_title": "Burj Khalifa - Wikipedia",
           "source_url": "https://en.wikipedia.org/wiki/Burj_Khalifa"
         }
-      ]
+      ],
+      "maths": {
+        "max": 10
+      }
     },
     {
       "id": "math-everyday-nines-fingers",

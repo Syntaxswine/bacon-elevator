@@ -7,7 +7,7 @@ export const MINUS = '−'
 export const KINDS = ['add', 'sub', 'mul', 'div', 'missAdd', 'missMul', 'up', 'down']
 
 export function initialCtx() {
-  return { ring: [], lastAnswer: null, sameSeen: false, kindRun: { kind: null, n: 0 }, comeback: [], count: 0, skills: {} }
+  return { ring: [], lastAnswer: null, sameSeen: false, kindRun: { kind: null, n: 0 }, comeback: [], count: 0, skills: {}, lastComeback: false }
 }
 
 function fillCtx(ctx) {
@@ -20,6 +20,7 @@ function fillCtx(ctx) {
     comeback: Array.isArray(c.comeback) ? c.comeback : [],
     count: Number.isInteger(c.count) ? c.count : 0,
     skills: c.skills && typeof c.skills === 'object' ? c.skills : {},
+    lastComeback: !!c.lastComeback,
   }
 }
 
@@ -46,6 +47,11 @@ export function validProblem(p) {
   if (!Number.isSafeInteger(p.a) || !Number.isSafeInteger(p.b) || !Number.isSafeInteger(p.answer)) return null
   if (typeof p.text !== 'string' || !p.text.includes(BLANK)) return null
   if (typeof p.key !== 'string' || !p.key) return null
+  // THE KEYPAD'S OWN CEILING. checkAnswer's regex and typedCap both stop at TYPED_MAX digits, so a
+  // problem whose answer is wider than that is a sum the panel physically cannot enter — it falls
+  // every time and re-queues itself. No generator can draw one (108 000 draws across every level and
+  // Custom setting: 0 answers over 4 digits); a hand-edited save or a hostile BE1- code can.
+  if (String(Math.abs(p.answer)).length > TYPED_MAX) return null
   const q = { kind: p.kind, a: p.a, b: p.b, ...(Number.isSafeInteger(p.c) ? { c: p.c } : {}), ...(p.pair ? { pair: true } : {}), answer: p.answer, text: p.text, key: p.key }
   return solve(q) === q.answer ? q : null
 }
@@ -133,6 +139,16 @@ const tensOf = (lo, hi, rng) => 10 * rng.int(Math.ceil(lo / 10), Math.floor(hi /
 
 // Draw (a, b[, c]) for one kind entry. Returns null when the draw breaks a constraint; the caller retries.
 function draw(e, rng) {
+  const p = drawOne(e, rng)
+  // `0 + 0` and `0 − 0` are the one cell of the bonds-to-5 table with nothing in it: the answer is
+  // right there in the question. 0 stays a teaching point at Corner Shop steps 1 and 2 (`0 + 5`
+  // teaches the additive identity, levels.js says so), but a sum with NO number in it is not a
+  // question, and it reaches the very first screen of a fresh save about once in thirty buildings.
+  if (p && p.a === 0 && p.b === 0) return null
+  return p
+}
+
+function drawOne(e, rng) {
   const max = e.max ?? Infinity
   switch (e.kind) {
     case 'add': {
@@ -216,10 +232,23 @@ function pickEntry(entries, ctx, rng) {
 
 export function makeProblem(level, step, ctx, rng) {
   const c = fillCtx(ctx)
-  // A missed sum comes back verbatim when it is due, overriding every other rule.
+  // A missed sum comes back verbatim when it is due, overriding the ring and the same-answer rule.
   // Validated here too, not only at the save boundary: this is the last gate before the renderer
   // is handed something it will call text.split() on.
-  const due = c.comeback.filter((x) => x && Number.isInteger(x.due) && x.due <= c.count && validProblem(x.problem)).sort((x, y) => x.due - y.due)[0]
+  //
+  // TWO THINGS THE OVERRIDE MAY NOT DO, both measured (r2-math-01).
+  //   1. It may not serve the identical sum twice running. afterAnswer used to queue TWO entries per
+  //      miss and remove only ONE on a re-miss, so a late comeback re-armed itself while its twin was
+  //      already overdue and fired again on the very next question: 8.5 % of questions at 60 %
+  //      accuracy, worst run 5, and 31 consecutive identical questions once one key saturated the
+  //      12-entry queue. The queue is de-duplicated by key in afterAnswer; this is the second belt.
+  //   2. It may not starve the generator. A struggling child always had something due, so EVERY
+  //      question was a comeback and the pool collapsed to five sums with no new sum ever drawn
+  //      again. A comeback may not follow a comeback, so the generator runs at least every other
+  //      question whatever the accuracy, and a deferred entry simply fires one question later.
+  const lastKey = c.ring.length ? c.ring[c.ring.length - 1] : null
+  const due = c.lastComeback ? null
+    : c.comeback.filter((x) => x && Number.isInteger(x.due) && x.due <= c.count && validProblem(x.problem) && x.problem.key !== lastKey).sort((x, y) => x.due - y.due)[0]
   if (due) return { ...validProblem(due.problem), comeback: true }
   const entries = stepOf(level, step).kinds
   let last = null
@@ -233,6 +262,10 @@ export function makeProblem(level, step, ctx, rng) {
     if (c.lastAnswer !== null && p.answer === c.lastAnswer) continue
     if (c.sameSeen && p.a === p.b && !p.pair) continue   // a DECLARED double/square is the table, not a coincidence
     if (c.kindRun && c.kindRun.kind === p.kind && c.kindRun.n >= 3) continue
+    // The FIRST sum a child ever sees is the game's whole first impression, and it is drawn with no
+    // ring, no last answer and no same-seen latch to steer it: one fresh save in six opened on an
+    // answer of 0 (`5 − 5`, `2 ▼ 2`). Only here, and only on the very first question of a save.
+    if (c.count === 0 && p.answer === 0) continue
     return p
   }
   if (last) return last
@@ -271,10 +304,15 @@ export function afterAnswer(ctx, problem, correct) {
   const ring = c.ring.concat(problem.key).slice(-20)
   const skills = { ...c.skills }
   skills[problem.kind] = (skills[problem.kind] || []).concat(correct ? 1 : 0).slice(-8)
-  let comeback = c.comeback.slice()
-  const served = comeback.findIndex((x) => x && x.problem && x.problem.key === problem.key && x.due <= c.count)
-  if (served >= 0) comeback.splice(served, 1)
+  // ONE PENDING PAIR PER SUM. Serving used to remove a single matching entry while a miss added two,
+  // so a re-missed comeback left an already-overdue twin behind and the same sum fired again on the
+  // very next question; repeat it and one key filled the whole 12-entry queue, evicting every other
+  // sum's remediation. Serving now clears every DUE entry for that key (a not-yet-due +15 twin
+  // survives, which is what §4's `+5 and +15` promises), and a fresh miss replaces the key's pair
+  // outright instead of stacking a third and fourth copy on top of it.
+  let comeback = c.comeback.filter((x) => !(x && x.problem && x.problem.key === problem.key && x.due <= c.count))
   if (!correct) {
+    comeback = comeback.filter((x) => !(x && x.problem && x.problem.key === problem.key))
     const copy = { kind: problem.kind, a: problem.a, b: problem.b, ...(Number.isInteger(problem.c) ? { c: problem.c } : {}), ...(problem.pair ? { pair: true } : {}), answer: problem.answer, text: problem.text, key: problem.key }
     comeback = comeback.concat({ problem: copy, due: c.count + 5 }, { problem: copy, due: c.count + 15 })
   }
@@ -286,6 +324,7 @@ export function afterAnswer(ctx, problem, correct) {
     comeback,
     count: c.count + 1,
     skills,
+    lastComeback: !!problem.comeback,
   }
 }
 

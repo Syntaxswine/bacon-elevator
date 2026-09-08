@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { mulberry32 } from '../src/rng.js'
-import { loadFacts, isPassengerFloor, pickFact, makeChoices, domainOf, TRIVIA_LIMITS } from '../src/trivia.js'
+import { loadFacts, isPassengerFloor, pickFact, makeChoices, domainOf, TRIVIA_LIMITS, withinNumberBand } from '../src/trivia.js'
 
 const shipped = JSON.parse(readFileSync(new URL('../data/trivia.json', import.meta.url), 'utf8'))
 
@@ -107,6 +107,10 @@ test('domainOf', () => {
 // r1-autism-fit-02: the picker knew the level existed and never asked it. A numbers-to-10 child was
 // served difficulty-3, 183-character kilogram subtractions — measured over seeds 1–8 × 6 buildings
 // at Corner Shop: 53 of 96 passengers above difficulty 1, 24 questions over 120 characters.
+// The band predicate, asked of the module that owns it. Re-spelling `difficulty <= … && q.length <= …`
+// here is how this test came to believe an item was available that pickFact had already excluded.
+const inBandOf = (f, limits) => f.difficulty <= limits.maxDifficulty && f.q.length <= limits.maxQ && withinNumberBand(f, limits)
+
 test('the fact pool is gated by level: Corner Shop never draws above its band', () => {
   const { facts } = loadFacts(shipped)
   const limits = TRIVIA_LIMITS.corner
@@ -117,13 +121,13 @@ test('the fact pool is gated by level: Corner Shop never draws above its band', 
     assert.ok(f, 'the gate emptied the pool')
     assert.ok(f.difficulty <= limits.maxDifficulty, `${f.id} is difficulty ${f.difficulty}`)
     assert.ok(f.q.length <= limits.maxQ, `${f.id} asks ${f.q.length} characters`)
-    if (last && facts.some((x) => x.kind !== last && x.difficulty <= limits.maxDifficulty && x.q.length <= limits.maxQ && !seen.includes(x.id))) {
+    if (last && facts.some((x) => x.kind !== last && inBandOf(x, limits) && !seen.includes(x.id))) {
       assert.notEqual(f.kind, last, 'the kinds stopped alternating inside the band')
     }
     seen = seen.concat(f.id); last = f.kind
   }
   // the band is big enough to be a pool, not a loop
-  const inBand = facts.filter((f) => f.difficulty <= limits.maxDifficulty && f.q.length <= limits.maxQ)
+  const inBand = facts.filter((f) => inBandOf(f, limits))
   assert.ok(inBand.length >= 20, `only ${inBand.length} items inside the Corner Shop band`)
   assert.ok(inBand.some((f) => f.kind === 'elevator') && inBand.some((f) => f.kind === 'math'), 'both kinds must be stocked')
 })
@@ -220,4 +224,107 @@ test('the round-1 corrections are in the shipped bank', () => {
   assert.ok(!/quintillion|trillion/.test([chess.answer, ...chess.distractors].join(' ')), 'short-scale names are not answers a UK child can rely on')
   assert.equal(chess.answer, 'A 20-digit number')
   assert.equal(String(2n ** 64n - 1n).length, 20, 'the arithmetic behind the answer')
+})
+
+
+// ---- round 2: the bank's corrections -----------------------------------------------------------
+
+// r2-elevator-feel-02 / r2-trivia-truth-02: §1604.25 is Subchapter 4, Construction Safety Orders,
+// Article 14 "Construction Hoists" — different machines, and its factor table stops at 10.70, so it
+// does not contain the "nearly 12 times" the fact quotes. §3042 is the Elevator Safety Orders
+// section and does. The audit caught it in round 1 ("Misattributed source"), the fact text was
+// corrected and sources[] was not, and the card contradicted itself two lines apart on screen.
+test('r2: a fact that names a regulation shows that regulation', () => {
+  const ropes = shipped.items.find((i) => i.id === 'elevator-engineering-minimum-three-ropes')
+  assert.match(ropes.fact, /section 3042/)
+  assert.ok(ropes.sources.some((s) => /dir\.ca\.gov\/title8\/3042/.test(s.url)), 'the shown source must be the elevator rule the fact names')
+  assert.ok(!ropes.sources.some((s) => /8-CCR-1604\.25/.test(s.url)), 'the construction-hoist rule is still cited as the source')
+  assert.match(ropes.sources[0].quote, /three for traction elevators/)
+  // and the general rule, so the next item cannot repeat it
+  for (const it of shipped.items) {
+    for (const m of it.fact.matchAll(/section (\d{3,5})/g)) {
+      const n = m[1]
+      assert.ok(it.sources.some((s) => s.url.includes(n) || (s.title || '').includes(n)), `${it.id}: the fact names section ${n} and no shown source carries it`)
+    }
+  }
+})
+
+// r2-trivia-truth-01: the question said 2016 (the Mitsubishi press release) while the fact and
+// Guinness both date the record to 27 October 2015. One card, two dates, for a child who reads dates.
+test('r2: a card never gives two different years for the same event', () => {
+  const tall = shipped.items.find((i) => i.id === 'elevator-records-tallest-lift-in-a-building')
+  assert.ok(!/2016/.test(tall.question), `the question still dates the record: "${tall.question}"`)
+  const YEAR = /\b(1[6-9]\d\d|20\d\d)\b/g
+  for (const it of shipped.items) {
+    const qy = new Set((it.question.match(YEAR) || []))
+    const fy = new Set((it.fact.match(YEAR) || []))
+    for (const y of qy) assert.ok(fy.size === 0 || fy.has(y) || /as of/i.test(it.question), `${it.id}: the question says ${y} and the fact says ${[...fy].join(', ')}`)
+  }
+})
+
+// r2-trivia-truth-03: the exhibition and the 20-metre tower were true and carried by neither shown
+// source. Under the strict-sourcing rule every clause of a shown fact is carried by a shown source.
+test('r2: the Siemens 1880 details are carried by a shown source', () => {
+  const sie = shipped.items.find((i) => i.id === 'elevator-history-siemens-electric-1880')
+  assert.match(sie.fact, /Pfalzgau exhibition/)
+  assert.ok(!/streetcar/.test(sie.fact), 'the uncited streetcar clause is back')
+  const quotes = sie.sources.map((x) => x.quote).join(' ')
+  assert.match(quotes, /20-meter-high observation tower/)
+  assert.match(quotes, /8,000 visitors/)
+})
+
+// r2-math-09: two pure arithmetic word problems were filed as `elevator`, so pickFact's kind
+// alternation could hand a child two maths word problems in a row believing it had alternated.
+test('r2: an arithmetic word problem is a maths item', () => {
+  for (const id of ['math-everyday-counterweight-subtraction', 'math-everyday-floors-per-second']) {
+    assert.equal(shipped.items.find((i) => i.id === id).category, 'math', id)
+  }
+  for (const it of shipped.items) {
+    if (/^math-/.test(it.id)) assert.equal(it.category, 'math', `${it.id} is filed as ${it.category}`)
+  }
+})
+
+// r2-math-10: difficulty and question length do not band ARITHMETIC. At `numbers to 10` the bank
+// could serve `8 capsules x 5 seats` (40) and `1, 1, 2, 3, 5, 8, 13 — what is next?` (8 + 13).
+test('r2: a passenger never asks arithmetic above the level the child is on', () => {
+  const { facts } = loadFacts(shipped)
+  for (const [level, limits] of Object.entries(TRIVIA_LIMITS)) {
+    if (!limits) continue
+    for (const f of facts) {
+      if (!inBandOf(f, limits)) continue
+      if (f.maths) assert.ok(f.maths.max <= limits.maxNumber, `${level}: ${f.id} asks for ${f.maths.max}, above ${limits.maxNumber}`)
+    }
+  }
+  const byId = new Map(facts.map((f) => [f.id, f]))
+  assert.ok(byId.get('elevator-records-gateway-arch-tram-seats').maths.max === 40)
+  assert.ok(!inBandOf(byId.get('elevator-records-gateway-arch-tram-seats'), TRIVIA_LIMITS.corner), '8 x 5 is still inside `numbers to 10`')
+  assert.ok(!inBandOf(byId.get('math-everyday-fibonacci-next'), TRIVIA_LIMITS.hotel), '8 + 13 is still inside `numbers to 20`')
+  // the band must still be a pool, not a loop
+  for (const level of ['corner', 'hotel']) {
+    const inb = facts.filter((f) => inBandOf(f, TRIVIA_LIMITS[level]))
+    assert.ok(inb.length >= 20, `${level}: ${inb.length} items left in the band`)
+    assert.ok(inb.some((f) => f.kind === 'elevator') && inb.some((f) => f.kind === 'math'), `${level}: both kinds must be stocked`)
+  }
+})
+
+// r2-math-11: a question a 7-12-year-old cannot answer before reading the options.
+test('r2: the two loosely worded questions say what they are asking', () => {
+  const chess = shipped.items.find((i) => i.id === 'math-numbers-chessboard-doubling')
+  assert.match(chess.question, /How many digits long/)
+  const et = shipped.items.find((i) => i.id === 'elevator-culture-etiquette-nearest-doors')
+  assert.match(et.question, /step out or in first/)
+})
+
+// r2-autism-fit-09: a refuting lens that reads the SAME document as the confirming one is not an
+// independent check. Three items did; the three-ropes one is fixed by the citation correction above
+// and DESIGN amendment 1 now states what the record actually shows for the other two.
+test('r2: the hostile lens reads a different document from the confirming one, or is declared', () => {
+  const DECLARED = new Set(['elevator-engineering-infrared-light-curtain', 'elevator-records-space-elevator-orbit-height'])
+  const same = []
+  for (const it of shipped.items) {
+    const c = it.verification.find((v) => v.lens === 'confirm')
+    const r = it.verification.find((v) => v.lens === 'refute')
+    if (c && r && c.source_url === r.source_url && !DECLARED.has(it.id)) same.push(it.id)
+  }
+  assert.deepEqual(same, [], `both lenses read one document: ${same.join(', ')}`)
 })

@@ -46,3 +46,38 @@ test('the whole reducer plays ten buildings at seed 42 without a fall and banks 
   assert.equal(s.history.answered, 100)
   assert.equal(s.history.correct, 100)
 })
+
+
+// r2-math-08: the two headline generator tests above run the PERFECT policy, so ctx.comeback is
+// always empty and the `repeat rate < 1 %` assertion cannot reach the branch at math.js's `due`
+// gate at all — the instrument confirmed a claim in the only regime where it is trivially true.
+// This is the same 10 000-question sweep with a child who misses, which is the regime the comeback
+// queue exists for and the one in which it collapsed the pool to five sums.
+for (const acc of [0.6, 0.4]) {
+  test(`a child at ${100 * acc} % accuracy: no back-to-back repeat, and new sums keep arriving`, () => {
+    for (const level of LEVELS) {
+      const rng = mulberry32(42)
+      const roll = mulberry32(2024)
+      let ctx = initialCtx()
+      let adapt = { step: 1, streak: 0, stepDowns: 0 }
+      let prev = null, backToBack = 0
+      const late = new Set()
+      const N = 2000
+      for (let i = 0; i < N; i++) {
+        const p = makeProblem(level, adapt.step, ctx, rng)
+        assert.equal(solve(p), p.answer)
+        if (prev && p.key === prev) backToBack++
+        if (i >= N - 300) late.add(p.key)
+        prev = p.key
+        const right = roll() < acc
+        ctx = afterAnswer(ctx, p, right)
+        // the reducer's own clamp on the queue (src/state.js recordQuestion)
+        ctx = { ...ctx, comeback: ctx.comeback.filter((x) => x.due >= ctx.count - 40).slice(-12) }
+        adapt = adaptStep(adapt, right, !right)
+        if (ctx.count % 10 === 0) { ctx = { ...ctx, sameSeen: false }; adapt = { ...adapt, stepDowns: 0 } }
+      }
+      assert.equal(backToBack, 0, `${level.id}: ${backToBack}/${N} questions repeated the one before`)
+      assert.ok(late.size >= 25, `${level.id}: only ${late.size} distinct sums in the last 300 questions`)
+    }
+  })
+}

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { reduce, initialState, PARTS, hydrate, ROOF_BONUS } from '../src/state.js'
 import { serialize, parse } from '../src/save.js'
 import { TRIVIA_LIMITS } from '../src/trivia.js'
-import { fresh, makeRng, run, startRide, answer, answerTrivia, playBuilding, typeValue } from './_helpers.js'
+import { encodeCode } from '../src/save.js'
+import { FACTS, fresh, makeRng, run, startRide, answer, answerTrivia, playBuilding, typeValue } from './_helpers.js'
 
 test('ride-start: rules first, then the ride at G with Press 1', () => {
   const rng = makeRng(1)
@@ -224,12 +225,24 @@ test('lunchbox is monotone over a 2 000-action random walk; every sequence ends 
   const walk = makeRng(99)
   let s = fresh(14)
   let lunch = 0
-  const ACTIONS = ['ride-start', 'card-continue', 'press-floor', 'digit', 'backspace', 'go', 'hint', 'choice', 'next-building', 'to-lobby', 'set-level', 'set-setting', 'equip', 'openDoors', 'closeDoors', 'nav', 'offer', 'toggle-sign']
+  const ACTIONS = ['ride-start', 'card-continue', 'press-floor', 'digit', 'backspace', 'go', 'hint', 'choice', 'next-building', 'to-lobby', 'set-level', 'set-setting', 'equip', 'openDoors', 'closeDoors', 'nav', 'offer', 'toggle-sign', 'solve']
   for (let i = 0; i < 2000; i++) {
     const type = walk.pick(ACTIONS)
     let action = { type }
     if (type === 'press-floor') action.floor = s.ride ? (walk() < 0.8 ? s.ride.target : walk.int(0, 10)) : 1
     if (type === 'digit') action.d = String(walk.int(0, 9))
+    // `solve` is the walk's competent moment: clear the entry and key the true answer, then GO.
+    // Without it `lunch > 0` below held only by luck of the rng stream — a purely random typist
+    // reached a roof on THIS seed and stopped reaching one the moment makeProblem's draw sequence
+    // moved. Each digit still goes through reduce; only the choice of digit is informed.
+    if (type === 'solve') {
+      if (s.phase === 'keypad' && s.ride && s.ride.problem) {
+        while (s.ride.typed) s = reduce(s, { type: 'backspace' }, rng).state
+        for (const ch of String(Math.abs(s.ride.problem.answer))) s = reduce(s, { type: 'digit', d: ch }, rng).state
+        if (s.ride.problem.answer < 0) s = reduce(s, { type: 'toggle-sign' }, rng).state
+      }
+      action = { type: 'go' }
+    }
     if (type === 'choice') action.i = walk.int(0, 2)
     if (type === 'set-level') action.id = walk.pick(['corner', 'hotel', 'office', 'sky', 'megatall', 'custom'])
     if (type === 'set-setting') { const k = walk.pick(['secondTry', 'passengers', 'speed', 'adaptive', 'pinnedStep', 'custom.max']); action.key = k; action.value = k === 'passengers' ? walk.pick(['often', 'sometimes', 'never']) : k === 'speed' ? walk.pick(['normal', 'fast']) : k === 'pinnedStep' ? walk.int(1, 3) : k === 'custom.max' ? walk.int(5, 200) : walk() < 0.5 }
@@ -703,4 +716,152 @@ test('r1-autism-fit-02: a Corner Shop child never meets a fact above their band'
     }
   }
   assert.ok(met >= 40, `only ${met} passengers met, so the sweep proves little`)
+})
+
+
+// ---- round 2 -----------------------------------------------------------------------------------
+
+// r2-code-hostile-04: normaliseRide's own comment promised that normalising inside `import` means
+// "a second caller can never open a doorway back into the dead states". It normalised floor, target,
+// phase, problem, passengersDone and retrying — and nothing else, so a ride with no tray reached
+// bankOnLeave and Math.max(0, undefined - undefined) made the lunchbox NaN, which renders as "NaN"
+// on the top bar and serialises to null.
+test('r2-code-hostile-04: import normalises the whole ride, so no counter can arrive as NaN', () => {
+  const rng = makeRng(31)
+  let s = fresh(31)
+  const half = { floor: 3, target: 4, phase: 'floor', problem: null, passengersDone: [] } // no tray, no banked, no seed
+  s = reduce(s, { type: 'import', state: { ...initialState(31), lunchbox: 12, ride: half } }, rng).state
+  assert.equal(s.ride.tray, 0); assert.equal(s.ride.banked, 0)
+  assert.ok(Number.isSafeInteger(s.ride.seed))
+  s = reduce(s, { type: 'to-lobby' }, rng).state
+  assert.equal(s.lunchbox, 12, 'the lunchbox went to ' + s.lunchbox)
+  // and the garbage shapes a hand-edited code can carry
+  const junk = { floor: 2, target: 3, phase: 'floor', tray: 'lots', banked: -9, cleared: [1, 1, 44, 'x'], typed: 'abc', typedWrong: '1e9', tries: 1e9, seed: 1.5 }
+  const t = reduce(fresh(32), { type: 'import', state: { ...initialState(32), ride: junk } }, rng).state
+  assert.equal(t.ride.tray, 0); assert.equal(t.ride.banked, 0)
+  assert.deepEqual(t.ride.cleared, [1])
+  assert.equal(t.ride.typed, ''); assert.equal(t.ride.typedWrong, '')
+  assert.ok(t.ride.tries <= 99)
+  assert.equal(JSON.parse(serialize(t)).lunchbox, 0)
+})
+
+// r2-code-hostile-05: every other data boundary re-validates; the fact pool did not, and arrive()
+// indexes fact.distractors and fact.q without checking, so one ungated item threw inside makeChoices
+// the moment the car reached a passenger floor.
+test('r2-code-hostile-05: load-facts refuses an item arrive() would throw on', () => {
+  const rng = makeRng(33)
+  const broken = [{ id: 'no-distractors', kind: 'elevator', q: 'How many?', answer: '3', fact: 'x', sources: [] }]
+  let s = reduce(initialState(33), { type: 'load-facts', facts: broken }, rng).state
+  assert.deepEqual(s.pool, [], 'an item with no distractors reached the pool')
+  s = reduce(initialState(33), { type: 'load-facts', facts: [{ ...FACTS[0] }, null, 'nope', {}] }, rng).state
+  assert.equal(s.pool.length, 1)
+  // and a ride over a passenger floor with a broken pool must not throw
+  let t = reduce(initialState(34), { type: 'load-facts', facts: broken }, rng).state
+  t = startRide({ ...t, seedOverride: 5 }, rng)
+  for (let i = 0; i < 6 && t.phase !== 'roof'; i++) t = answer(t, rng, true).state
+  assert.ok(['floor', 'trivia', 'roof', 'keypad'].includes(t.phase))
+})
+
+// r2-code-hostile-06: `seen` appended on every answer including repeats, so the list — and the BE1-
+// code a grown-up is told they may have to copy by hand — grew without bound.
+test('r2-code-hostile-06: facts.seen holds one entry per fact, so the save code stops growing', () => {
+  const rng = makeRng(35)
+  let s = fresh(35, { seed: 7 })
+  s = startRide(s, rng)
+  let guard = 0
+  const sizes = []
+  let full = -1
+  for (let b = 0; b < 60 && guard++ < 20000; b++) {
+    while (s.phase !== 'roof' && guard++ < 12000) {
+      if (s.phase === 'trivia') { s = answerTrivia(s, rng, true); continue }
+      if (s.phase === 'repair') { s = run(s, { type: 'card-continue' }, rng).state; continue }
+      s = answer(s, rng, true).state
+    }
+    sizes.push(encodeCode(s).length)
+    if (full < 0 && s.facts.seen.length >= FACTS.length) full = b
+    s = run(s, { type: 'next-building' }, rng).state
+  }
+  assert.equal(new Set(s.facts.seen).size, s.facts.seen.length, 'a fact id appears twice in seen')
+  assert.ok(s.facts.seen.length <= FACTS.length, `seen holds ${s.facts.seen.length} entries for ${FACTS.length} facts`)
+  // THE POINT IS THE BOUND, not one number: the bank is finite, so once every fact has been met the
+  // code stops growing whatever else the child does. Appending on every answer it grew by roughly a
+  // fact id (~35 characters) per passenger, for ever.
+  // A Corner Shop child's reachable band is 20 of the 67 items (trivia.js TRIVIA_LIMITS), so `seen`
+  // saturates there and the code stops growing. Appending on every answer it grew by roughly a fact
+  // id (~35 characters) per passenger — two a building, for ever.
+  assert.ok(s.facts.seen.length <= 24 && full < 0, `seen kept growing past the band: ${s.facts.seen.length}`)
+  const grew = sizes[59] - sizes[29]
+  assert.ok(grew <= 40, `the save code grew ${grew} characters between building 30 (${sizes[29]}) and building 60 (${sizes[59]}) with no new fact to meet`)
+})
+
+// r2-autism-fit-03: the Rules card is reachable from the LOBBY now, so `where it came from` is the
+// PHASE, not merely whether a building is parked. A parked ride whose phase is 'lobby' used to land
+// the child on the ride screen with the reducer still in the lobby.
+test('r2-autism-fit-03: the Rules card can be opened from the lobby and comes back to it', () => {
+  const rng = makeRng(36)
+  let s = fresh(36)
+  s = startRide(s, rng)
+  s = answer(s, rng, true).state                 // a building is now parked
+  s = reduce(s, { type: 'to-lobby' }, rng).state
+  assert.equal(s.phase, 'lobby'); assert.ok(s.ride)
+  s = reduce(s, { type: 'nav', screen: 'rules' }, rng).state
+  assert.equal(s.screen, 'rules')
+  s = reduce(s, { type: 'card-continue' }, rng).state
+  assert.equal(s.screen, 'lobby', 'the card sent the child to the ride screen with the reducer in the lobby')
+  assert.equal(s.phase, 'lobby')
+  // …and from the first ride it still opens the ride
+  let t = fresh(37)
+  t = run(t, { type: 'ride-start' }, rng).state
+  assert.equal(t.screen, 'rules')
+  t = run(t, { type: 'card-continue' }, rng).state
+  assert.equal(t.screen, 'ride'); assert.equal(t.phase, 'floor')
+})
+
+// r2-autism-fit-05: the adaptive rule is specified as "visible, never silent" and its whole
+// announcement was three pips in the top bar that nothing explains. The words ride in the same band
+// that already carries `Try once more.`
+test('r2-autism-fit-05: a step change says so in words, and the note clears at the next question', () => {
+  const rng = makeRng(38)
+  let s = fresh(38, { seed: 7 })
+  s = startRide(s, rng)
+  assert.equal(s.stepNote, '')
+  const before = s.step
+  for (let i = 0; i < 3; i++) { if (s.phase === 'trivia') s = answerTrivia(s, rng, true); s = answer(s, rng, true).state }
+  assert.ok(s.step > before, 'the step should have climbed')
+  assert.equal(s.stepNote, 'Bigger numbers now.')
+  s = run(s, { type: 'press-floor', floor: s.ride.target }, rng).state
+  assert.equal(s.stepNote, '', 'the note outlived the question it was about')
+  // a fall drops the step and says that too
+  let t = fresh(39, { seed: 7 })
+  t = reduce(t, { type: 'set-setting', key: 'secondTry', value: false }, rng).state
+  t = startRide(t, rng)
+  for (let i = 0; i < 3; i++) { if (t.phase === 'trivia') t = answerTrivia(t, rng, true); t = answer(t, rng, true).state }
+  const high = t.step
+  if (t.phase === 'trivia') t = answerTrivia(t, rng, true)
+  t = answer(t, rng, false).state
+  assert.equal(t.step, high - 1)
+  assert.equal(t.stepNote, 'Smaller numbers for a bit.')
+})
+
+
+// Found while measuring the save's growth above: PLAQUES holds numbers and state.plaques holds
+// strings, so `includes(p)` was never true and every roof re-awarded every plaque already on the
+// wall — the roof card announced "A plaque for 200 bacon hangs in the Lobby" on every building
+// after the 200th rasher, the Lobby drew the same plaque again and again, and the list grew for ever.
+test('a plaque is hung once: the roof never re-awards one already on the wall', () => {
+  const rng = makeRng(41)
+  let s = { ...fresh(41, { seed: 7 }), lunchbox: 199 }
+  s = startRide(s, rng)
+  const announced = []
+  for (let b = 0; b < 4; b++) {
+    s = playBuilding(s, rng)
+    announced.push((s.roof.plaques || []).slice())
+    s = run(s, { type: 'next-building' }, rng).state
+  }
+  assert.deepEqual(announced[0], ['200'], 'the 200 plaque is earned on the first roof past 199')
+  for (let i = 1; i < announced.length; i++) assert.deepEqual(announced[i], [], `the roof re-awarded ${announced[i].join(', ')}`)
+  assert.deepEqual(s.plaques, ['200'])
+  assert.equal(new Set(s.plaques).size, s.plaques.length)
+  // and an older save that already collected duplicates is repaired on the way in
+  assert.deepEqual(parse(JSON.stringify({ v: 1, plaques: ['200', '200', '200', '400'] })).plaques, ['200', '400'])
 })

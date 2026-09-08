@@ -20,6 +20,7 @@ export function loadFacts(json) {
       id,
       kind: it.category === 'math' ? 'math' : 'elevator',
       difficulty: Number.isInteger(it.difficulty) ? it.difficulty : 2,
+      ...(it.maths && Number.isFinite(+it.maths.max) ? { maths: { max: +it.maths.max } } : {}),
       q: it.question.trim(),
       answer: String(it.answer).trim(),
       distractors: it.distractors.map((d) => String(d).trim()),
@@ -74,24 +75,38 @@ export function makeChoices(fact, rng) {
 // to Corner Shop) and the all-seen recycle (a Corner Shop child recycles inside their own band
 // rather than escaping it). Measured pool: 67 items → 22 at d ≤ 1 / q ≤ 130 (10 elevator, 12 maths,
 // eleven buildings of two passengers before anything repeats), 54 at d ≤ 2 / q ≤ 160.
+// `maxNumber` bands the ARITHMETIC a passenger's question asks the child to do, which difficulty
+// and question length do not: at `numbers to 10` the bank could serve `8 capsules x 5 seats` and
+// `1, 1, 2, 3, 5, 8, 13 - what is next?` (8 + 13). The game bands its own sums level by level; the
+// maths it hands the same child through a passenger is banded by the same ladder.
 export const TRIVIA_LIMITS = Object.freeze({
-  corner: { maxDifficulty: 1, maxQ: 130 },
-  hotel: { maxDifficulty: 1, maxQ: 130 },
-  office: { maxDifficulty: 2, maxQ: 160 },
-  sky: { maxDifficulty: 2, maxQ: 160 },
+  corner: { maxDifficulty: 1, maxQ: 130, maxNumber: 10 },
+  hotel: { maxDifficulty: 1, maxQ: 130, maxNumber: 20 },
+  office: { maxDifficulty: 2, maxQ: 160, maxNumber: 100 },
+  sky: { maxDifficulty: 2, maxQ: 160, maxNumber: 144 },
   megatall: null,
   custom: null,
 })
 
+// An item declares `maths: {max}` when answering it means doing arithmetic the child may not have
+// met. No declaration = no arithmetic to do, so no band applies.
+export function withinNumberBand(fact, limits) {
+  if (!limits || !Number.isFinite(limits.maxNumber)) return true
+  const m = fact && fact.maths
+  if (!m || !Number.isFinite(m.max)) return true
+  return m.max <= limits.maxNumber
+}
+
 // pickFact: a missed fact that is due (≥ 20 questions ago) first; then unseen of the other kind;
 // then unseen of any kind; then the least recently seen (kinds still alternating when possible).
-// `seen` is the ordered list of fact ids shown so far (repeats allowed); `retry` is [{id, at}]
-// where `at` is seen.length when it was missed; `limits` is a TRIVIA_LIMITS row (null = no band).
-export function pickFact(facts, seen = [], lastKind = null, rng, retry = [], limits = null) {
+// `seen` is the ordered list of fact ids met, one entry per fact, most recent last; `retry` is
+// [{id, at}] where `at` is the question count when it was missed; `limits` is a TRIVIA_LIMITS row
+// (null = no band). `count` is the caller's monotonic question count — `seen.length` stopped being
+// one when `seen` was de-duplicated, and the ≥ 20 rule is about QUESTIONS, not distinct facts.
+export function pickFact(facts, seen = [], lastKind = null, rng, retry = [], limits = null, count = seen.length) {
   if (!facts || !facts.length) return null
-  const banded = limits ? facts.filter((f) => f.difficulty <= limits.maxDifficulty && f.q.length <= limits.maxQ) : facts
+  const banded = limits ? facts.filter((f) => f.difficulty <= limits.maxDifficulty && f.q.length <= limits.maxQ && withinNumberBand(f, limits)) : facts
   const inBand = banded.length ? banded : facts
-  const count = seen.length
   const byId = new Map(inBand.map((f) => [f.id, f]))
   const due = retry.filter((r) => r && byId.has(r.id) && count - r.at >= 20)
   if (due.length) return byId.get(due[0].id)

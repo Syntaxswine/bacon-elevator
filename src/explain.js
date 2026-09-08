@@ -13,7 +13,14 @@ const tens = (n) => Math.floor(n / 10) * 10
 const ones = (n) => n % 10
 const hundreds = (n) => Math.floor(n / 100) * 100
 const range = (from, to, step) => { const out = []; for (let n = from; step > 0 ? n <= to : n >= to; n += step) out.push(n); return out }
-const list = (arr) => arr.map(fmt).join(', ')
+// A NON-BREAKING SPACE BEFORE THE LAST NUMBER of a counted run. `Start at 0, count 5 more: 1, 2,
+// 3, 4,` wrapping to a lone centred `5` reads as a separate item rather than as the end of the run.
+const NBSP = ' '
+const list = (arr) => {
+  const parts = arr.map(fmt)
+  if (parts.length < 2) return parts.join(', ')
+  return parts.slice(0, -1).join(', ') + ',' + NBSP + parts[parts.length - 1]
+}
 
 // Counting strategies (one clause each).
 const countOn = (from, by) => line(`${from} + ${by}`, from + by, `Start at ${from}, count ${by} more: ${list(range(from + 1, from + by, 1))}`)
@@ -190,9 +197,12 @@ export function classify(p, typed) {
 
 export function repair(p, typed) {
   const steps = explain(p)
+  const entered = typeof typed === 'string' ? typed.trim() : (typed === null || typed === undefined ? '' : String(typed))
   return {
     big: trueText(p),
-    small: `you pressed ${fmt(Number(typed))}`,
+    // No entry, no claim about one. `Number('') === 0`, and a resumed save whose typedWrong was
+    // dropped (an old save, an imported code) printed `you pressed 0` for an answer nobody gave.
+    small: entered === '' ? '' : `you pressed ${fmt(Number(entered.replace(MINUS, '-')))}`,
     worked: steps.map((s) => s.text).join('  ·  '),
     clause: classify(p, typed).clause,
   }

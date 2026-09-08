@@ -90,8 +90,12 @@ export function createShaft(container, opts = {}) {
     g.appendChild(el('rect', { x: 10, y: s - 78, width: 30, height: 20, rx: 3, fill: '#fff', stroke: '#6B6B6B', 'stroke-width': 2 }))
     g.appendChild(text(25, s - 63, label(f), { 'font-size': 14, fill: '#2B2B2B' }))
     // hall calls (▲ ▼) and the lantern above them
-    if (f < 10) g.appendChild(el('circle', { cx: 98, cy: s - 44, r: 5, fill: '#fff', stroke: '#6B6B6B', 'stroke-width': 2 }))
-    if (f > 0) g.appendChild(el('circle', { cx: 98, cy: s - 30, r: 5, fill: '#fff', stroke: '#6B6B6B', 'stroke-width': 2 }))
+    // The hall calls are the other half of the lantern pair: a registered call glows until the car
+    // answers it. They used to be two white circles nothing ever wrote to, on every landing, for ever.
+    const callUp = f < 10 ? el('circle', { cx: 98, cy: s - 44, r: 5, fill: '#fff', stroke: '#6B6B6B', 'stroke-width': 2 }) : null
+    const callDown = f > 0 ? el('circle', { cx: 98, cy: s - 30, r: 5, fill: '#fff', stroke: '#6B6B6B', 'stroke-width': 2 }) : null
+    if (callUp) g.appendChild(callUp)
+    if (callDown) g.appendChild(callDown)
     const lantern = el('g', { class: 'lantern' })
     lantern.appendChild(el('rect', { x: 88, y: s - 76, width: 20, height: 14, rx: 3, fill: '#CFC9BA', stroke: '#6B6B6B', 'stroke-width': 2 }))
     const glyph = text(98, s - 65, '▲', { 'font-size': 10, fill: '#8A8578' })
@@ -123,7 +127,7 @@ export function createShaft(container, opts = {}) {
     }
     world.appendChild(g)
     if (plate) guard(plate, sillOf(f) - 23, sillOf(f) + 3)
-    landings.set(f, { g, lantern, glyph, lanternRect: lantern.firstChild, plate, waiter })
+    landings.set(f, { g, lantern, glyph, lanternRect: lantern.firstChild, plate, waiter, callUp, callDown })
   }
 
   // pit: buffer springs and grey round-tipped spikes on springs
@@ -226,6 +230,7 @@ export function createShaft(container, opts = {}) {
   let equipped = { doors: 'doors-centre', indicator: 'segment' }
   let anim = null
   let lit = null // lantern floor
+  let called = null // the landing whose hall call is registered
   let lastIndicator = ''
   let riderIn = false
   let strip = false          // the last collected strip is in the car
@@ -275,6 +280,21 @@ export function createShaft(container, opts = {}) {
       indText.textContent = fl
       indArrow.textContent = arrow === 'up' ? '▲' : arrow === 'down' ? '▼' : ''
     }
+  }
+
+  function setHallCall(f, dir) {
+    if (called !== null && landings.get(called)) {
+      const L = landings.get(called)
+      if (L.callUp) L.callUp.setAttribute('fill', '#fff')
+      if (L.callDown) L.callDown.setAttribute('fill', '#fff')
+    }
+    called = null
+    if (f === null || !landings.has(f)) return
+    const L = landings.get(f)
+    const btn = dir === 'down' ? L.callDown : L.callUp
+    if (!btn) return
+    btn.setAttribute('fill', '#E8B04A')
+    called = f
   }
 
   function setLantern(f, dir) {
@@ -421,6 +441,7 @@ export function createShaft(container, opts = {}) {
         if (L.plate) L.plate.setAttribute('visibility', cleared.includes(f) ? 'hidden' : 'visible')
         if (L.waiter) L.waiter.setAttribute('visibility', isPassengerFloor(f, state.settings.passengers) && !done.includes(f) && !(riderIn && r && r.floor === f) ? 'visible' : 'hidden')
       }
+      setHallCall(state.car.carCall === null || state.car.carCall === undefined ? null : state.car.carCall, state.phase === 'descending' ? 'down' : 'up')
       riderIn = state.phase === 'trivia' || state.phase === 'fact'
       rider.setAttribute('visibility', riderIn ? 'visible' : 'hidden')
       if (riderIn && r) { const L = landings.get(r.floor); if (L && L.waiter) L.waiter.setAttribute('visibility', 'hidden') }
@@ -473,7 +494,7 @@ export function createShaft(container, opts = {}) {
         case 'move-start': stripPending = false; setStrip(false); break // the next ride starts: the strip is on the tray now
         case 'lantern': setLantern(step.floor, a.name === 'descend' ? 'down' : 'up'); break
         case 'sill': a.sillPassed = step.floor; setIndicator(label(step.floor), a.name === 'fall' ? 'none' : a.name === 'descend' ? 'down' : step.floor === a.to ? 'none' : 'up'); break
-        case 'arrive': car.setAttribute('data-motion', 'idle'); setIndicator(label(step.floor), 'none'); break
+        case 'arrive': car.setAttribute('data-motion', 'idle'); setIndicator(label(step.floor), 'none'); setHallCall(null); break
         case 'fall-start': break
         case 'impact': car.setAttribute('data-motion', 'idle'); setIndicator('P', 'none'); break
         case 'brake': break
@@ -482,6 +503,10 @@ export function createShaft(container, opts = {}) {
       }
     },
     frame(elapsed) { if (anim) draw(elapsed) },
+    // The panel asks doorsClosingNow() from inside a step's own re-render, which happens BEFORE the
+    // frame is drawn; without this the answer is one frame stale and the ◁▷ key re-arms itself on
+    // the very frame the doors finish closing.
+    mark(elapsed) { if (anim) anim.lastElapsed = elapsed },
     end() { anim = null; flight.setAttribute('visibility', 'hidden'); if (stripPending) { stripPending = false; setStrip(true) } },
     isAnimating() { return !!anim },
     hasStrip() { return strip },

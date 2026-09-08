@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { mulberry32 } from '../src/rng.js'
 import { LEVELS, LEVEL_ORDER, levelById, customLevel, levelBound } from '../src/levels.js'
 import { KINDS, makeProblem, afterAnswer, initialCtx, digitsNeeded } from '../src/math.js'
@@ -103,20 +104,77 @@ test('every reachable Custom setting is satisfiable, non-degenerate and honestly
 
 // r1-math-06: nothing tied a tag to the table it describes, so Hotel could say `numbers to 20`
 // while its step-3 × table served 10 × 10 = 100.
-test('a tag never undercuts the numbers its own tables can show', () => {
+//
+// r2-math-07: the guard was written as /^numbers to (\d+)$/ — the WHOLE tag — so the moment Hotel's
+// tag gained `; tables 2, 5, 10` the regex missed and the level the guard was written for stopped
+// being inspected. It now parses the leading bound out of ANY tag, requires every level either to
+// name a bound that covers its tables or to say in words that it goes past them, and measures the
+// claim on every level and step rather than on Hotel step 3 alone.
+const NON_NUMERIC_TAGS = new Set(['sky', 'megatall'])   // `times tables`, `big numbers, and below zero`
+test('a tag never undercuts the numbers its own tables can show — every level, every step', () => {
   for (const l of LEVELS) {
-    const m = /^numbers to (\d+)$/.exec(l.tag)
-    if (m) assert.ok(Number(m[1]) >= levelBound(l), `${l.id}: tag says ${m[1]}, tables reach ${levelBound(l)}`)
+    const m = /^numbers to (\d+)/.exec(l.tag)
+    if (!m) { assert.ok(NON_NUMERIC_TAGS.has(l.id), `${l.id}: tag "${l.tag}" neither names a bound nor is a whitelisted non-numeric tag`); continue }
+    const named = Number(m[1])
+    assert.ok(named >= levelBound(l) || /tables/.test(l.tag),
+      `${l.id}: tag says ${named}, tables reach ${levelBound(l)}, and the tag does not name the tables`)
   }
-  // and the direct measurement, which no tag rewrite can dodge
+  // …and the direct measurement, which no tag rewrite can dodge, on every row of every table
+  for (const l of LEVELS) {
+    const m = /^numbers to (\d+)/.exec(l.tag)
+    if (!m || /tables/.test(l.tag) || NON_NUMERIC_TAGS.has(l.id)) continue
+    const named = Number(m[1])
+    for (let step = 1; step <= 3; step++) {
+      const rng = mulberry32(42)
+      let ctx = initialCtx(), over = 0
+      for (let i = 0; i < 8000; i++) {
+        const p = makeProblem(l, step, ctx, rng)
+        if ([p.a, p.b, p.answer].concat(Number.isInteger(p.c) ? [p.c] : []).some((n) => Math.abs(n) > named)) over++
+        ctx = afterAnswer(ctx, p, true)
+        if (i % 9 === 8) ctx = { ...ctx, sameSeen: false }
+      }
+      assert.equal(over, 0, `${l.id} step ${step}: ${over}/8000 draws above the ${named} its tag names`)
+    }
+  }
+  // Hotel is the level the guard was written for: its tag must still name the tables it reaches past
   const hotel = LEVELS.find((l) => l.id === 'hotel')
-  const rng = mulberry32(42)
-  let ctx = initialCtx(), over = 0
-  for (let i = 0; i < 10000; i++) {
-    const p = makeProblem(hotel, 3, ctx, rng)
-    if ([p.a, p.b, p.answer].concat(Number.isInteger(p.c) ? [p.c] : []).some((n) => n > 20)) over++
-    ctx = afterAnswer(ctx, p, true)
-    if (i % 9 === 8) ctx = { ...ctx, sameSeen: false }
+  assert.ok(levelBound(hotel) > 20 && /tables/.test(hotel.tag), `Hotel reaches ${levelBound(hotel)} and its tag is "${hotel.tag}"`)
+})
+
+// r2-math-04: Skyscraper step 1 was Office Block step 3's mul/div rows verbatim, so every one of
+// its 126 reachable sums was already reachable at Office step 3 (which serves 5 500 more besides).
+// A child who had just proved Office step 3 was promoted, on the screen that says `Try Skyscraper?`,
+// into a strictly easier and 45x narrower pool, and had to re-earn six answers to climb back.
+test('a promotion never narrows the question set: each level opens on material the last one could not reach', () => {
+  const keysOf = (level, step) => {
+    const rng = mulberry32(7)
+    let ctx = initialCtx()
+    const out = new Set()
+    for (let i = 0; i < 40000; i++) {
+      const p = makeProblem(level, step, ctx, rng)
+      out.add(p.key)
+      ctx = afterAnswer(ctx, p, true)
+      if (i % 9 === 8) ctx = { ...ctx, sameSeen: false }
+    }
+    return out
   }
-  assert.ok(over === 0 || /tables/.test(hotel.tag), `${over}/10000 draws above 20 and the tag does not name the tables: "${hotel.tag}"`)
+  for (let i = 0; i < LEVELS.length - 1; i++) {
+    const from = LEVELS[i], to = LEVELS[i + 1]
+    const was = keysOf(from, 3), now = keysOf(to, 1)
+    const fresh = [...now].filter((k) => !was.has(k))
+    assert.ok(fresh.length > 0, `${to.id} step 1 is a strict subset of ${from.id} step 3: nothing new to meet`)
+    assert.ok(fresh.length / now.size >= 0.1, `${to.id} step 1: only ${fresh.length} of ${now.size} sums are new after ${from.id} step 3`)
+    assert.ok(levelBound(to) >= levelBound(from), `${to.id} tops out at ${levelBound(to)}, below ${from.id}'s ${levelBound(from)}`)
+  }
+})
+
+// r2-elevator-feel-03 / r2-code-hostile-08: dead data in the file a maintainer reads to learn what
+// a level IS, and a Custom tag that implied the knobs governed the floor moves.
+test('a level declares nothing the game does not read, and Custom says where its floor moves live', () => {
+  const src = readFileSync(new URL('../src/levels.js', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '')
+  assert.ok(!/\bfloors:\s*\d/.test(src), 'levels.js declares a `floors:` field again; nothing reads it')
+  for (const l of LEVELS) assert.equal(l.floors, undefined, `${l.id} carries a dead floors field`)
+  const c = customLevel({ ops: ['add', 'up', 'down'], min: 9997, max: 9999 })
+  assert.match(c.tag, /▲▼ inside the building, 0 to 10/, `Custom tag "${c.tag}" hides that ▲▼ ignore the knobs`)
+  assert.ok(!/▲▼/.test(customLevel({ ops: ['add', 'sub'], min: 0, max: 20 }).tag), 'the clause appears only when a floor move is on')
 })

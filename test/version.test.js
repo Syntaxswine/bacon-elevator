@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, existsSync } from 'node:fs'
+import { buildStamp, stampInSw, assetList } from '../tools/build-stamp.mjs'
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8')
 
@@ -74,4 +75,33 @@ test('pure modules never touch window, document, localStorage, setTimeout or Dat
     const code = read(`../src/${f}.js`).replace(/\/\/.*$/gm, '')
     for (const bad of ['window', 'document', 'localStorage', 'setTimeout', 'Date', 'requestAnimationFrame']) assert.ok(!new RegExp(`\\b${bad}\\b`).test(code), `${f}.js references ${bad}`)
   }
+})
+
+
+// ---- round 2, r2-deploy-pages-01 ---------------------------------------------------------------
+// A CONTENT-ONLY DEPLOY MUST STILL BE A DEPLOY.
+// The browser's service-worker update check compares sw.js's BYTES and nothing else. Three of the
+// last four pushes changed shipped assets (data/trivia.json among them — a false legal citation, a
+// keypad that could not answer its own sum) without touching sw.js or src/version.js, so no worker
+// installed, no cache was replaced, and the cache-first handler never asked the network again:
+// measured on a real deploy, five opens with an empty HTTP cache each time and the only request
+// that ever left the browser was /sw.js. `Version 1.0.0` printed the same on both builds, so a
+// grown-up could not even tell. This test goes red on any content change until the stamp is moved,
+// which is the one thing the update check can see.
+test('sw.js carries the fingerprint of the files it precaches (node tools/build-stamp.mjs)', () => {
+  const want = buildStamp()
+  const have = stampInSw(read('../sw.js'))
+  assert.ok(have, 'sw.js has no BUILD stamp')
+  assert.equal(have, want, `the precached files changed and sw.js did not: run \`node tools/build-stamp.mjs\` (BUILD ${have} -> ${want})`)
+  assert.match(read('../sw.js'), /const CACHE = 'be-' \+ VERSION \+ '-' \+ BUILD/, 'the cache name must be a function of the content, not of a hand-edited literal')
+})
+
+// The reset hatch re-fetches exactly what the worker precaches, so the two lists may not drift.
+test("?reset=1 refreshes every precached path, so the reset cannot refill from the browser's own HTTP cache", () => {
+  const main = read('../src/main.js')
+  const m = /export const RESET_ASSETS = \[([\s\S]*?)\n\]/.exec(main)
+  assert.ok(m, 'main.js has no RESET_ASSETS list')
+  const reset = m[1].match(/'[^']+'/g).map((q) => q.slice(1, -1))
+  assert.deepEqual(reset, assetList(read('../sw.js')), 'RESET_ASSETS and sw.js ASSETS have drifted apart')
+  assert.match(main, /fetch\(u, \{ cache: 'reload' \}\)/, "the refresh must bypass the HTTP cache, or it re-reads the build it is trying to leave")
 })

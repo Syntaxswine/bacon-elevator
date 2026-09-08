@@ -36,7 +36,15 @@ function levelName(state) {
   return { name: l.name, tag: l.tag }
 }
 
-export function lobby(state) {
+// Two notices a grown-up needs and a child never sees the cause of.
+function noticeHTML(extras = {}) {
+  const out = []
+  if (extras.storageFailed) out.push('<p class="muted small" id="storagemsg">This browser is not keeping the score. Bacon will be here until the tab closes, then it starts again. Grown-ups &rarr; Save code copies it out.</p>')
+  if (extras.adopted) out.push('<p class="muted small" id="adoptedmsg">Another tab of the game had newer bacon, so this one caught up with it.</p>')
+  return out.join('')
+}
+
+export function lobby(state, extras = {}) {
   const { name, tag } = levelName(state)
   const rideLabel = state.ride ? 'Ride' : 'Ride'
   const plaques = state.plaques.length ? `<div class="plaques" aria-label="plaques">${state.plaques.map((p) => `<span class="plaque">${esc(p)} bacon</span>`).join('')}</div>` : ''
@@ -61,12 +69,18 @@ export function lobby(state) {
         <button class="btn" style="flex:1" data-nav="factbook" data-tap aria-label="Fact Book">Fact Book</button>
         <button class="btn" style="flex:1" data-nav="workshop" data-tap aria-label="Workshop">Workshop</button>
       </div>
+      <!-- The rules card showed once, on the first ride, and after that the only way back to it was
+           an unlabelled bell on the panel, in floor mode, with the car standing still. A child who
+           re-checks the rules — and a grown-up handing the phone over — needs something on the home
+           screen that says what this is. -->
+      <button class="btn wide" data-nav="rules" data-tap aria-label="How it works">How it works</button>
       <div class="row spread">
         <button class="btn ${state.settings.sound ? 'on' : ''}" data-sound data-tap aria-pressed="${state.settings.sound ? 'true' : 'false'}" aria-label="Sound ${state.settings.sound ? 'on' : 'off'}">♪ Sound ${state.settings.sound ? 'on' : 'off'}</button>
         <button class="btn quiet" data-gear data-nav="grownups" data-tap aria-label="Grown-ups: tap twice">⚙ Grown-ups</button>
       </div>
       ${plaques}
     </div>
+    ${noticeHTML(extras)}
   </div>`
 }
 
@@ -84,7 +98,7 @@ export function picker(state) {
 
 const PIC = {
   press: `<svg viewBox="0 0 120 84"><circle cx="60" cy="42" r="26" fill="#FFF0CC" stroke="#9A7A2A" stroke-width="4"/><text x="60" y="52" text-anchor="middle" font-size="28" font-weight="700" fill="#2B2B2B" font-family="system-ui">3</text></svg>`,
-  solve: `<svg viewBox="0 0 120 84"><text x="60" y="52" text-anchor="middle" font-size="26" font-weight="700" fill="#2B2B2B" font-family="ui-monospace, monospace">7 <tspan fill="#2F7A8C">+</tspan> 5 = <tspan fill="#4A7BAA">12</tspan></text></svg>`,
+  solve: `<svg viewBox="0 0 120 84"><text x="60" y="38" text-anchor="middle" font-size="24" font-weight="700" fill="#2B2B2B" font-family="ui-monospace, monospace">7 <tspan fill="#2F7A8C">+</tspan> 5 = <tspan fill="#4A7BAA">12</tspan></text><text x="60" y="70" text-anchor="middle" font-size="21" font-weight="700" fill="#2B2B2B" font-family="ui-monospace, monospace">6 <tspan fill="#2F7A8C">▲</tspan> 4 = <tspan fill="#4A7BAA">10</tspan></text></svg>`,
   up: `<svg viewBox="0 0 120 84"><rect x="40" y="26" width="40" height="46" rx="3" fill="#E9E4D8" stroke="#6B6B6B" stroke-width="3"/><path d="M60 6 l12 14 h-8 v6 h-8 v-6 h-8 z" fill="#6E9B6E" stroke="#4E7B4E" stroke-width="2"/><use href="#bacon" x="84" y="40" width="32" height="16"/></svg>`,
   fall: `<svg viewBox="0 0 120 84"><rect x="22" y="8" width="36" height="40" rx="3" fill="#E9E4D8" stroke="#6B6B6B" stroke-width="3"/><path d="M40 52 l-8 -10 h16 z" fill="#5B6B7A"/><path d="M26 78 l6 -14 l6 14 M38 78 l6 -14 l6 14 M50 78 l6 -14 l6 14" fill="#9A9A9A" stroke="#6B6B6B" stroke-width="2" stroke-linejoin="round"/><path d="M84 70 V20" stroke="#6E9B6E" stroke-width="5" stroke-linecap="round"/><path d="M72 32 l12 -14 l12 14" fill="none" stroke="#6E9B6E" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   // A faceless passenger inside the car, and the question mark that tags their floors.
@@ -98,16 +112,16 @@ export function rules(state) {
       <h1>How it works</h1>
       <div class="pics">
         <div class="pic">${PIC.press}Press the lit button</div>
-        <div class="pic">${PIC.solve}Work out the sum</div>
-        <div class="pic">${PIC.up}Right: up one floor, bacon</div>
+        <div class="pic">${PIC.solve}Work out the sum. ▲ = up, ▼ = down</div>
+        <div class="pic">${PIC.up}Right: up one floor, bacon on the tray</div>
         <div class="pic">${PIC.fall}Wrong: a fall, then back up</div>
-        <div class="pic wide">${PIC.passenger}<span>A passenger may ask a question. Falls only happen for wrong sums. <strong>A passenger's question never falls.</strong></span></div>
+        <div class="pic wide">${PIC.passenger}<span>A passenger may ask a question. <strong>A passenger's question never falls.</strong></span></div>
       </div>
       <p class="detail">Right: the doors close, the elevator goes up one floor, one ding, the bacon slides in.</p>
       <p>Wrong: the panel shows the true sum, then the elevator falls onto the springy spikes. The safety brake catches it. A repair card shows the sum, and you answer it again.</p>
-      <p class="never"><strong>Bacon is never lost. There is no clock.</strong></p>
+      <p class="never">Bacon rides on the tray and goes into the lunchbox at the roof. <strong>Bacon is never lost. There is no clock.</strong></p>
     </div>
-    <div class="foot"><button class="btn sage wide" data-continue data-tap aria-label="${from}">${from}</button></div>
+    <div class="foot"><button class="btn primary wide" data-continue data-tap aria-label="${from}">${from}</button></div>
   </div>`
 }
 
@@ -207,11 +221,11 @@ export function grownups(state, extras = {}) {
     ${radios('passengers', 'Passengers', [['often', 'Often'], ['sometimes', 'Sometimes'], ['never', 'Never']], s.passengers)}
     <h2>Maths</h2>
     ${toggle('secondTry', 'Second try', s.secondTry, 'The first wrong answer clears the entry; only the second falls.')}
-    ${toggle('adaptive', 'Adaptive step', state.adaptive, 'Three right in a row: step up. A fall: step down, once per building.')}
+    ${toggle('adaptive', 'Adaptive step', state.adaptive, 'Three right in a row: step up. A fall: step down, once per building. The elevator says so in words: "Bigger numbers now."')}
     ${state.adaptive ? '' : stepper('pinnedStep', 'Pinned step', state.pinnedStep, 1)}
     <h2>Level</h2>
     <div class="radio-row" role="radiogroup" aria-label="Level">
-      ${[...LEVELS.map((l) => [l.id, l.name]), ['custom', 'Custom']].map(([id, name]) => `<button class="radio" role="radio" aria-checked="${state.level === id ? 'true' : 'false'}" data-level="${id}" data-tap aria-label="${esc(name)}">${esc(name)}</button>`).join('')}
+      ${[...LEVELS.map((l) => [l.id, `${l.name} — ${l.tag}`]), ['custom', 'Custom']].map(([id, name]) => `<button class="radio" role="radio" aria-checked="${state.level === id ? 'true' : 'false'}" data-level="${id}" data-tap aria-label="${esc(name)}">${esc(name)}</button>`).join('')}
     </div>
     <h2>Custom numbers</h2>
     <div class="setting"><span class="label">Operations</span><span class="radio-row">${ops.map(([id, t]) => `<button class="radio" role="checkbox" aria-checked="${c.ops.includes(id) ? 'true' : 'false'}" data-custom-op="${id}" data-tap aria-label="${esc(t)}">${esc(t)}</button>`).join('')}</span></div>
@@ -221,6 +235,7 @@ export function grownups(state, extras = {}) {
     <h2>Reading</h2>
     ${toggle('bigText', 'Bigger text', s.bigText)}
     ${toggle('links', 'Open source links', s.links, 'Off: sources are plain text. On: the Fact Book links to them.')}
+    ${noticeHTML(extras)}
     <h2>Save code</h2>
     <p class="muted small">Copy this code to move your lunchbox to another phone. iOS may clear a web game's storage after 7 days if it is not added to the Home Screen.</p>
     <div class="code" id="savecode">${esc(encodeCode(state))}</div>
@@ -250,6 +265,6 @@ export function factSheet(state) {
       <p class="factline">${esc(t.fact.fact)}</p>
       ${t.fact.sources.map((s) => `<p class="src">Source: ${esc(s.title)} (${esc(domainOf(s.url))})</p>`).join('')}
     </div>
-    <div class="foot"><button class="btn sage wide" data-continue data-tap aria-label="Got it">Got it</button></div>
+    <div class="foot"><button class="btn primary wide" data-continue data-tap aria-label="Got it">Got it</button></div>
   </div>`
 }

@@ -43,11 +43,31 @@ export const STABLE = new Set(['floor', 'keypad', 'repair', 'trivia', 'fact', 'r
 // code, a resume, a settled timeline — comes through here.
 export function nextTarget(floor) { return Math.min(10, Math.max(1, floor + 1)) }
 
+const clamp = (x, lo, hi, d) => (typeof x === 'number' && Number.isFinite(x) ? Math.max(lo, Math.min(hi, Math.trunc(x))) : d)
+const typedStr = (x) => (typeof x === 'string' && /^-?\d{0,6}$/.test(x) ? x : '')
+
 export function normaliseRide(ride) {
   if (!ride) return null
   const r = { ...ride }
   r.floor = Math.max(-1, Math.min(10, Number.isSafeInteger(r.floor) ? r.floor : 0))
   r.problem = validProblem(r.problem)
+  // THE COUNTERS TOO, not only the geometry. The comment below promised that normalising here means
+  // "a second caller can never open a doorway back into the dead states"; it only ever normalised
+  // floor, target, phase, problem, passengersDone and retrying, so an `import` handed a ride with no
+  // tray computed Math.max(0, undefined - undefined) on the way to the lobby and the lunchbox became
+  // NaN — which renders as "NaN" on the top bar and serialises to null.
+  r.seed = (Number.isSafeInteger(r.seed) ? r.seed : 1) >>> 0
+  r.tray = clamp(r.tray, 0, 1e9, 0)
+  r.banked = Math.min(r.tray, clamp(r.banked, 0, 1e9, 0))
+  r.cleared = Array.isArray(r.cleared) ? [...new Set(r.cleared.filter((x) => Number.isSafeInteger(x) && x >= 1 && x <= 9))].sort((x, y) => x - y) : []
+  r.tray = Math.max(r.tray, 0)
+  r.typed = typedStr(r.typed)
+  r.typedWrong = typedStr(r.typedWrong)
+  r.tries = clamp(r.tries, 0, 99, 0)
+  r.streak = clamp(r.streak, 0, 99, 0)
+  r.stepDowns = clamp(r.stepDowns, 0, 99, 0)
+  r.falls = clamp(r.falls, 0, 999, 0)
+  r.draws = clamp(r.draws, 0, 1e9, 0)
   r.passengersDone = Array.isArray(r.passengersDone) ? r.passengersDone.filter(Number.isSafeInteger) : []
   if (!STABLE.has(r.phase)) r.phase = 'floor'
   if ((r.phase === 'keypad' || r.phase === 'repair') && !r.problem) r.phase = 'floor'
@@ -74,6 +94,7 @@ export function initialState(salt) {
     v: 1,
     created: 0,
     salt: Number.isInteger(salt) ? salt >>> 0 : 123456,
+    writes: 0,
     lunchbox: 0,
     buildings: 0,
     level: 'corner',
@@ -100,8 +121,22 @@ export function initialState(salt) {
     pool: [],
     seedOverride: null,
     message: '',
+    stepNote: '',
     lastResult: null,
   }
+}
+
+// The shape arrive() and the trivia panel actually index. loadFacts() is the gate; this is the same
+// question asked at the reducer's own boundary.
+export function usableFact(f) {
+  return !!f && typeof f === 'object' && !Array.isArray(f)
+    && typeof f.id === 'string' && !!f.id
+    && typeof f.q === 'string' && !!f.q
+    && f.answer !== undefined && f.answer !== null
+    && Array.isArray(f.distractors) && f.distractors.length >= 3
+    && typeof f.fact === 'string'
+    && Array.isArray(f.sources)
+    && (f.kind === 'elevator' || f.kind === 'math')
 }
 
 export function currentLevel(state) {
@@ -168,12 +203,12 @@ function stable(state, phase, extra = {}) {
 function askProblem(state, rng) {
   const level = currentLevel(state)
   const problem = makeProblem(level, state.step, ctxOf(state), rng)
-  return { ...state, ride: { ...state.ride, problem, typed: '', tries: 0, retrying: false, typedWrong: '' }, hint: false, message: '' }
+  return { ...state, ride: { ...state.ride, problem, typed: '', tries: 0, retrying: false, typedWrong: '' }, hint: false, message: '', stepNote: '' }
 }
 
 function askPassenger(state, rng) {
   const r = state.ride
-  const fact = pickFact(state.pool, state.facts.seen, r.lastKind, rng, state.facts.retry, TRIVIA_LIMITS[state.level] ?? null)
+  const fact = pickFact(state.pool, state.facts.seen, r.lastKind, rng, state.facts.retry, TRIVIA_LIMITS[state.level] ?? null, state.history.count)
   if (!fact) return null
   const { choices, answer } = makeChoices(fact, rng)
   return { fact, choices, answer, chosen: null, result: null }
@@ -200,7 +235,7 @@ function recordQuestion(state, problem, correct) {
   const ctx = afterAnswer(ctxOf(state), problem, correct)
   const comeback = ctx.comeback.filter((x) => x && x.due >= h.count - 40).slice(-12)
   const history = { ...h, ring: ctx.ring, count: h.count + 1, answered: h.answered + 1, correct: h.correct + (correct ? 1 : 0), byKind, skills: ctx.skills, comeback }
-  const ride = { ...state.ride, ctx: { lastAnswer: ctx.lastAnswer, sameSeen: ctx.sameSeen, kindRun: ctx.kindRun, count: ctx.count } }
+  const ride = { ...state.ride, ctx: { lastAnswer: ctx.lastAnswer, sameSeen: ctx.sameSeen, kindRun: ctx.kindRun, count: ctx.count, lastComeback: ctx.lastComeback } }
   return { ...state, history, ride }
 }
 
@@ -209,13 +244,20 @@ function applyAdapt(state, correct, fell) {
   const history = fell ? { ...state.history, falls: state.history.falls + 1 } : state.history
   const ride = state.ride
   let step = state.step, streak = ride ? ride.streak : 0, stepDowns = ride ? ride.stepDowns : 0
+  // THE ADAPTIVE RULE IS MEANT TO BE VISIBLE (DESIGN §4: "visible, never silent"). Three pips in the
+  // top bar were the whole announcement, and nothing anywhere tells the child what a pip is: the
+  // numbers simply got bigger or smaller between one floor and the next. The level offer is named in
+  // words (`Try Hotel?`); a step change now is too, in the same band that carries `Try once more.`
+  let stepNote = state.stepNote || ''
   if (state.adaptive) {
     const a = adaptStep({ step, streak, stepDowns }, correct, fell)
     step = a.step; streak = a.streak; stepDowns = a.stepDowns
+    if (a.delta > 0) stepNote = 'Bigger numbers now.'
+    else if (a.delta < 0) stepNote = 'Smaller numbers for a bit.'
   } else {
     step = Math.max(1, Math.min(3, state.pinnedStep))
   }
-  return { ...state, history, ride: ride ? { ...ride, streak, stepDowns } : ride, step }
+  return { ...state, history, ride: ride ? { ...ride, streak, stepDowns } : ride, step, stepNote }
 }
 
 function arrive(state, rng) {
@@ -231,7 +273,12 @@ function arrive(state, rng) {
     const gained = s.ride.tray - s.ride.banked
     const lunchbox = state.lunchbox + gained + ROOF_BONUS
     const unlocked = PARTS.filter((p) => p.at > 0 && p.at <= lunchbox && !state.unlocks.includes(p.id)).map((p) => p.id)
-    const plaques = PLAQUES.filter((p) => p <= lunchbox && !state.plaques.includes(p)).map(String)
+    // PLAQUES ARE STORED AS STRINGS and PLAQUES holds numbers, so `includes(p)` was never true and
+    // every roof re-awarded every plaque already on the wall: the roof card announced "A plaque for
+    // 200 bacon hangs in the Lobby" on every single building after the 200th rasher, the Lobby drew
+    // the same plaque over and over, and the list — and the save code built from it — grew without
+    // bound. Found while measuring the save's growth for r2-code-hostile-06.
+    const plaques = PLAQUES.filter((p) => p <= lunchbox && !state.plaques.includes(String(p))).map(String)
     const step3Run = (state.step === 3 && s.ride.falls <= 1) ? state.step3Run + 1 : 0
     const idx = LEVEL_ORDER.indexOf(state.level)
     const next = state.adaptive && step3Run >= 2 && idx >= 0 && idx < LEVEL_ORDER.length - 1 ? LEVEL_ORDER[idx + 1] : null
@@ -277,7 +324,12 @@ export function reduce(state, action, rng) {
   const phase = state.phase
   switch (action.type) {
     case 'load-facts':
-      return same({ ...state, pool: Array.isArray(action.facts) ? action.facts : [] })
+      // Every other data boundary here re-validates (validProblem, migrateRide, normaliseRide); the
+      // fact pool did not. arrive() indexes fact.distractors and fact.q without checking, so one
+      // ungated item threw inside makeChoices the moment the car reached a passenger floor. The gate
+      // lives in trivia.js's loader; this is the same question asked at the action, where a second
+      // caller (a test, a future importer) can reach it.
+      return same({ ...state, pool: (Array.isArray(action.facts) ? action.facts : []).filter(usableFact) })
     case 'set-seed':
       return same({ ...state, seedOverride: Number.isInteger(action.seed) ? action.seed : null })
 
@@ -328,7 +380,10 @@ export function reduce(state, action, rng) {
 
     case 'card-continue': {
       if (state.screen === 'rules') {
-        const screen = r ? (phase === 'roof' ? 'roof' : 'ride') : 'lobby'
+        // The card is reachable from the LOBBY as well as from the first ride, so `where it came
+        // from` is the PHASE, not merely whether a building is parked: a parked ride whose phase is
+        // 'lobby' used to land the child on the ride screen with the reducer still in the lobby.
+        const screen = r && phase !== 'lobby' ? (phase === 'roof' ? 'roof' : 'ride') : 'lobby'
         return { state: { ...state, rulesSeen: true, screen }, effects: [SCREEN(screen), SAVE] }
       }
       if (phase === 'repair' && r) {
@@ -514,10 +569,15 @@ export function reduce(state, action, rng) {
       if (!Number.isInteger(i) || i < 0 || i > 2) return same(state)
       const t = state.trivia
       const right = i === t.answer
-      const seen = state.facts.seen.concat(t.fact.id)
+      // ONE ENTRY PER FACT, most recent last. `seen` used to append on every answer including a
+      // repeat, so it — and with it the BE1- code a grown-up is told they may have to copy by hand —
+      // grew without bound (twelve buildings measured at 1 727 characters). Nothing wanted the
+      // duplicates: the Fact Book de-duplicates already and pickFact reads the LAST position only.
+      // The retry clock therefore moves to history.count, which is monotone and independent of it.
+      const seen = state.facts.seen.filter((x) => x !== t.fact.id).concat(t.fact.id)
       const rightList = right && !state.facts.right.includes(t.fact.id) ? state.facts.right.concat(t.fact.id) : state.facts.right
       let retry = state.facts.retry.filter((x) => x.id !== t.fact.id)
-      if (!right) retry = retry.concat({ id: t.fact.id, at: seen.length })
+      if (!right) retry = retry.concat({ id: t.fact.id, at: state.history.count })
       const tray = r.tray + (right ? 2 : 0)
       const s = stable({ ...state, facts: { seen, right: rightList, retry }, trivia: { ...t, chosen: i, result: right ? 'right' : 'wrong' }, ride: { ...r, tray } }, 'fact')
       return { state: s, effects: [SOUND(right ? 'bacon' : 'click'), SAVE] }

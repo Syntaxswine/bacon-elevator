@@ -55,11 +55,29 @@ test('the CSS keeps the phone rules: dvh with a vh fallback, safe-area insets, t
   for (const side of ['top', 'right', 'bottom', 'left']) assert.match(css, new RegExp(`padding-${side}: env\\(safe-area-inset-${side}`), side)
   assert.match(css, /touch-action: manipulation/)
   assert.match(css, /overscroll-behavior: none/)
+  // r2-mobile-ux-004: index.html deliberately leaves user scaling on (no maximum-scale), and the
+  // scrollable text screens then took pinch-zoom away again with a bare `touch-action: pan-y` — over
+  // exactly the content with the smallest type (the Fact Book's sources, the save code). `pan-y
+  // pinch-zoom` keeps the double-tap-zoom suppression that motivated the rule and restores the pinch.
+  for (const m of css.matchAll(/touch-action: pan-y(?! pinch-zoom)/g)) assert.fail('`touch-action: pan-y` without pinch-zoom suppresses pinch-zoom: ' + css.slice(Math.max(0, m.index - 60), m.index + 20))
+  assert.match(css, /\.page \{[^}]*touch-action: pan-y pinch-zoom/)
+  assert.match(css, /\.sheet \.body \{[\s\S]{0,400}touch-action: pan-y pinch-zoom/)
+  // r2-autism-fit-04: a sheet whose text runs past the fold shows that it does, with a soft edge
+  // rather than a `Got it` bar sitting flush against the cut line.
+  assert.match(css, /\.sheet \.body \{[\s\S]{0,700}radial-gradient/, 'the fact and rules sheets carry no scroll cue')
   assert.match(css, /button \{[^}]*min-height: 48px; min-width: 48px/, 'every button is a 48 px target')
   assert.match(css, /font-size: max\(16px, 1em\)/, 'no focusable text under 16 px')
   assert.ok(!/url\(\s*["']?\//.test(css), 'no root-absolute url()')
   assert.match(css, /@media \(max-height: 500px\) and \(orientation: landscape\)/, 'short landscape becomes two columns')
-  assert.match(css, /grid-template-areas: 'top display' 'shaft panel'/)
+  // The PROPERTY, not the spelling of one grid string: what keeps every key on screen sideways is
+  // that the panel is the full-height column and its cell is computed from the REAL viewport. The
+  // old landscape rule pinned --cell 48 / --display 60 in a row that was only vh − display tall, so
+  // the bottom row (0 and GO, or G and both door keys) sat 324 px down a 276 px screen.
+  const landscape = /@media \(max-height: 500px\) and \(orientation: landscape\) \{([\s\S]*?)\n\}/.exec(css)
+  assert.ok(landscape, 'no short-landscape block')
+  assert.match(landscape[1], /grid-template-areas: 'top panel' 'display panel' 'shaft panel'/, 'the panel spans the whole height, so it is not sized by a row that is shorter than it')
+  assert.match(landscape[1], /--cell: clamp\(48px, calc\(\(var\(--vh\)/, 'the landscape cell is computed from the viewport, never pinned')
+  assert.match(landscape[1], /\.ride \.panel \{[^}]*overflow-y: auto/, 'below what 5 x 48 px keys need, the panel scrolls rather than putting a key off screen')
   assert.match(css, /html\.reduced \.roof \.drift \{ display: none; \}/, 'no drift under reduced motion')
   assert.match(css, /\.panel \.choice\[data-result="right"\]/)
   assert.match(css, /\.panel \.choice\[data-result="chosen"\]/)
@@ -131,4 +149,18 @@ test('sw.js ASSETS covers every shipped file and names nothing that does not exi
   for (const a of assets) { if (a === './') continue; assert.ok(existsSync(join(ROOT, a)), `sw.js ASSETS names a file that does not exist: ${a}`) }
   assert.equal(new Set(assets).size, assets.length, 'no duplicate entries')
   assert.ok(assets.includes('./'), 'the scope root is cached for offline navigation')
+})
+
+
+// r2-deploy-pages-03: a mistyped or shared-wrong link landed on GitHub's grey 404 page. A committed
+// 404.html at the repo root is served for any missing path under the Pages subpath.
+test('a wrong path lands on a Bacon Elevator page with a way back into the game', () => {
+  assert.ok(existsSync(join(ROOT, '404.html')), 'no 404.html at the repo root')
+  const html = read('404.html')
+  assert.match(html, /Bacon Elevator/)
+  assert.match(html, /<meta name="viewport" content="width=device-width/)
+  assert.ok(!/(href|src)="\//.test(html), 'the 404 page must not hard-code the site root: it is served at any depth')
+  assert.match(html, /id="back"/, 'no way back into the game')
+  assert.match(html, /location\.pathname/, 'the way back must be computed from the path the 404 was served at')
+  assert.ok(!/<script src=/.test(html), 'the 404 page must stand alone: it is served when things are missing')
 })
