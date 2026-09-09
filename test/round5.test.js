@@ -363,14 +363,28 @@ test('r5-code-hostile-08: no ternary whose branches are the same string', () => 
 // ---- r5-autism-fit-1 / r5-elevator-feel-01 ----------------------------------------------------
 // `Next building` carried `btn primary tall wide` — the one "tap this" idiom in the game — so while
 // an offer stood two blue primaries sat 8 px apart meaning different things and the bigger one did
-// not answer the question printed above it. `Stay` is still the primary and the default (DESIGN §4).
-test('r5-autism-fit-1: while the offer stands, the only primary on the card is an answer to it', () => {
+// not answer the question printed above it.
+//
+// AMENDED IN ROUND 6 (r6-elevator-feel-03). Round 5's remedy left `Stay` as the only primary, which
+// made the loudest control on the card the DECLINE — the same defect one button along, and a child
+// who has learned that the blue fill means keep going then declines every promotion for ever. The
+// question round 5 was really asking is unchanged and is still asserted below: is `Next building`
+// louder than the answers to the question printed above it? The answer is now that while an offer
+// stands NOTHING on the card carries the fill — the bordered block is the emphasis, and inside it a
+// question with two answers may not tell the child which one to give. `Stay` is still the default
+// (DESIGN §4) and nothing is gated.
+test('r5-autism-fit-1 / r6-elevator-feel-03: while the offer stands, no button outshouts the question', () => {
   const base = { ...initialState(1), level: 'corner', ride: { tray: 0 }, climb: [], records: { floors: 0 } }
   const withOffer = roof({ ...base, roof: { gained: 4, bonus: 3, unlocked: [], plaques: [], offer: 'hotel', dir: 'up', help: false, lunchboxBefore: 0 } })
   const primaries = [...withOffer.matchAll(/class="btn ([^"]*)"[^>]*(data-offer="(\w+)"|data-next|data-nav="lobby")/g)]
     .filter((m) => /\bprimary\b/.test(m[1])).map((m) => m[3] || (m[2] === 'data-next' ? 'next' : m[2]))
-  assert.deepEqual(primaries, ['stay'], `the primaries on an unanswered card are [${primaries}]`)
+  assert.deepEqual(primaries, [], `the primaries on an unanswered card are [${primaries}]`)
   assert.ok(!/class="btn primary tall wide" data-next/.test(withOffer), '`Next building` is still the loudest control on the card')
+  // the two answers are the same button: same classes, same width, different word
+  const answers = [...withOffer.matchAll(/<button class="([^"]*)" style="([^"]*)" data-offer="(\w+)"/g)].map((m) => [m[3], m[1], m[2]])
+  assert.equal(answers.length, 2, 'the offer no longer draws two answers')
+  assert.equal(answers[0][1], answers[1][1], `${answers[0][0]} is drawn as "${answers[0][1]}" and ${answers[1][0]} as "${answers[1][1]}"`)
+  assert.equal(answers[0][2], answers[1][2], 'the two answers are not the same width')
   // …and with no offer it is the forward button again, exactly as it was
   const noOffer = roof({ ...base, roof: { gained: 4, bonus: 3, unlocked: [], plaques: [], offer: null, dir: null, help: false, lunchboxBefore: 0 } })
   assert.match(noOffer, /class="btn primary tall wide" data-next/)

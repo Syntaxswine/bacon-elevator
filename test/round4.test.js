@@ -299,7 +299,13 @@ test('r4-math-09: the honeycomb question names its subject once and every distra
   const it = shipped.items.find((i) => i.id === 'math-everyday-honeycomb-hexagon')
   assert.ok(!/room[^.]*rooms/.test(it.question), `the stem still defines its subject by itself: ${it.question}`)
   assert.ok(!it.distractors.includes('Regular octagon'), 'a regular octagon cannot tile the plane, so it is not a wrong answer')
-  for (const d of it.distractors) assert.ok(['Square', 'Equilateral triangle', 'Rectangle'].includes(d), d)
+  // ...AND NO TWO OPTIONS MAY NAME OVERLAPPING CATEGORIES (r6-math-08). `Square` and `Rectangle`
+  // were both offered as wrong answers and every square is a rectangle, so two of the four options
+  // could both be right at once while only the ANSWER was qualified as `regular`. The replacement
+  // still has to satisfy the rule this test was written for: it must be a shape that can actually
+  // tile, or it is not a wrong answer to this question.
+  for (const d of it.distractors) assert.ok(['Square', 'Equilateral triangle', 'Long thin rectangle'].includes(d), d)
+  assert.ok(!it.distractors.includes('Rectangle'), 'every square is a rectangle: the options overlap')
 })
 
 // ---- r4-math-10 -----------------------------------------------------------------------------

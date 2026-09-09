@@ -13,6 +13,7 @@
 import { solve, STEP_NOTE_WORDS } from '../src/math.js'
 import { customLevel } from '../src/levels.js'
 import { label } from '../src/elevator.js'
+import { opGloss } from '../src/render/panel.js'
 import { readFileSync } from 'node:fs'
 
 const Q = '?drive=1&seed=7&fast=1'
@@ -32,6 +33,45 @@ const longest = (xs, n) => xs.slice().sort((a, b) => b.length - a.length).slice(
 const WORST = {
   q: longest(BANK.items.map((i) => i.question), 1)[0],
   choices: longest(BANK.items.flatMap((i) => [String(i.answer), ...i.distractors]), 3),
+}
+
+// THE LONGEST SENTENCE THE DISPLAY BAND CAN BE ASKED TO PRINT (r6-math-01), asked of the renderer
+// rather than copied out of it: the two `▮ is the missing number` glosses, drawn by the game's own
+// opGloss() at the largest numbers the shipped ladder can put in them (Hotel step 3 keeps a + b
+// <= 20; Skyscraper step 2's missMul reaches 12s and 132), plus the bank's longest answer, which is
+// what the band prints under `The answer is B.` when a passenger's question is missed. Round 4
+// caught this exact fixture shape drifting for the trivia worst case (r4-trivia-truth-04), and
+// round 5 caught the drive keeping its own spelling of the step-change sentences. The band has a
+// 60-90 px minimum, so the question is not `does the box fit` but `is the SENTENCE inside it`.
+const WORST_MESSAGES = [
+  opGloss({ kind: 'missAdd', a: 18, b: 2, c: 20 }),          // Hotel step 3 keeps a + b <= 20
+  opGloss({ kind: 'missMul', a: 11, b: 12, c: 132 }),        // Skyscraper step 2 reaches 12s to 144
+  longest(BANK.items.map((i) => String(i.answer)), 1)[0],
+]
+
+// Put each of those into the real band, let the page settle, assert, and put back what was there.
+// `big` re-runs it with the accessibility setting a parent is most likely to turn on, which is the
+// configuration in which every phone profile spilled.
+async function worstMessage(page, check, name, opts = {}) {
+  const out = []
+  for (const [i, text] of WORST_MESSAGES.entries()) {
+    await page.evaluate((w) => {
+      const el = document.getElementById('message')
+      if (!window.__wm) window.__wm = { text: el.textContent, big: document.documentElement.classList.contains('big') }
+      if (w.big) document.documentElement.classList.add('big')
+      el.textContent = w.text
+    }, { text, big: !!opts.big })
+    await wait(160)
+    const r = await check(`${name}-${i}`, { ride: true })
+    if (r && r.message) out.push(r.message)
+  }
+  await page.evaluate(() => {
+    document.getElementById('message').textContent = window.__wm.text
+    document.documentElement.classList.toggle('big', window.__wm.big)
+    delete window.__wm
+  })
+  await wait(160)
+  return out.join(', ')
 }
 
 // A slim, serialisable view of the live state (the pool is 67 facts; leave it behind).
@@ -171,6 +211,18 @@ async function rideTo(page, floor) {
   throw new Error('rideTo never arrived')
 }
 
+// Turn the accessibility setting on around one measurement and put it back. render() re-derives
+// `html.big` from the save on every frame, so this goes through the DOM the way the setting does
+// and restores whatever was there — a check run under it must not leak into the next one.
+async function withBigText(page, fn) {
+  await page.evaluate(() => { window.__bigWas = document.documentElement.classList.contains('big'); document.documentElement.classList.add('big') })
+  await wait(200)
+  try { return await fn() } finally {
+    await page.evaluate(() => { document.documentElement.classList.toggle('big', window.__bigWas); delete window.__bigWas })
+    await wait(160)
+  }
+}
+
 // Put the bank's worst-case trivia into the real panel, let the page re-measure (the shaft's
 // ResizeObserver, the camera pull-back and the .tiny rule are the page's own code paths, not
 // something an assertion may reason about), assert, then put back exactly what was there.
@@ -279,6 +331,32 @@ async function checkLayout(page, name, opts = {}) {
       if (panel.bottom > window.innerHeight + 1) out.problems.push(`panel below the viewport by ${Math.round(panel.bottom - window.innerHeight)} px`)
       const cell = document.querySelector('.panel .cell')
       if (cell && cell.getBoundingClientRect().height < 48) out.problems.push(`panel cell under 48 px: ${Math.round(cell.getBoundingClientRect().height)}`)
+      // THE DISPLAY BAND MUST HOLD WHAT IT PRINTS (r6-math-01). `#message` is flex-shrunk inside a
+      // band with a hard height, so its BOX reported as inside while its TEXT was laid out below —
+      // painted under the panel's own scroll-cue gradient and sliced at the band border. Box
+      // geometry could not see it, which is why the section-height sums in this very instrument
+      // passed on every phone; scrollHeight can. This fires on the ▮ gloss (the one sentence that
+      // explains the newest question form) and on a long trivia answer after a wrong choice.
+      const msgEl = document.getElementById('message')
+      if (msgEl && msgEl.clientHeight > 0) {
+        const mb = msgEl.getBoundingClientRect()
+        if (msgEl.scrollHeight > msgEl.clientHeight + 1) out.problems.push(`the display band paints its message outside its own box (${msgEl.scrollHeight} > ${msgEl.clientHeight}): "${msgEl.textContent.trim().slice(0, 60)}"`)
+        if (mb.bottom > dp.bottom - 1 || mb.top < dp.top + 1) out.problems.push(`the message is drawn outside the display band: ${Math.round(mb.top)}-${Math.round(mb.bottom)} in ${Math.round(dp.top)}-${Math.round(dp.bottom)}`)
+        out.message = `msg ${Math.round(mb.height)}px in a ${Math.round(dp.height)}px band`
+      }
+      // r6-mobile-ux-6: the disabled keys' GLYPH. The contrast sweep above skips anything inside a
+      // disabled button — right for a greyed key in general, and the same exemption that let the
+      // unlit floor digit (r3-autism-fit-04) and the word GO (r4-autism-fit-3) ship unreadable on
+      // the surface a lift-loving child stares at most. The backspace sits lit beside every sum.
+      for (const key of document.querySelectorAll('.panel .key:disabled')) {
+        const kr = key.getBoundingClientRect()
+        if (kr.width < 1 || !key.textContent.trim()) continue
+        const cs = getComputedStyle(key)
+        const fg = lum(cs.color), kbg = lum(cs.backgroundColor)
+        if (!fg || !kbg) continue
+        const ratio = (Math.max(fg.L, kbg.L) + 0.05) / (Math.min(fg.L, kbg.L) + 0.05)
+        if (ratio < 4.5) out.problems.push(`disabled key "${key.textContent.trim().slice(0, 10)}" reads at ${ratio.toFixed(2)}:1 (${cs.color} on ${cs.backgroundColor})`)
+      }
       // EVERY KEY MUST BE REACHABLE. Where the panel scrolls (a viewport too short for five rows of
       // 48 px keys), scrolling it must actually bring the last row whole into its own box — the
       // failure this replaces was GO sitting 4 px on screen at 568 × 276 with #app overflow:hidden
@@ -401,9 +479,78 @@ async function checkLayout(page, name, opts = {}) {
         const drawn = texts.reduce((a, t) => { const r = t.getBoundingClientRect(); return { l: Math.min(a.l, r.left), r: Math.max(a.r, r.right) } }, { l: Infinity, r: -Infinity })
         const fill = (drawn.r - drawn.l) / Math.max(1, bb.width)
         if (fill < 0.5) out.problems.push(`the hint drawing fills ${(100 * fill).toFixed(0)} % of the width it was given`)
-        out.hint = `labels ${min.toFixed(1)}px, fills ${(100 * fill).toFixed(0)} %`
+        // AND EACH LABEL NAMES ITS OWN TICK (r6-math-05). Height and total fill were the whole
+        // measurement, and neither can see two labels landing on top of each other — overlap makes
+        // the fill NARROWER, never wider, so this instrument was blind by construction to the
+        // failure it was built for. At hi = 20 the drawing put 21 two-digit labels into a 288-unit
+        // span and `9 10 11 12 … 20` painted as the unbroken run `9 101 11 21 31 41 51 61 71 81
+        // 920`, with the start dot and the arrowhead both inside the smear.
+        // Same ROW only: the hop label (`+ 5`) sits on its own baseline above the axis and crosses
+        // the tick row horizontally by design, so grouping by line is what makes this a question
+        // about two labels colliding rather than about two rows of the drawing overlapping.
+        const rows = new Map()
+        for (const t of texts) {
+          const r = t.getBoundingClientRect()
+          if (r.width <= 0) continue
+          const k = Math.round(r.top / 4)
+          if (!rows.has(k)) rows.set(k, [])
+          rows.get(k).push({ r, text: t.textContent })
+        }
+        let worstGap = Infinity, worstRow = ''
+        for (const row of rows.values()) {
+          row.sort((a, b) => a.r.left - b.r.left)
+          for (let i = 1; i < row.length; i++) {
+            const gap = row[i].r.left - row[i - 1].r.right
+            if (gap < worstGap) { worstGap = gap; worstRow = row.map((x) => x.text).join(' ') }
+          }
+        }
+        if (worstGap < 1) out.problems.push(`hint tick labels overlap by ${(1 - worstGap).toFixed(1)} px: ${worstRow}`)
+        out.hint = `labels ${min.toFixed(1)}px, fills ${(100 * fill).toFixed(0)} %, gap ${Number.isFinite(worstGap) ? worstGap.toFixed(1) : 'n/a'}px`
       } else if (worked) out.hint = `worked line ${getComputedStyle(worked).fontSize}`
       else out.problems.push('the hint card is empty')
+    }
+    // r6-mobile-ux-7: A DIALOG THAT COVERS THE SCREEN HOLDS THE FOCUS. A touch already could not
+    // reach past the fact card — elementFromPoint at the top bar's own buttons returns the sheet —
+    // but Tab and a screen reader's swipe could, and main.js documents a paired keyboard as a
+    // supported way to play the whole game. Measured as the DOM measures it: everything still laid
+    // out on the active screen, outside the dialog, that a browser would move focus to.
+    if (opts.modal) {
+      const sheet = document.querySelector(opts.modal)
+      if (!sheet) out.problems.push(`no ${opts.modal} to test`)
+      else {
+        const live = []
+        for (const el of document.querySelectorAll('button:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')) {
+          if (sheet.contains(el)) continue
+          if (el.closest('[inert]')) continue
+          const r = el.getBoundingClientRect()
+          if (r.width < 1 || r.height < 1) continue
+          if (!el.closest('.screen.active') && !el.closest('#app > :not(.screen)')) continue
+          live.push(el.getAttribute('aria-label') || el.textContent.trim().slice(0, 16))
+        }
+        if (live.length) out.problems.push(`${live.length} control(s) still focusable behind ${opts.modal}: ${live.join(', ')}`)
+        out.modal = `${opts.modal} holds focus`
+      }
+    }
+    // r6-mobile-ux-5: EVERY SETTING ROW SAYS WHICH CONTROL IT NAMES. `.setting` is a centred flex
+    // row, and at 320 px the Operations group wraps to three lines of 56 px keys and Passengers to
+    // three, so `Operations` floated beside the SECOND row of buttons and `Motion` between its two
+    // lines. Nothing was clipped and nothing was under 48 px, which is why every existing rule here
+    // passed it. Once a group has wrapped, the label belongs above it.
+    if (opts.settings) {
+      const rows = document.querySelectorAll('.screen.active .setting')
+      if (!rows.length) out.problems.push('no settings rows to measure')
+      let worstDrop = 0
+      for (const row of rows) {
+        const lab = row.querySelector('.label')
+        const group = row.querySelector('.radio-row, .stepper') || row.querySelector('button')
+        if (!lab || !group) continue
+        const lb = lab.getBoundingClientRect(), gb = group.getBoundingClientRect()
+        if (gb.height < 72) continue                       // one row of controls: beside it is fine
+        const drop = lb.top - gb.top
+        worstDrop = Math.max(worstDrop, drop)
+        if (drop > 6) out.problems.push(`"${lab.textContent.trim().slice(0, 24)}" sits ${Math.round(drop)} px below the top of the ${Math.round(gb.height)} px group it names`)
+      }
+      out.settings = `${rows.length} rows, worst label drop ${Math.round(worstDrop)}px`
     }
     // A long page's way out must be reachable at ANY scroll position, not only at the top.
     if (opts.wayOut) {
@@ -1152,6 +1299,30 @@ scenarios.push(
         return r
       }
       await check('lobby')
+      // r6-mobile-ux-3: THE VERTICAL BUDGET IS MEASURED, NOT ASSUMED. Every band on the ride screen
+      // is derived from `--vh`, which was `100vh` with `100dvh` layered over it by an @supports
+      // block. On an engine without dvh — iOS Safari 15.0-15.3, Chrome under 108, Samsung Internet
+      // under 21 — BOTH resolve to the viewport with the browser bars hidden, so the layout is
+      // computed against a box about a toolbar taller than the page and the bottom keypad row goes
+      // under the toolbar with nothing able to scroll to it. This instrument cannot reproduce that
+      // by measuring geometry: headless Chrome has no browser chrome, so vh, dvh and innerHeight
+      // are the same number here and always will be. What it CAN ask is the question that actually
+      // separates the two builds — has anything measured the height the browser really gave the
+      // page, and does it keep measuring when that height changes?
+      {
+        const vh = await page.evaluate(() => ({ inline: document.documentElement.style.getPropertyValue('--vh'), used: getComputedStyle(document.documentElement).getPropertyValue('--vh').trim(), innerH: window.innerHeight, appH: document.getElementById('app').clientHeight }))
+        if (vh.inline !== `${vh.innerH}px`) bad.push(`--vh is "${vh.inline || '(never written)'}", not the ${vh.innerH} px the browser gave the page: on an engine without dvh the whole layout is a toolbar too tall`)
+        if (vh.appH !== vh.innerH) bad.push(`#app is ${vh.appH} px in a ${vh.innerH} px viewport`)
+        // The CURRENT viewport, not the phone profile's: the --tall pass runs this scenario at the
+        // device height, and restoring `ctx.phone.viewport` would quietly turn the rest of that
+        // pass into a second copy of the browser-height one.
+        const p0 = page.viewport()
+        await page.setViewport({ ...p0, height: p0.height - 84 }); await wait(220)
+        const after = await page.evaluate(() => ({ inline: document.documentElement.style.getPropertyValue('--vh'), innerH: window.innerHeight }))
+        if (after.inline !== `${after.innerH}px`) bad.push(`--vh stayed at "${after.inline}" when the viewport became ${after.innerH} px — a toolbar that grows or shrinks is exactly this event`)
+        await page.setViewport(p0); await wait(220)
+        seen.push(`vh(${vh.inline} → ${after.inline})`)
+      }
       // r3-mobile-ux-3: the menu screens had no landscape layout at all, so on an SE 1 turned
       // sideways the lobby hero took the first 250 px of a 276 px viewport and `Ride` — the one
       // button that starts the game — was a 26 px unlabelled blue sliver at the bottom edge.
@@ -1184,7 +1355,7 @@ scenarios.push(
       await tap(page, '[data-nav="workshop"]'); await waitScreen(page, 'workshop'); await check('workshop-full', { wayOut: true })
       await tap(page, '[data-part-card="cab-glass"]')
       await waitFor(page, () => !!document.querySelector('.part-sheet'), 'the part card')
-      await check('part-card')
+      await check('part-card', { modal: '.part-sheet' })
       await tap(page, '[data-part-close]')
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
       await tap(page, '[data-nav="logbook"]'); await waitScreen(page, 'logbook'); await check('logbook', { wayOut: true })
@@ -1196,7 +1367,15 @@ scenarios.push(
       await waitFor(page, () => window.__bacon && window.__bacon.state().pool.length > 0, 'the fact pool')
       await tap(page, '[data-nav="factbook"]'); await waitScreen(page, 'factbook'); await check('factbook')
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
-      await tap(page, '[data-gear]'); await tap(page, '[data-gear]'); await waitScreen(page, 'grownups'); await check('grownups', { wayOut: true })
+      await tap(page, '[data-gear]'); await tap(page, '[data-gear]'); await waitScreen(page, 'grownups')
+      const gr = await check('grownups', { wayOut: true, settings: true })
+      if (gr && gr.settings) seen.push(`grownups[${gr.settings}]`)
+      // ...and with Adaptive off, which is the only way `Pinned step` (a stepper at both its limits)
+      // is on the page at all.
+      await tap(page, '[data-setting="adaptive"][data-value="false"]')
+      await check('grownups-pinned', { settings: true })
+      await tap(page, '[data-setting="adaptive"][data-value="true"]')
+      await withBigText(page, () => check('grownups-big', { settings: true }))
       await tap(page, '[data-nav="lobby"]'); await waitScreen(page, 'lobby')
       await tap(page, '[data-nav="ride"]'); await waitScreen(page, 'rules')
       // the Rules card: five pictures and both sentences readable without scrolling, even at 360 × 640
@@ -1214,7 +1393,34 @@ scenarios.push(
       const hops = ['add', 'sub', 'up', 'down'].includes(hp.kind) && hp.b >= 1 && hp.b <= 10 ? hp.b : 0
       const hr = await check('hint', { ride: true, go: true, hint: true, ...(hops ? { hops } : {}) })
       if (hr && hr.hint) seen.push(`hint[${hr.hint}]`)
+      // THE NUMBER LINE AT ITS DENSEST (r6-math-05). Seed 7 at Corner Shop draws a line to ten,
+      // which is the one length that never collided; the collision lives at hi = 15 and hi = 20,
+      // i.e. every Hotel sum with a number in the teens and, before the `a + b` bound was dropped,
+      // a plain `9 − 8` at Corner Shop. Each is forced through the real renderer at the box the
+      // card actually has, because the label size steps with that box.
+      for (const [nm, prob] of [['hint-to20', { kind: 'add', a: 14, b: 5, answer: 19, text: '14 + 5 = ▮', key: 'add:5:14' }], ['hint-to15', { kind: 'add', a: 8, b: 7, answer: 15, text: '8 + 7 = ▮', key: 'add:7:8' }], ['hint-sub', { kind: 'sub', a: 9, b: 8, answer: 1, text: '9 − 8 = ▮', key: 'sub:9:8' }]]) {
+        await page.evaluate((q) => {
+          const box = document.getElementById('hint')
+          window.__hint = box.innerHTML
+          box.innerHTML = window.__bacon.hintHTML(q, Math.max(0, box.clientWidth - 16), Math.max(0, box.clientHeight - 16))
+        }, prob)
+        await wait(140)
+        const hx = await check(nm, { hint: true })
+        if (hx && hx.hint) seen.push(`${nm}[${hx.hint}]`)
+        await page.evaluate(() => { document.getElementById('hint').innerHTML = window.__hint; delete window.__hint })
+      }
       await tap(page, 'button[data-key="hint"]')
+      // THE DISPLAY BAND'S OWN WORST CASE (r6-math-01), at both type sizes and sideways, where the
+      // band is a GRID ROW rather than a flex item and the column is ~250 px wide, so the same
+      // sentences wrap sooner.
+      seen.push(`message(${await worstMessage(page, check, 'worst-message')})`)
+      seen.push(`message-big(${await worstMessage(page, check, 'worst-message-big', { big: true })})`)
+      {
+        const p0 = page.viewport()
+        await page.setViewport({ ...p0, width: 568, height: 276, isLandscape: true }); await wait(200)
+        seen.push(`message-landscape(${await worstMessage(page, check, 'worst-message-568x276')})`)
+        await page.setViewport(p0); await wait(180)
+      }
       // LANDSCAPE, AT THE HEIGHTS A BROWSER ACTUALLY HANDS THE PAGE.
       // These turns used to be 667 × 375 and 640 × 360 — the DEVICE heights, the very mistake the
       // header comment in tools/phone-drive.mjs records for the portrait profiles. A 360 × 640
@@ -1260,7 +1466,8 @@ scenarios.push(
       await check('trivia', { ride: true })
       const s = await slim(page)
       await tap(page, `button[data-choice="${s.trivia.answer}"]`); await waitPhaseIn(page, ['fact'])
-      await check('fact')
+      await waitFor(page, () => !!document.querySelector('#sheet .sheet'), 'the fact card')
+      await check('fact', { modal: '#sheet .sheet' })
       // r5-trivia-truth-02 asks that a whole `Source:` line sit above the fold on the narrowest
       // phone. Measured and NOT fixed: at 320 x 454 the longest cards are taller than the body box
       // by more than a source line, so getting one above the cut means shrinking the fact text the
@@ -1272,6 +1479,12 @@ scenarios.push(
       await enter(page, p.answer + 1); await enter(page, p.answer + 1)
       await waitPhaseIn(page, ['repair'])
       await check('repair', { ride: true, card: true })
+      // AND THE SAME CARD WITH BIGGER TEXT ON (r6-math-02). The two Repair-card checks ran at the
+      // default type size and the one scenario that turns the setting on never leaves the keypad,
+      // so the assertion three lines above — `repair card text overflows its box`, which this
+      // project wrote and which catches the defect unchanged — was simply never run in the
+      // configuration where it fires. 320 x 454 plus Bigger text is where it does.
+      await withBigText(page, () => check('repair-big', { ride: true, card: true }))
       await tap(page, 'button[data-continue]'); await enter(page, p.answer); await waitPhaseIn(page, ['floor'])
       await rideTo(page, 9)
       await rideOne(page)
@@ -1311,8 +1524,18 @@ scenarios.push(
       expect(Math.max(pm.a, pm.b) >= 100, 'Megatall should ask a 3-digit sum: ' + pm.text)
       await enter(page, pm.answer + 1); await enter(page, pm.answer + 1)
       await waitPhaseIn(page, ['repair'])
+      // THE TOP BAR WITH BIGGER TEXT AND A TWO-DIGIT LUNCHBOX (r6-mobile-ux-4). The name held at
+      // 320 px once the readouts gave up their 48 px floor (r5-autism-fit-3) — and only at the
+      // default type size. One building in, with the setting a parent turns on for legibility,
+      // `Shop` clipped to `Sh...`. This runs the same measurement in that configuration, which is
+      // reachable here because the building just banked puts the lunchbox into two digits.
+      seen.push(await withBigText(page, () => topbar('portrait, Bigger text')))
       const rm = await check('repair-megatall', { ride: true, card: true })
       if (rm && rm.card) seen.push(`repair-megatall(card ${rm.card.h}px: ${rm.card.worked})`)
+      // Megatall is where the card overflowed on 1 in 5 falls at 320 px with Bigger text: its
+      // headline is a 3-digit equation, which is the term that wraps and pushes the clause out.
+      const rmb = await withBigText(page, () => check('repair-megatall-big', { ride: true, card: true }))
+      if (rmb && rmb.card) seen.push(`repair-megatall-big(card ${rmb.card.h}px)`)
       // THE UPDATE CHIP. It used to live for about a second before the page reloaded itself, so
       // nobody caught where it sat; now that the worker waits for the tap, it stays. Pinned to the
       // bottom it covered GO on an iPhone 12 (elementFromPoint at GO's own centre returned
@@ -1976,12 +2199,15 @@ scenarios.push({
     await checkLayout(page, 'offer-portrait', { roof: true, offer: true, onScreen: ['.roof [data-next]', '.roof [data-nav="lobby"]'] })
     for (const [w, h] of [[568, 276], [640, 304], [568, 232]]) { await turn(w, h); await checkLayout(page, `offer-${w}x${h}`, { roof: true, offer: true }) }
     await page.setViewport(portrait); await wait(150)
-    // THE ACCEPT PATH MAY NOT BE THE QUIETEST CONTROL ON THE CARD (r5-autism-fit-1,
-    // r5-elevator-feel-01). `Next building` carried `btn primary tall wide`, the game's one "tap
-    // this" idiom, so two blue primaries sat 8 px apart meaning different things and the bigger of
-    // them (2.6x the area of `Yes`, 24 px type against 18) did not answer the question above it.
-    // `Stay` stays the primary and the default - that is DESIGN 4's ruling - and while the question
-    // is unanswered it is the only one.
+    // NEITHER ANSWER MAY BE THE LOUDEST CONTROL ON THE CARD (r5-autism-fit-1, r5-elevator-feel-01,
+    // amended by r6-elevator-feel-03). Round 5 found `Next building` carrying `btn primary tall
+    // wide` - the game's one "tap this" idiom - so two blue primaries sat 8 px apart meaning
+    // different things and the bigger of them (2.6x the area of `Yes`, 24 px type against 18) did
+    // not answer the question above it. Its remedy left `Stay` as the only primary, which put that
+    // same fill on the DECLINE: a child who has learned that the blue button means keep going then
+    // declines every promotion for ever, and stays on 0-10 arithmetic. While an offer stands NOTHING
+    // on the card is filled - the bordered block is the emphasis - and the two answers are the same
+    // button at the same width. `Stay` is still the default and nothing is gated.
     const hier = await page.evaluate(() => {
       const fs = (e) => parseFloat(getComputedStyle(e).fontSize)
       const name = (b) => (b.dataset.offer || (b.hasAttribute('data-next') ? 'next' : b.dataset.nav || '?'))
@@ -1989,22 +2215,29 @@ scenarios.push({
       const yes = document.querySelector('.roof .foot [data-offer="yes"]')
       const box = document.querySelector('.roof .foot .offer')
       const bs = getComputedStyle(box)
+      const stay = document.querySelector('.roof .foot [data-offer="stay"]')
+      const box2 = (e) => { const r = e.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) }
+      const ink = (e) => { const c = getComputedStyle(e); return c.backgroundColor + '|' + c.color + '|' + c.fontSize + '|' + c.fontWeight }
       return {
         primaries: btns.filter((b) => b.classList.contains('primary')).map(name),
         louder: btns.filter((b) => !b.dataset.offer && fs(b) > fs(yes)).map(name),
         grouped: parseFloat(bs.borderTopWidth) > 0 || bs.backgroundColor !== 'rgba(0, 0, 0, 0)',
+        answers: [box2(yes) + ' ' + ink(yes), box2(stay) + ' ' + ink(stay)],
       }
     })
-    expect(hier.primaries.length === 1 && hier.primaries[0] === 'stay', `while the offer stands the primaries are [${hier.primaries}]`)
+    expect(hier.primaries.length === 0, `while the offer stands the primaries are [${hier.primaries}]`)
     expect(hier.louder.length === 0, `a control that does not answer the offer is set louder than Yes: ${hier.louder}`)
     expect(hier.grouped, 'the question and its two answers are not drawn as one block')
+    expect(hier.answers[0] === hier.answers[1], `the two answers to one question are drawn differently:
+  Yes  ${hier.answers[0]}
+  Stay ${hier.answers[1]}`)
     // …and the tap actually promotes, rather than ending the building under a covered button.
     await tap(page, '.roof [data-offer="yes"]')
     const after = await slim(page)
     expect(after.screen === 'roof', 'answering the offer left the roof: ' + after.screen)
     const lvl = await page.evaluate(() => window.__bacon.state().level)
     expect(lvl === 'hotel', `Yes did not promote: level is ${lvl}`)
-    return `offer reached, whole and hit-testable at 4 geometries, one primary (Stay); Yes -> ${lvl}`
+    return `offer reached, whole and hit-testable at 4 geometries, no primary and two equal answers (${hier.answers[0]}); Yes -> ${lvl}`
   },
 })
 
@@ -2209,5 +2442,67 @@ scenarios.push({
     // At timescale 1 seven rides are ~19 s; the tolerance is the scheduler, not the parts.
     expect(drift < 700, `seven rides took ${plain.total} ms on the defaults and ${loaded.total} ms fully fitted (${drift} ms apart)`)
     return `${plain.sums.length} identical sums; tray ${plain.tray} both times; ${plain.total} ms vs ${loaded.total} ms (${drift} ms apart)`
+  },
+})
+
+// ---- r6-mobile-ux-1: the system Back gesture ------------------------------------------------
+// Android Back is the primary navigation control on the platform this child is on, and no screen
+// change in the game created a history entry, so Back from any screen left the site — and in the
+// installed app (`display: standalone`) closed the game. This drives the REAL gesture
+// (page.goBack(), which is what the Android button and the iOS edge swipe do) from every screen
+// the child can reach, and from mid-ride, where the game's own Lobby button is deliberately dead.
+scenarios.push({
+  name: 'back-gesture',
+  async run(ctx) {
+    const { page } = ctx
+    // A page in front of the game, so "left the site" is observable rather than a closed tab.
+    await page.goto('data:text/html,<h1 id=away>somewhere else</h1>', { waitUntil: 'load' })
+    await load(ctx)
+    const here = () => page.evaluate(() => ({ inApp: !!document.getElementById('app'), screen: document.getElementById('app') ? document.getElementById('app').dataset.screen : null, phase: document.getElementById('app') ? document.getElementById('app').dataset.phase : null, len: history.length }))
+    const back = async () => { await page.goBack({ waitUntil: 'load' }).catch(() => {}); await wait(260); return here() }
+    const notes = []
+    for (const nav of ['picker', 'factbook', 'workshop', 'logbook']) {
+      await tap(page, `[data-nav="${nav}"]`); await waitScreen(page, nav)
+      const b = await back()
+      expect(b.inApp, `Back from the ${nav} left the game`)
+      expect(b.screen === 'lobby', `Back from the ${nav} landed on "${b.screen}", not the lobby`)
+      notes.push(`${nav}→lobby`)
+    }
+    // Grown-ups, behind its own two-tap gear
+    await tap(page, '[data-gear]'); await tap(page, '[data-gear]'); await waitScreen(page, 'grownups')
+    let b = await back()
+    expect(b.inApp && b.screen === 'lobby', `Back from Grown-ups gave ${JSON.stringify(b)}`)
+    notes.push('grownups→lobby')
+    // The Rules card, which is the FIRST thing the child sees and the one screen with no Lobby button
+    await tap(page, '[data-nav="ride"]'); await waitScreen(page, 'rules')
+    b = await back()
+    expect(b.inApp && b.screen === 'lobby', `Back from the Rules card gave ${JSON.stringify(b)}`)
+    notes.push('rules→lobby')
+    // Mid-sum, at the keypad
+    await tap(page, '[data-nav="ride"]'); await waitScreen(page, 'rules')
+    await tap(page, '.rules [data-continue]'); await waitScreen(page, 'ride'); await waitPhaseIn(page, ['floor'])
+    await press(page)
+    b = await back()
+    expect(b.inApp && b.screen === 'lobby', `Back from the keypad gave ${JSON.stringify(b)}`)
+    notes.push('keypad→lobby')
+    // ...and the building is still there, with its tray, exactly as the Lobby button leaves it
+    await tap(page, '[data-nav="ride"]'); await waitScreen(page, 'ride'); await waitPhaseIn(page, ['floor', 'keypad'])
+    // WHILE THE CAR IS MOVING the game refuses its own Lobby button; Back must not be a way round
+    // it, and it must not silently spend the history entry either — the next Back would then leave
+    // the game from the lobby.
+    const p = (await here()).phase === 'floor' ? await press(page) : (await slim(page)).ride.problem
+    await page.evaluate((a) => { for (const ch of String(a)) document.querySelector(`button[data-key="${ch}"]`).click() }, p.answer)
+    await tap(page, 'button[data-key="go"]')
+    await waitPhaseIn(page, ['moving'], 2000)
+    b = await back()
+    expect(b.inApp, 'Back mid-ride left the game while the car was moving')
+    notes.push(`moving→${b.screen}`)
+    await waitPhaseIn(page, ['floor', 'trivia', 'roof'], 6000)
+    // Back from the LOBBY is the one Back that leaves.
+    if ((await here()).screen !== 'lobby') { await tap(page, '.ride .topbar [data-nav="lobby"]'); await waitScreen(page, 'lobby') }
+    const out = await back()
+    expect(!out.inApp, `Back from the lobby stayed in the game (${JSON.stringify(out)}): the child cannot leave`)
+    notes.push('lobby→out')
+    return notes.join(', ')
   },
 })

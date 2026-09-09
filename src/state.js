@@ -100,14 +100,29 @@ export function normaliseRide(ride) {
     r.phase = 'floor'
     r.target = nextTarget(r.floor)
   }
-  if (r.floor === -1 && !(r.phase === 'repair' && r.problem)) { r.floor = 0; r.phase = 'floor' }
+  // THE PIT IS A STATE, NOT A PHASE (r6-code-hostile-1). This guard admitted only `repair`, and
+  // `Try again` (card-continue) stables the pit to `keypad` with the SAME sum and emits a SAVE —
+  // the one state every fall passes through, and the moment a stuck child taps Lobby or puts the
+  // phone down. On the way back in, the car was lifted out of the pit to the Ground floor, the
+  // retry and its sum were thrown away, and `target` was left where the fall had put it. From
+  // floor 9 that meant one fresh sum at G, an animation to floor 1 announcing "Floor 1", and then
+  // the roof: the building banked, the bonus paid, `records.longest` reading 10 for a ride of one.
+  // The pit is where the car is AND a problem to answer, whichever of the two cards is up.
+  const inPit = r.floor === -1 && !!r.problem && (r.phase === 'repair' || r.phase === 'keypad')
+  if (r.floor === -1 && !inPit) { r.floor = 0; r.phase = 'floor' }
   if (r.floor >= 10) { r.floor = 10; r.phase = 'roof' } // the top IS the roof; bank it, never drop it
   if (r.phase === 'roof') { r.floor = 10; r.target = 10; r.retrying = false; return r }
   const t = Number.isSafeInteger(r.target) ? r.target : nextTarget(r.floor)
-  r.target = Math.max(nextTarget(r.floor), Math.min(10, t))
-  // The pit card IS the retry: a car at −1 showing the Repair card is always retrying, so a wrong
-  // answer there returns the card instead of asking the elevator to fall out of the pit.
-  r.retrying = r.floor === -1 && r.phase === 'repair'
+  // AND THE CLAMP GOES BOTH WAYS OFF THE PIT. `Math.max(nextTarget(floor), …)` only ever RAISED
+  // the target, so any path that lowers `floor` — this normaliser's own pit branch above, a
+  // hand-edited BE1- code carrying {floor:0, target:10} — left a car whose one lit button was
+  // nine floors above it. Off the pit the destination is the floor above the car, by the ride
+  // invariant at the head of this file; only the pit keeps a target it has not reached yet.
+  r.target = r.floor === -1 ? Math.max(1, Math.min(10, t)) : nextTarget(r.floor)
+  // The pit IS the retry: a car at −1 with a sum to answer is always retrying, so a wrong answer
+  // there returns the card instead of asking the elevator to fall out of the pit. The SAME `inPit`
+  // the guard above uses — one definition, so `Try again` cannot lose the express hoist home.
+  r.retrying = inPit
   return r
 }
 
@@ -159,6 +174,17 @@ export function initialState(salt) {
     // another, to a cap.
     demotions: 0,
     plaques: [],
+    // WHICH CLIMB RUNGS HAVE BEEN ANNOUNCED, the same ledger `plaques` keeps for the bacon ladder
+    // (r6-elevator-feel-02). The roof card used to infer "fresh" from a distance window — the last
+    // rung reached, if it was under 11 floors back — and a clean building is exactly 10 floors, so
+    // any rung landing on a multiple of 10 (the Woolworth's 60) was announced twice, one building
+    // apart, the second time with a floor count its own next line contradicted. The window lost
+    // rungs at the other end too: taking only the LAST rung reached, Taipei 101 (101) and the
+    // Empire State (102) were never announced at all, because the Willis Tower (108) overtook both
+    // inside the same building. A rung is announced once, on the roof of the building that crossed
+    // it, and every rung crossed is announced. `null` means a save written before this ledger
+    // existed: arrive() seeds it from the floors already ridden rather than dumping the backlog.
+    climbShown: [],
     // runtime (not persisted)
     phase: 'lobby',
     screen: 'lobby',
@@ -359,12 +385,20 @@ function applyAdapt(state, correct, fell) {
 function arrive(state, rng) {
   // The car has stopped at ride.target with the doors open and the bacon in.
   const r = state.ride
-  const floor = r.target
+  // THE FLOOR THE CAR ACTUALLY REACHED, not the one the ride was aiming at (r6-code-hostile-2).
+  // `r.target` is a wish; `state.car.floor` is where the timeline that just finished put the car,
+  // and the two can only differ when something has already gone wrong. Reading the wish meant a
+  // one-floor hop from G could bank the roof, pay the bonus and credit the Logbook and The Climb
+  // with ten floors the car never travelled — numbers the file's own header calls monotone and
+  // honest. Taking the car's own floor makes a target/floor desync cost nothing, whatever opens
+  // one next.
+  const floor = state.car && Number.isSafeInteger(state.car.floor) ? state.car.floor : r.target
   const collected = floor >= 1 && floor <= 9 && !r.cleared.includes(floor)
   const cleared = collected ? r.cleared.concat(floor).sort((x, y) => x - y) : r.cleared
   const tray = r.tray + (collected ? 1 : 0)
-  // The car arrived under power, from r.floor to r.target. An express out of the pit is one ride of
-  // several floors; that is what makes `longest` worth printing.
+  const floorsBefore = (state.records && state.records.floors) || 0
+  // The car arrived under power, from r.floor to the floor it reached. An express out of the pit is
+  // one ride of several floors; that is what makes `longest` worth printing.
   state = { ...state, records: tally(state.records, { floors: Math.abs(floor - r.floor), rides: 1 }) }
   let s = { ...state, car: { ...initialCar(), floor }, ride: { ...r, floor, cleared, tray, retrying: false, typed: '', typedWrong: '', problem: null, fallFloor: 0, inFlight: null }, hint: false, message: '' }
   const effects = []
@@ -378,6 +412,13 @@ function arrive(state, rng) {
     // the same plaque over and over, and the list — and the save code built from it — grew without
     // bound. Found while measuring the save's growth for r2-code-hostile-06.
     const plaques = PLAQUES.filter((p) => p <= lunchbox && !state.plaques.includes(String(p))).map(String)
+    // THE CLIMB'S LEDGER, kept exactly as `plaques` is kept one line up (r6-elevator-feel-02). A
+    // save written before the ledger existed carries `null`, and everything it had already reached
+    // is seeded as shown, so an upgrade announces the rungs of THIS building and not a backlog.
+    const bank = Array.isArray(state.climb) ? state.climb : []
+    const shownBefore = Array.isArray(state.climbShown) ? state.climbShown : bank.filter((rg) => rg.floors <= floorsBefore).map((rg) => rg.id)
+    const climbed = bank.filter((rg) => rg.floors <= state.records.floors && !shownBefore.includes(rg.id))
+    const climbShown = climbed.length ? shownBefore.concat(climbed.map((rg) => rg.id)) : shownBefore
     const step3Run = (state.step === 3 && s.ride.falls <= 1) ? state.step3Run + 1 : 0
     // The mirror of step3Run: a building finished on the BOTTOM step with 5 or more falls out of
     // nine sums is a child who cannot do this band, and step 1 has no lower step to drop to.
@@ -404,6 +445,12 @@ function arrive(state, rng) {
     // Which WAY the offer points. The roof card words a promotion and a rescue differently and the
     // reducer needs it too, to know whether accepting is a demotion worth remembering (r4-math-05).
     const dir = up ? 'up' : down ? 'down' : null
+    // HOW MANY TIMES THIS OFFER HAS ALREADY STOOD (r6-elevator-feel-03). Answering it resets both
+    // runs to 0; tapping PAST it with `Next building` deliberately does not, so the identical
+    // sentence came back on every clean roof — eight in a row, measured — reading exactly like the
+    // first time. No new field: the run counters already hold the answer, because the offer stands
+    // once the run passes its threshold and each further building adds one.
+    const offerRun = up ? step3Run - needUp : down ? struggleRun - 2 : 0
     // AND AT THE BOTTOM OF THE LADDER THERE IS NOTHING TO OFFER (r4-math-01). `down` needs idx > 0,
     // so at Corner Shop the documented rescue — "the ladder adapts DOWN as well as up" — cannot
     // fire at all, and a child drowning there got no reaction of any kind. There is no smaller
@@ -416,6 +463,7 @@ function arrive(state, rng) {
       buildings: state.buildings + 1,
       unlocks: state.unlocks.concat(unlocked),
       plaques: state.plaques.concat(plaques),
+      climbShown,
       step3Run,
       struggleRun,
       // The roof summary lives in the ride, which IS persisted, so a reload at the roof shows the
@@ -424,8 +472,8 @@ function arrive(state, rng) {
       // mid-building banks it). `gained` is the remainder, so a card headed "Tray N" contradicted
       // the top bar's tray count on every banked building (r4-code-hostile-02); the card now says
       // which of the two numbers it is printing.
-      ride: { ...s.ride, tray: s.ride.tray + ROOF_BONUS, banked: s.ride.tray + ROOF_BONUS, roofCard: { gained, bonus: ROOF_BONUS, unlocked, plaques, offer: next, dir, help, offerTaken: null, lunchboxBefore: state.lunchbox, midBanked: r.banked } },
-      roof: { gained, bonus: ROOF_BONUS, unlocked, plaques, offer: next, dir, help, lunchboxBefore: state.lunchbox, midBanked: r.banked },
+      ride: { ...s.ride, tray: s.ride.tray + ROOF_BONUS, banked: s.ride.tray + ROOF_BONUS, roofCard: { gained, bonus: ROOF_BONUS, unlocked, plaques, climb: climbed.map((rg) => rg.id), offer: next, dir, offerRun, help, offerTaken: null, lunchboxBefore: state.lunchbox, midBanked: r.banked } },
+      roof: { gained, bonus: ROOF_BONUS, unlocked, plaques, climb: climbed.map((rg) => rg.id), offer: next, dir, offerRun, help, lunchboxBefore: state.lunchbox, midBanked: r.banked },
     }
     s = stable(s, 'roof', { screen: 'roof' })
     effects.push(SOUND('roof'), SCREEN('roof'), SAVE)

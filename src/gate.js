@@ -39,9 +39,20 @@ export function forbiddenCitationWord(text) {
 // `Source: piday.org (piday.org)` was shipped once and read as a broken line rather than a
 // citation (r3-trivia-truth-06), so a title that is merely its own domain is refused here rather
 // than in a test that only ever looked at one of the three banks.
+// TWO `Source:` LINES MUST BE TWO DOCUMENTS (r6-trivia-truth-02). Four items listed the same URL
+// twice under titles differing only by a parenthetical, so the card printed two `Source: X (domain)`
+// lines that read as two independent sources for one document — the same shape r2-autism-fit-09
+// refused for the two verification lenses, on the surface the child actually sees. One document,
+// one line; a second excerpt from it belongs in the same entry's quote.
 export function sourcesReason(sources) {
   if (!Array.isArray(sources) || !sources.length) return 'no sources'
   if (!sources.some((s) => s && typeof s.url === 'string' && /^https?:\/\//i.test(s.url))) return 'no http(s) source url'
+  const urls = new Set()
+  for (const s of sources) {
+    const u = String((s && s.url) || '').trim().toLowerCase()
+    if (u && urls.has(u)) return `two sources are the same document: ${u}`
+    if (u) urls.add(u)
+  }
   for (const s of sources) {
     if (!s || typeof s !== 'object') return 'a source is not an object'
     const title = String(s.title || '').trim()

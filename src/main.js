@@ -49,8 +49,16 @@ let resetDone = Promise.resolve()
 if (params.get('reset') === '1') {
   storage.removeItem(SAVE_KEY)
   const jobs = []
-  if (globalThis.caches) jobs.push(caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))).catch(() => {}))
-  if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.unregister()))).catch(() => {}))
+  // A RESET OF BACON ELEVATOR TOUCHES BACON ELEVATOR (r6-deploy-pages-2). Cache Storage and
+  // `getRegistrations()` are scoped to the ORIGIN, not to this path, and both lines swept the lot:
+  // on syntaxswine.github.io a neighbouring game at another path lost its offline copy and its
+  // worker to a reset the child pressed here. sw.js's own activate handler has always filtered
+  // (`k.startsWith('be-') && k !== CACHE`); this is the same filter, plus the scope test the
+  // registration list needs. No sibling app on that origin registers a worker today, so this is
+  // latent — and the origin is shared with every future game the owner ships there.
+  const SCOPE = new URL('./', location).href
+  if (globalThis.caches) jobs.push(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('be-')).map((k) => caches.delete(k)))).catch(() => {}))
+  if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then((rs) => Promise.all(rs.filter((r) => r.scope === SCOPE).map((r) => r.unregister()))).catch(() => {}))
   resetDone = Promise.all(jobs).then(() => Promise.all(RESET_ASSETS.map((u) => fetch(u, { cache: 'reload' }).catch(() => {})))).catch(() => {})
   params.delete('reset')
   const q = params.toString()
@@ -326,6 +334,17 @@ function renderPanel() {
 }
 let lastHintKey = ''
 let lastScreen = ''
+// Everything in `host` except the branch that holds the dialog is made inert while it is up, and
+// released the moment it is not. Nothing is ever left inert: `on` is recomputed on every render.
+function markInert(host, keep, on) {
+  if (!host) return
+  for (const el of host.children) {
+    const isSheet = el.matches(keep) || !!el.querySelector(keep)
+    const off = on && !isSheet
+    if (el.inert !== off) el.inert = off
+    if (off) el.setAttribute('aria-hidden', 'true'); else el.removeAttribute('aria-hidden')
+  }
+}
 function render() {
   app.dataset.screen = state.screen
   app.dataset.phase = state.phase
@@ -407,12 +426,25 @@ function render() {
   const sheet = beat && ui.factVisible ? screens.factSheet(state) : ''
   if (sheetBox.innerHTML !== sheet) sheetBox.innerHTML = sheet
   if (sheet && sheetBox.firstElementChild) sheetBox.firstElementChild.querySelector('.body').scrollTop = 0
+  // A DIALOG THAT COVERS THE SCREEN HAS TO HOLD THE FOCUS TOO (r6-mobile-ux-7). The fact card and
+  // the Workshop's part card are `role="dialog"` over a live screen, and a touch cannot reach past
+  // them (elementFromPoint at the top bar's buttons returns the sheet). Tab and a screen reader's
+  // swipe could: `Lobby` and the speaker stayed in the tab order and in the accessibility tree
+  // behind the fact card, and the Workshop's whole part list behind the part card — and main.js
+  // documents a paired keyboard as a supported way to play the whole game, so this is reachable by
+  // a route the project itself supports. `inert` takes both away at once; `aria-hidden` is the
+  // fallback for an engine too old for it (iOS Safari under 15.5), which is the same engine class
+  // r6-mobile-ux-3 is about.
+  markInert(sections.ride, '#sheet', !!sheet)
+  markInert(sections.workshop, '.part-sheet', !!ui.partCard)
   if (s !== 'ride') for (const sec of Object.values(sections)) if (sec.classList.contains('active')) { const p = sec.querySelector('.page, .body'); if (p && ui.scrollReset) p.scrollTop = 0 }
   ui.scrollReset = false
   ui.prevPhase = state.phase
   // A chip offered mid-ride appears at the next resting frame. render() only rewrites the
   // per-screen sections, never #app's own children, so an existing chip survives a re-render.
   showChipIfAtRest()
+  // ...and the system Back gesture is kept in step with the screen (see syncHistory below).
+  syncHistory()
 }
 
 // ---- hint renderers ------------------------------------------------------------------------
@@ -441,7 +473,15 @@ function hintHTML(p, boxW = 320, boxH = 110) {
 function numberLine(p, H = 110) {
   const floors = p.kind === 'up' || p.kind === 'down'
   const c = Number.isInteger(p.c) ? p.c : null
-  const hi = Math.max(10, Math.ceil(Math.max(p.a, c === null ? p.a + p.b : c, p.answer, p.kind === 'sub' || p.kind === 'down' ? p.a : 0) / 5) * 5)
+  // THE LINE IS ONLY AS LONG AS THE NUMBERS ON IT (r6-math-05). `p.a + p.b` was the upper bound
+  // whenever the problem has no `c`, which is add, sub, up and down. For add and up it changes
+  // nothing — a + b IS the answer, already in this Math.max. For sub and down the sum is a quantity
+  // that never appears on the line at all, so `9 − 8 = ▮` at Corner Shop, whose whole tag is
+  // `numbers to 10`, drew a line to 20; `20 − 18` drew one to 40, with the answer jammed against
+  // the left edge and half the drawing answering nothing. The term was dead everywhere it was
+  // right and fired only where it was wrong.
+  const top = p.kind === 'sub' || p.kind === 'down' ? Math.max(p.a, p.answer) : Math.max(p.a, p.b, c === null ? p.answer : c, p.answer)
+  const hi = Math.max(10, Math.ceil(top / 5) * 5)
   const W = 320, x0 = 16, x1 = W - 16
   // Everything below is measured DOWN from the baseline so the line, its labels and its hops keep
   // their proportions whatever height the card was given.
@@ -457,11 +497,26 @@ function numberLine(p, H = 110) {
   if (p.kind === 'add' || p.kind === 'up') { start = p.a; end = p.answer; lab = `+ ${p.b}` }
   else if (p.kind === 'sub' || p.kind === 'down') { start = p.a; end = p.answer; lab = `− ${p.b}` }
   else { start = p.a; end = c; lab = '?' }
+  // HOW OFTEN TO LABEL IS A QUESTION ABOUT WIDTH, NOT A MAGIC 20 (r6-math-05). `every = hi > 20 ?
+  // 5 : 1` put 21 labels into a 288-unit span at hi = 20 — 14.4 units of room for a two-digit
+  // label 20 units wide — so `9 10 11 12 … 20` painted as the unbroken run `9 101 11 21 31 41 51
+  // 61 71 81 920`: not merely tight, MISGROUPED, on the one help a struggling child can ask for
+  // and on a third of the hints in the second building. hi = 15 collided too, and only on the
+  // tallest phone, because r5-autism-fit-2's larger tick font is served there — an A/B inside one
+  // build that no fixed threshold could have caught. The gap a label needs is measured from the
+  // font it will actually be drawn in, and the step is snapped to one that divides the line, so
+  // the last tick is always named. TICK MARKS stay at every unit while there is room for them: on
+  // a count-back the unit ticks are the thing being counted, and the old rule deleted them
+  // wholesale past 20.
+  const spacing = (x1 - x0) / hi
+  const labelW = String(hi).length * tickSize * 0.6 + 4
+  const labelEvery = [1, 2, 5, 10, 20, 25, 50].find((k) => k >= labelW / spacing && hi % k === 0) || hi
+  const tickEvery = spacing >= 6 ? 1 : labelEvery
   const ticks = []
-  const every = hi > 20 ? 5 : 1
-  for (let n = 0; n <= hi; n += every) {
-    const t = floors ? (n === 0 ? 'G' : n === 10 ? 'R' : n <= 10 ? String(n) : '') : String(n)
-    ticks.push(`<line x1="${X(n)}" y1="${axis}" x2="${X(n)}" y2="${axis - (n % 5 === 0 ? 10 : 6)}" stroke="#6B6B6B" stroke-width="2"/><text x="${X(n)}" y="${tickText}" text-anchor="middle" font-size="${tickSize}" font-family="system-ui" fill="#2B2B2B">${t}</text>`)
+  for (let n = 0; n <= hi; n += tickEvery) {
+    const named = n % labelEvery === 0
+    const t = !named ? '' : floors ? (n === 0 ? 'G' : n === 10 ? 'R' : n <= 10 ? String(n) : '') : String(n)
+    ticks.push(`<line x1="${X(n)}" y1="${axis}" x2="${X(n)}" y2="${axis - (n % 5 === 0 ? 10 : 6)}" stroke="#6B6B6B" stroke-width="2"/>${t ? `<text x="${X(n)}" y="${tickText}" text-anchor="middle" font-size="${tickSize}" font-family="system-ui" fill="#2B2B2B">${t}</text>` : ''}`)
   }
   const mid = (X(start) + X(end)) / 2
   const col = end >= start ? '#2F7A8C' : '#5B6B7A'
@@ -660,7 +715,17 @@ window.addEventListener('storage', (e) => {
 })
 // The shaft re-measures whenever the viewport changes: a rotation, a resize, iOS Safari's toolbar
 // growing or shrinking (visualViewport), or the shaft box itself changing size (ResizeObserver).
-const onResize = () => { shaft.resize(); display.fit() }
+// THE VERTICAL BUDGET IS MEASURED, NOT ASSUMED (r6-mobile-ux-3). `--vh` defaults to 100vh and is
+// raised to 100dvh by an @supports block, and on an engine with no dvh both resolve to the viewport
+// with the browser bars HIDDEN — about a toolbar taller than the page will ever be. The layout is
+// then computed against a box that does not exist and the bottom keypad row, 0 and GO, sits under
+// the toolbar with nothing on the page able to scroll to it. `window.innerHeight` is the visible
+// height on every engine, dvh or not, and an inline custom property on :root beats both stylesheet
+// values. This runs on the same handler the shaft has always re-measured on, so a rotation, a
+// resize and iOS Safari's toolbar growing or shrinking all re-derive it.
+const setVH = () => { try { document.documentElement.style.setProperty('--vh', window.innerHeight + 'px') } catch { /* ignore */ } }
+setVH()
+const onResize = () => { setVH(); shaft.resize(); display.fit() }
 window.addEventListener('resize', onResize)
 window.addEventListener('orientationchange', () => setTimeout(onResize, 60))
 if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize)
@@ -668,6 +733,47 @@ if (window.ResizeObserver) new ResizeObserver(onResize).observe(shaftBox)
 // The save always holds enough to resume: a timeline in flight is recorded as ride.inFlight and
 // settled by hydrate() on the next load, so saving mid-ride is safe.
 window.addEventListener('pagehide', save)
+
+// ---- the system Back gesture --------------------------------------------------------------
+// ANDROID BACK IS THE PRIMARY NAVIGATION CONTROL ON THE PLATFORM THIS CHILD IS ON, and no screen
+// change in this game created a history entry, so Back from the Fact Book, the Workshop, the
+// Logbook, Grown-ups, the picker, the Rules card or mid-sum left the site — and, in the installed
+// app (`display: standalone`, which is the configuration the design asks a parent to use), closed
+// the game outright. Nothing is lost, because the save is written on pagehide and on every
+// visibilitychange; what happens is that the child is thrown out of the game with no explanation
+// and has to find it again, which is the exact unpredictability BRIEF item 7 rules out. It also
+// defeated a guard the game already has: the ride's own Lobby button is disabled while the car is
+// moving, and the OS gesture pulled the child out mid-animation anyway.
+//
+// ONE entry of ours sits on top for as long as the game is running. Back therefore always lands
+// in the game first, and what it means there is `Lobby`: the same destination every screen's own
+// Lobby button already has, so the gesture and the button agree. At the lobby the entry is spent
+// and the child leaves, which is the one Back that should.
+//
+// AND IT OBEYS THE GUARD THE BUTTON OBEYS. `to-lobby` is refused while the car is moving, falling
+// or descending, and the ride's Lobby button is drawn disabled for those 2.7-6.1 s. A Back the
+// reducer refuses must not silently spend the entry either, or the NEXT Back would leave the game
+// from a moving lift. The entry is pushed again whenever the screen did not actually change.
+let histPushed = false
+function pushExit() {
+  try { history.pushState({ bacon: 'screen' }, ''); histPushed = true } catch { /* a file: URL, or a sandbox with no history */ }
+}
+function syncHistory() { if (!histPushed) pushExit() }
+window.addEventListener('popstate', () => {
+  histPushed = false
+  if (state.screen === 'lobby') {
+    // Spent at the root: the child asked to leave, and the browser has only moved back onto the
+    // game's own entry (a pushState entry is the same document). Give them the exit they asked for.
+    try { history.back() } catch { /* nothing behind us: staying is better than a blank tab */ }
+    return
+  }
+  // The part card is a reading surface over the Workshop, not a screen; Back closes the card, which
+  // is what every other dialog on the platform does, and the Workshop stays.
+  if (ui.partCard) { ui.partCard = null; pushExit(); render(); return }
+  ui.scrollReset = true
+  dispatch({ type: 'to-lobby' })
+  if (state.screen !== 'lobby') pushExit()   // refused, or on its way (the roof's victory descent)
+})
 
 // ---- service worker + update chip -----------------------------------------------------
 // Only a chip TAP may reload this tab. The old gate reloaded on any controllerchange once a worker
@@ -774,6 +880,13 @@ if (DRIVE) {
     inFlight: () => play !== null,
     // the reducer's own reopen window, so the drive can ask whether a LIT ◁▷ key could act
     doorsClosing: () => !!shaft.doorsClosingNow(),
+    // THE REAL DRAWING, at the real box (r6-math-05). The number line collides at hi = 15 and
+    // hi = 20 and not at hi = 10, which is the only length seed 7's Corner Shop can draw, so the
+    // drive has to be able to ask for a denser one without waiting for a lucky draw — and it must
+    // ask THIS function, at the box the hint card actually gets, because the tick font steps with
+    // that box. Re-drawing the line in the instrument would be an instrument that cannot catch the
+    // thing it measures drifting.
+    hintHTML: (p, w, h) => hintHTML(p, w, h),
   }
 }
 if (DRIVE && params.get('chip') === '1') chipForced = true

@@ -193,6 +193,74 @@ Base: Design 1 (judges 1 and 3). Grafts two or more judges named are in, rejects
      apply and each key was 333 x 56); and the save-code gate PLAYS the reducer instead of hand-building a
      state with the two fields that dominate the blob left empty.
 
+18. **Round 6, hostile review (the lead).** Where a sentence below differs, this wins.
+   - **The pit is a STATE, not a phase, and the destination is derived from the car.** `floor === -1`
+     with a problem to answer IS the pit, whichever card is up — `repair` before `Try again` and
+     `keypad` after it — and `normaliseRide` keeps the car there for both. Off the pit, `target` is
+     re-derived as `nextTarget(floor)` in BOTH directions, never merely raised, so no path that
+     lowers `floor` can leave the one lit button out of reach. `arrive()` banks the floor
+     `state.car.floor` actually reached, never `ride.target`: a wish is not a measurement, and the
+     old line let one hop credit the Logbook and The Climb with ten floors and bank a whole building
+     (r6-code-hostile-1, r6-code-hostile-2).
+   - **A guard that cannot be satisfied must give way before the guards below it do.** The 20-key
+     anti-repeat ring is unsatisfiable on a pool smaller than itself — `× only, Largest 20` is ten
+     keys, which round 3 ruled legitimate — and when every attempt failed on that first test, the
+     same-answer rule, the doubles fuse and the zero fuse in the same loop stopped being consulted
+     at all. The ring window now shortens 20 → 10 → 5 → 2 → 1 until a draw can pass it, never below
+     the last key served. The TABLES are not widened: amendment on r3-math-06 stands, a table may
+     not exceed the number the parent set, and the tag says which one was built (r6-math-03).
+   - **The display band grows for a second line; it never spills one.** `.display` is
+     `min-height: var(--display)`, not a fixed height, and the shaft — the band this layout has
+     always called the spring — pays for the extra line. The gloss that explains `▮` is the sentence
+     this was measured on. At 320 × 454 the tier gives back two pixels of band padding so the shaft
+     stays above the 64 px `.tiny` threshold at the default type size; with `Bigger text` it crosses
+     it, which is the same trade amendment 8 already makes for the trivia panel there. Sideways the
+     band is a grid ROW, so it takes `minmax(var(--display), auto)` for the same reason and the
+     shaft column (`1fr`) gives (r6-math-01).
+   - **The whole vertical budget is MEASURED.** `--vh` is written from `window.innerHeight` as an
+     inline property on `:root`, on load and on every resize / orientationchange / visualViewport
+     resize, and `#app` takes `height: var(--vh)`. `100vh` with `100dvh` layered over it is not a
+     fallback: on iOS Safari 15.0–15.3, Chrome under 108 and Samsung Internet under 21 both resolve
+     to the bars-HIDDEN viewport, so GO went under the toolbar with nothing able to scroll to it.
+     The two CSS values remain as the pre-script floor (r6-mobile-ux-3, superseding §11's
+     `height:100dvh with a 100vh fallback`).
+   - **Back is a navigation control, and it means `Lobby`.** One history entry of ours sits on top
+     for as long as the game runs, so the system Back gesture lands in the game first and goes to
+     the lobby — the destination every screen's own button already has. At the lobby the entry is
+     spent and the child leaves, which is the one Back that should. A Back the reducer refuses (the
+     car is moving, falling or descending) pushes the entry back, so the gesture obeys the same
+     guard the disabled button does; over a dialog it closes the dialog (r6-mobile-ux-1).
+   - **A question with two answers may not tell the child which one to give.** Amendment 16's ruling
+     that `Stay` is the only primary while an offer stands is superseded: that put the game's one
+     "tap this" fill on the DECLINE. While an offer stands NOTHING on the reward card is filled, the
+     bordered block is the emphasis, and the two answers are the same button at the same width.
+     `Stay` is still the default and nothing is gated. An offer that has already stood is worded as
+     one (`Hotel is still there whenever you want it — … Try it?`), because tapping past it defers
+     it by design and the identical sentence otherwise returns on every clean roof
+     (r6-elevator-feel-03).
+   - **A Climb rung is announced once, and every rung crossed is announced.** `state.climbShown` is
+     the ledger, kept the way `state.plaques` is; a distance window one building wide announced the
+     Woolworth twice and swallowed Taipei 101 and the Empire State entirely. A save written before
+     the ledger is seeded from the floors already ridden rather than dumping its backlog
+     (r6-elevator-feel-02).
+   - **Two `Source:` lines must be two documents**, and a CONFIRM lens may not re-read the item it is
+     confirming. Both are enforced in `src/gate.js` and `test/round6.test.js` over all three banks
+     (r6-trivia-truth-02, r6-trivia-truth-03).
+   - **`ci.yml` is an alarm, not a gate.** Pages is a branch source here, so it publishes whatever
+     lands on `main` in parallel with the workflow and regardless of its outcome. The build stamp is
+     still the gate and is still enforced by a human running `npm test` before the push. The file
+     says so (r6-deploy-pages-1).
+   - **Small ones:** a counted run in `explain.js` never lists more than nine numbers one at a time,
+     whatever the ceiling; the number line is bounded by the largest number ON it and its labels are
+     thinned by the width a label needs, not by a magic 20, while the tick MARKS stay at every unit;
+     `validProblem` recomputes `text` and `key` rather than trusting them; every Grown-ups stepper is
+     disabled exactly where `set-setting` would refuse it; a `?` badge never marks a floor at or
+     below the car; the disabled keys' glyph reads at 4.6:1 like the unlit floor digit; a dialog
+     holds the focus (`inert`) as well as the taps; a settings row whose control group wraps puts its
+     label above the group; the ride's top bar keeps the building name at 320 px WITH `Bigger text`
+     and a two-digit lunchbox; `?reset=1` deletes only `be-` caches and only this scope's worker; and
+     the 404 page requests no favicon until the script knows where the project root is.
+
 17. **Everything else** in the sections below is the spec. Where two sentences below still conflict, the Module contract (§12) and the Verification plan (§13) win, then §2 Core loop, then the rest.
 
 ## Concept

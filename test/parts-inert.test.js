@@ -121,8 +121,16 @@ test('`records` is only ever written through tally(), and read by nothing that d
   const lines = outside.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => /\brecords\b/.test(l))
   assert.ok(lines.length >= 3, 'records is written in fewer places than the roof, the passenger and the descent')
   for (const [n, l] of lines) {
-    const ok = /records: \{ floors: 0/.test(l) || /records: tally\(/.test(l)
-    assert.ok(ok, `state.js (outside tally, line ${n}) touches records: ${l.trim()}`)
+    // WHAT THIS RULE IS ACTUALLY FOR: records must have exactly ONE writer, so nothing outside
+    // tally() may put a value into it by any other route. A READ of the floor count cannot make a
+    // monotone field go down. The Climb's ledger asks how many floors have been ridden, to decide
+    // which rungs this roof crossed and to seed a save written before that ledger existed
+    // (r6-elevator-feel-02) — a paragraph on the reward card, never a sum. The half of the rule
+    // that keeps records out of the maths is enforced below, where the pure modules that draw a
+    // sum may not name `records` at all.
+    const readsFloors = /state\.records\.floors/.test(l) && !/records\s*:/.test(l) && !/records\s*=[^=]/.test(l)
+    const ok = /records: \{ floors: 0/.test(l) || /records: tally\(/.test(l) || readsFloors
+    assert.ok(ok, `state.js (outside tally, line ${n}) writes records outside tally(): ${l.trim()}`)
   }
   // the pure modules that make the maths must not know records or equipped exist at all
   for (const f of ['math.js', 'levels.js', 'explain.js', 'elevator.js', 'trivia.js']) {

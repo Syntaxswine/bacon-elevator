@@ -24,7 +24,7 @@ export const SAVE_KEY = 'bacon-elevator.save.v1'
 // fact in the bank - which is the invariant round 2 established and which still holds. The gate now
 // plays the reducer and asserts the real ceiling; nothing here claims a number a parent could not
 // meet, and no copy anywhere asks anyone to transcribe it by hand.
-const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'struggleRun', 'demotedFrom', 'demotions', 'plaques', 'records']
+const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'struggleRun', 'demotedFrom', 'demotions', 'plaques', 'climbShown', 'records']
 
 export function serialize(state) {
   const out = {}
@@ -73,6 +73,12 @@ export function migrate(obj) {
   // a hand-edited BE1- code hung `<b>200</b> bacon` and a 120-character one on the Lobby wall
   // (escaped, so no markup ran; a hygiene gap, not an injection). Same treatment as unlocks.
   s.plaques = [...new Set(strArr(obj.plaques))].filter((x) => PLAQUES.includes(Number(x)))
+  // WHICH CLIMB RUNGS HAVE BEEN ANNOUNCED (r6-elevator-feel-02). Not range-checked against the bank
+  // the way `plaques` is against PLAQUES: the bank is data (data/climb.json) and is not loaded at
+  // parse time, and an id that has left the bank is inert here anyway. ABSENT stays absent — `null`
+  // is how a save written before this ledger existed says "seed me from the floors I have already
+  // ridden", which arrive() does. An empty array is a real answer and means "nothing announced yet".
+  s.climbShown = Array.isArray(obj.climbShown) ? [...new Set(strArr(obj.climbShown))].slice(0, 200) : null
   const st = isObj(obj.settings) ? obj.settings : {}
   s.settings = {
     sound: bool(st.sound, SETTINGS_DEFAULTS.sound),

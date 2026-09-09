@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <title>Bacon Elevator — that floor is not here</title>
-<link rel="icon" href="./favicon.ico">
+<!-- NO ICON UNTIL THE SCRIPT KNOWS WHERE IT IS (r6-deploy-pages-3). A 404 is served for any depth
+     under the site, so `./favicon.ico` resolved against /bacon-elevator/floors/nope/ and asked for a
+     file that is not there: one 404 request per deep-path visit, and a blank tab icon anyway on the
+     page whose whole job is to be reassuring. Hard-coding the root is refused here (this page is
+     served at any depth, and test/dom-contract.test.js holds that line), so the static href is an
+     empty data URL — it fetches nothing and cannot 404 — and the inline script below, which already
+     computes the project root for the back link, points it at the real file. -->
+<link rel="icon" id="icon" href="data:,">
 <style>
   :root { --paper: #F4F1EA; --ink: #2B2B2B; --ink-soft: #55534E; --line: #6B6B6B; --go: #3D6E9D; --go-deep: #35618A; }
   html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-size: 18px; }
@@ -35,7 +42,9 @@
   // A 404 can be served for any depth under the site, so the way back is computed from the path
   // rather than hard-coded: the first segment is the project (a user/organisation page has none).
   var seg = location.pathname.split('/').filter(Boolean)[0]
-  document.getElementById('back').setAttribute('href', location.origin + (seg ? '/' + seg : '') + '/')
+  var root = location.origin + (seg ? '/' + seg : '') + '/'
+  document.getElementById('back').setAttribute('href', root)
+  document.getElementById('icon').setAttribute('href', root + 'favicon.ico')
 </script>
 </body>
 </html>

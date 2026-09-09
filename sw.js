@@ -12,7 +12,7 @@ const VERSION = '1.0.0'
 // the browser was /sw.js. A child who already had the game could not be reached by a correction at
 // all, and `Version 1.0.0` on the Grown-ups screen said the same on both builds, so nobody could
 // tell. The cache name is now a function of the CONTENT, not of a literal somebody has to remember.
-const BUILD = '753e4dbf4e68'
+const BUILD = 'fac24328c748'
 const CACHE = 'be-' + VERSION + '-' + BUILD
 const ASSETS = [
   './', './index.html', './404.html', './manifest.webmanifest', './favicon.ico',

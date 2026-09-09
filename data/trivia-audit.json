@@ -877,20 +877,20 @@
     {
       "id": "elevator-engineering-minimum-three-ropes",
       "category": "elevator",
-      "question": "Under California's elevator rules, what is the fewest steel hoisting ropes a traction elevator is allowed to hang from?",
+      "question": "Under California's elevator rules, how many steel hoisting ropes must a NEW traction elevator have at least?",
       "answer": "3 ropes",
       "distractors": [
         "1 rope",
         "6 ropes",
         "12 ropes"
       ],
-      "fact": "California's elevator safety rules (Title 8, section 3042) say a traction elevator must have at least three hoisting ropes, and together the ropes must be at least 7.6 times stronger than the loaded car needs, rising to nearly 12 times for the fastest elevators. The ropes are twisted steel cables that link the car to the counterweight over the drive sheave.",
+      "fact": "California's elevator safety rules (Title 8, section 3042) say a NEW traction elevator must have at least three hoisting ropes; ones already running on two may keep them. Together the ropes must be at least 7.6 times stronger than the loaded car needs. They are twisted steel cables linking the car to the counterweight over the drive sheave.",
       "difficulty": 2,
       "sources": [
         {
           "title": "Cal. Code Regs. Tit. 8, § 3042 — Hoisting Ropes and Their Connections (California DIR, Elevator Safety Orders)",
           "url": "https://www.dir.ca.gov/title8/3042.html",
-          "quote": "The minimum number of hoisting ropes used shall be three for traction elevators, and two for drum-type elevators."
+          "quote": "The minimum number of hoisting ropes used shall be three for traction elevators, and two for drum-type elevators. EXCEPTION: Existing traction elevators with two hoisting ropes."
         },
         {
           "title": "Ropes (Hoists) - TK Elevator Classroom On Demand",
@@ -2095,12 +2095,7 @@
         {
           "title": "Cambridge Dictionary: the first floor",
           "url": "https://dictionary.cambridge.org/dictionary/english/first-floor",
-          "quote": "UK: the level of a building that is one level above the street"
-        },
-        {
-          "title": "Cambridge Dictionary: the first floor (US sense)",
-          "url": "https://dictionary.cambridge.org/dictionary/english/first-floor",
-          "quote": "US: the level of a building that is at the same level as the street"
+          "quote": "UK: the level of a building that is one level above the street … US: the level of a building that is at the same level as the street"
         }
       ],
       "verified": true,
@@ -2367,11 +2362,6 @@
           "title": "Otis Elevator Company: Otis History (Elevator history timeline)",
           "url": "https://www.otis.com/en/us/our-company/history",
           "quote": "Standing high above the crowd on a platform lift, Otis orders the retaining rope to be cut... 'All safe, gentlemen, all safe,' Otis assures them."
-        },
-        {
-          "title": "Otis Elevator Company: Otis History (1857 entry)",
-          "url": "https://www.otis.com/en/us/our-company/history",
-          "quote": "In 1857, Otis installs its first passenger elevator in New York City's E.V. Haughwout Building, a five-story department store."
         }
       ],
       "verified": true,
@@ -2436,12 +2426,7 @@
         {
           "title": "MacTutor History of Mathematics: A history of Zero",
           "url": "https://mathshistory.st-andrews.ac.uk/HistTopics/Zero/",
-          "quote": "Brahmagupta attempted to give the rules for arithmetic involving zero and negative numbers in the seventh century."
-        },
-        {
-          "title": "MacTutor History of Mathematics: A history of Zero (Babylonians)",
-          "url": "https://mathshistory.st-andrews.ac.uk/HistTopics/Zero/",
-          "quote": "around 400 BC the Babylonians put two wedge symbols into the place where we would put zero to indicate which was meant."
+          "quote": "Brahmagupta attempted to give the rules for arithmetic involving zero and negative numbers in the seventh century. … around 400 BC the Babylonians put two wedge symbols into the place where we would put zero to indicate which was meant."
         }
       ],
       "verified": true,
@@ -2480,12 +2465,7 @@
         {
           "title": "Wolfram MathWorld: Prime Number",
           "url": "https://mathworld.wolfram.com/PrimeNumber.html",
-          "quote": "A prime number (or prime integer, often simply called a 'prime' for short) is a positive integer p>1 that has no positive integer divisors other than 1 and p itself."
-        },
-        {
-          "title": "Wolfram MathWorld: Prime Number (why 1 is excluded)",
-          "url": "https://mathworld.wolfram.com/PrimeNumber.html",
-          "quote": "A good reason not to call 1 a prime number is that if 1 were prime, then the statement of the fundamental theorem of arithmetic would have to be modified since 'in exactly one' way would be false because any n=n·1."
+          "quote": "A prime number (or prime integer, often simply called a 'prime' for short) is a positive integer p>1 that has no positive integer divisors other than 1 and p itself. … A good reason not to call 1 a prime number is that if 1 were prime, then the statement of the fundamental theorem of arithmetic would have to be modified since 'in exactly one' way would be false because any n=n·1."
         }
       ],
       "verified": true,
@@ -3052,7 +3032,7 @@
       "distractors": [
         "Square",
         "Equilateral triangle",
-        "Rectangle"
+        "Long thin rectangle"
       ],
       "fact": "Maths has a rule called the honeycomb conjecture: if you divide a flat surface into rooms that are all the same size, no pattern uses less wall than a grid of regular hexagons. Thomas Hales proved it in 1999. Whether bees build hexagons for this reason is a separate question about bees, not maths.",
       "difficulty": 2,
@@ -3509,5 +3489,9 @@
       "math-numbers-one-not-prime",
       "math-numbers-largest-known-prime-2026"
     ]
+  },
+  "round6": {
+    "note": "Hostile review round 6. r6-trivia-truth-02: four items printed the same URL twice under two titles differing by a parenthetical, so the card showed two `Source:` lines for one document; each pair is folded into one entry carrying both excerpts, and src/gate.js now refuses a repeated URL for all three banks. The Otis 1854 card also cited the 1857 Haughwout installation, which supports no claim in an item about the rope-cutting: dropped. r6-trivia-truth-03: the three-ropes item’s CONFIRM lens re-read the item’s own primary (dir.ca.gov/title8/3042.html), which the rule string does not disclose and TRIVIA.md step 2 forbids; re-confirmed against an outside copy of the same rule (Seattle Building Code 2018 § 3011.6.12.4, via UpCodes), which the round-1 refute check had already fetched. r6-trivia-truth-04: §3042 carries `EXCEPTION: Existing traction elevators with two hoisting ropes.`, re-read at the primary on 2026-09-08, so `is allowed to hang from` was true only of new installations; the question and the fact now say which case they are asking about and the quote carries the exception. r6-math-07: `How many seconds are there in one day?` offers 86,400 against 864,000 and declared no `maths.max`, so it was served at Corner Shop’s `numbers to 10`; telling those two apart is place value at that magnitude, so it declares `maths: {max: 86400}` and is banded to Megatall and Custom. r6-math-08: `Square` and `Rectangle` were both offered as wrong answers to the honeycomb question and every square is a rectangle; `Rectangle` becomes `Long thin rectangle`, which still tiles (r4-math-09 requires it) and is disjoint from a square.",
+    "at": "2026-09-08"
   }
 }

@@ -1100,3 +1100,261 @@ The same shape, four more times:
   (~120 characters of BE1- per new fact across `seen`/`right`/`retry`). It is bounded and it round
   trips, and every content round adds to it. An index list over a stable id order would cut it by
   more than half and would silently remap on a bank reorder, so it needs a versioned id table first.
+
+## Round 6 — hostile review (2026-09-08)
+
+Thirty-four findings: **1 high, 10 medium, 23 low**. The high and the ten mediums carried three
+independent verifier reports each; the twenty-three lows were filed unverified. The severity census
+is the score: round 3 was 0 high / 14 medium / 30 low, round 4 was 2 high / 8 medium / 21 low,
+round 5 was 1 high / 10 medium / 23 low, and this round is 1 high / 10 medium / 23 low — flat in
+the census, and different in shape. **Twenty-seven fixed, seven skipped**, with reasons below.
+
+Round 5's pattern was "an earlier fix that solved its finding, in a place the instrument that pinned
+it does not look". This round's is narrower and sharper: **a guard that describes a STATE by naming
+one of the phases that state can be in**, or **a bound taken on the wrong quantity**. The high is
+the first (the pit is `repair` OR `keypad`, and the guard named only `repair`); so is `r6-math-03`
+(the ring guard is unsatisfiable on a ten-key pool, so every guard below it in the same loop stops
+being consulted). `r6-math-04` is the second (the count-up branch is bounded by the TOTAL when what
+makes it laborious is the GAP) and so is `r6-math-05` (the number line is sized by `a + b`, a
+quantity that is never on it, and labelled by a magic 20 rather than by the width a label needs).
+
+**Instruments before → after:** `npm test` 261 → **284 passing** (a new `test/round6.test.js`,
+23 cases, one per finding whose surface is not geometry); `node tools/phone-drive.mjs`
+105 → **110 passing** (a new `back-gesture` scenario on all five phones, plus nine new assertions
+inside the layout instrument: painted message text against the display band, tick-label collision on
+the hint, focus containment behind a dialog, the disabled keys' contrast, the Grown-ups rows' label
+alignment, the Repair card and the top bar re-measured with `Bigger text` on, and a check that
+something MEASURES the viewport height); `node tools/headless-play.mjs` unchanged at 0.00 % repeats
+on all five levels, which is the falsifier for the ring change. Every fix is pinned by an assertion
+that fails on the reviewed tree — the geometry ones were each verified by reverting the fix and
+watching the new gate go red, and those runs are named below.
+
+### The high
+
+`r6-code-hostile-1` — **the car walks out of the pit and then teleports.** `Try again` is the only
+button on the Repair card, so every fall passes through the state it creates: `{floor: -1,
+phase: 'keypad'}` with the same sum, saved. `normaliseRide`'s pit guard admitted `phase === 'repair'`
+only, so every re-entry into that state — the top-bar `Lobby` (phase `keypad` is in `STABLE`, so the
+button is live), a plain reload, or the update chip's own reload — lifted the car to the Ground
+floor, threw away the retry and its sum, and left `target` where the fall had put it, because the
+line below only ever RAISED it. From floor 9 that gave a car at G with only `R` lit: one fresh sum,
+a shaft animation to floor 1 announcing "Floor 1", and then `arrive()` — which took `r.target`
+rather than the floor the car reached — banking the building, paying the roof bonus, and writing
+`records.longest = 10` for a ride of one floor.
+
+Three changes, because the finding is a class and not an instance:
+
+- the pit is a STATE (`floor === -1` and a problem to answer), not a phase, so the guard admits
+  `repair` OR `keypad`, and `retrying` is read off the same condition;
+- `target` is clamped BOTH ways off the pit (`nextTarget(floor)`), so no future path that lowers
+  `floor` can leave the lit button out of reach — this also closes the hand-edited BE1- code
+  carrying `{floor: 0, target: 10}`, which `migrateRide` passed through; and
+- `arrive()` takes `state.car.floor` — where the timeline actually put the car — instead of
+  `r.target`, so a desync can never move the car or the Logbook further than the lift travelled.
+  That half is `r6-code-hostile-2`, and it is the same line.
+
+Pinned by four cases in `test/round6.test.js`, including the whole route through the reducer (fall →
+`Try again` → `to-lobby` → `ride-start` → one correct answer lands on floor 4, five floors credited)
+and a sweep of every `{floor, target}` pair a hand-edited save can carry.
+
+### The mediums
+
+| id | what it was | what changed |
+|---|---|---|
+| `r6-math-01` | `.display` had a hard height, so `#message`'s BOX stayed inside the band while its TEXT was laid out below it — painted under the panel's own scroll-cue gradient and sliced at the band border. It fires on the ▮ gloss, the one sentence that explains the newest question form, on three phone profiles at the default type size and on all five with `Bigger text`. Box geometry could not see it, which is why this instrument's own section-height sums passed on every phone. | The band GROWS for a second line (`flex: 0 0 auto; min-height`) and the shaft pays for it, which is the band this layout has always said is the spring. At 320 × 454 that took the shaft to 63 px, one under the `.tiny` threshold, so the ≤ 500 tier gives back two pixels of band padding: shaft 65, elevator still drawn. With `Bigger text` at 320 the shaft does go `.tiny` — the trade DESIGN amendment 8 already makes for the trivia panel at that size, and the shaft keeps its box so nothing jumps. |
+| `r6-math-02` | The Repair card overflowed its box on ~1 in 5 Megatall falls at 320 × 454 with `Bigger text`, sliced the count-on line through its glyphs, and put the clause — the only line naming WHAT went wrong — below a clean rounded border with no cue. The assertion that catches it already existed; the one scenario that turns `Bigger text` on never leaves the keypad. | The dominant term is `.big` wrapping: mono at 34/18 × 21 px cannot fit `169 + 9 = 178` in a 274 px card, and 46 px of headline becomes 92. Two character-count steps (`.big.long`, `.big.longer`), the mechanism `.worked.long` has used since it was written. Plus the four-layer scroll cue every other scroller in the game carries — this was the last one without it. The two card checks now re-run with the setting on. |
+| `r6-math-03` | `× only, Largest 20` is a ten-key table against a 20-key ring, which round 3 ruled legitimate. What was not: once the ring can never be satisfied, all fifty attempts fail on the FIRST test and every question falls out of the bottom of the loop, where the same-answer rule, the doubles fuse and the zero fuse were never consulted either. | The ring gives way before the fuses do: the window shortens 20 → 10 → 5 → 2 → 1 until a draw can pass it, never below the last key served. The tables are NOT widened — `r3-math-06` rules that they may not exceed the number the parent set. Measured after, over 8 000 draws on each of three configurations: 0 same-key-twice-running, 0 doubles served while the doubles fuse is lit, 0 identities while the zero fuse is lit. `headless-play` still reports 0.00 % repeats on every shipped level, because a pool the full ring can satisfy never reaches the second rung. |
+| `r6-math-04` | `explainMissAdd` bounded its count-up by the TOTAL, so `2 + ▮ = 20` modelled counting eighteen ones — 21 numerals, half again as long as anything else in the file — directly above the clause naming the right method. Every sibling branch in that file bounds its counted run. | Bridging through ten for a gap that crosses it: `2 + 8 = 10 · 10 + 10 = 20 · 8 + 10 = 18`. Count-up stays where its run cannot exceed nine, which is the bound `explainAdd`'s own `countOn` already carries. Swept over every reachable missAdd: no worked line anywhere counts more than nine numbers one at a time. It also shortens the card enough to help `r6-math-02`. |
+| `r6-math-05` | The number line was sized by `p.a + p.b` — a quantity that is never drawn on it — so `9 − 8` at `numbers to 10` drew a line to 20 and `20 − 18` one to 40; and it labelled every unit below a magic `hi > 20`, so 21 two-digit labels went into a 288-unit span and `9 10 11 … 20` painted as `9 101 11 21 31 41 51 61 71 81 920`. | The bound is `max(a, answer)` for sub/down — the term was dead everywhere it was right (for add and up, `a + b` IS the answer) and fired only where it was wrong. The label step is measured from the font the labels will actually be drawn in, snapped to a step that divides the line so the last tick is always named. Tick MARKS stay at every unit: on a count-back they are the thing being counted, and the old rule deleted them wholesale past 20. |
+| `r6-elevator-feel-02` | The roof card inferred "fresh" from an 11-floor window and a clean building is exactly 10 floors, so the Woolworth (60) was announced on two consecutive roofs — the second time above a forward line that contradicted it. Taking only the LAST rung reached also swallowed Taipei 101 and the Empire State, both overtaken by the Willis Tower inside one building. | A ledger, kept the way `state.plaques` is kept: `climbShown`. Every rung crossed is announced, each exactly once. A save written before the ledger existed carries `null` and is seeded from the floors already ridden, so an upgrade announces this building's rungs and not a backlog. Also `1 more floors` → `1 more floor`. |
+| `r6-mobile-ux-1` | No screen change created a history entry, so Android Back / the iOS edge swipe left the site from every screen — and in the installed app (`display: standalone`, the configuration the design asks a parent to use) closed the game. It also defeated a guard the game already has: the ride's `Lobby` is disabled while the car moves, and the gesture pulled the child out mid-animation anyway. | One entry of ours sits on top for as long as the game runs. Back therefore lands in the game first and means `Lobby` — the same destination every screen's own button has, so the gesture and the button agree. At the lobby the entry is spent and the child leaves, which is the one Back that should. A Back the reducer REFUSES (car in motion) pushes the entry back, so the next one cannot leave from a moving lift; the part card closes instead of the Workshop. |
+| `r6-mobile-ux-2` | *skipped — see below.* | |
+| `r6-mobile-ux-3` | `#app` was `height: 100vh; height: 100dvh`, which is a fallback only on an engine that HAS dvh. On iOS Safari 15.0–15.3, Chrome under 108 (every Android 6 and older, permanently capped at Chrome 106) and Samsung Internet under 21 both resolve to the bars-HIDDEN viewport, so the whole vertical budget was computed against a box a toolbar too tall and GO — the only control that submits an answer — sat under the toolbar with nothing on the page able to scroll to it. Not degraded: dead, on first load, before anyone can Add to Home Screen. | `src/main.js` writes `--vh` from `window.innerHeight` as an inline property on `:root`, on load and on the same resize / orientationchange / visualViewport handler the shaft has always re-measured on, and `#app` takes `height: var(--vh)`. The two CSS values stay as the pre-script floor. `test/dom-contract.test.js`'s "dvh with a vh fallback" assertion is rewritten: 100vh is not a fallback on the engines that need one, and a test that says it is vouches for the defect. |
+| `r6-deploy-pages-1` | `ci.yml`'s header said "This is that gate, run by the deploy". Pages here is a BRANCH source, so it publishes whatever lands on main in parallel with the run and regardless of its outcome — on the round-5 tip the deployment was created eight seconds before the test job finished — and the workflow has no deploy job and no `environment: github-pages`, so it structurally cannot consume the result. `main` carries no protection and no required check. | The reword, not the re-plumbing. In this repo's vocabulary a gate REFUSES (DESIGN calls the trivia audit "link-rot radar, not a test gate"), and the one file a maintainer reads to decide whether they must run `npm test` before pushing told them the machine already had — which retires the manual habit that is actually doing the work. It now says it is a post-hoc alarm, names what it is worth (~20 s, to whoever is watching), and states that the STAMP is still the gate and is still enforced by a human before the push. Making the claim true is a Pages-source change, not a file in this tree; handed on. |
+
+### The lows, in one line each
+
+- `r6-math-06` — `countBackBy` had no cap on `n`, so a Custom ceiling of 9999 produced
+  `Count back in 100s from 9110:` listing seventy-six four-digit numbers (484 characters on a 296 px
+  card). The place-value split now goes as far as thousands, so every single part is one leading
+  digit times its place and no counted run in the file can exceed nine.
+- `r6-math-07` — `withinNumberBand` fires only on a declared `maths.max`, so
+  `How many seconds are there in one day?` (86,400 against 864,000, concept `counting`) was served
+  at Corner Shop's `numbers to 10`. It declares `maths: {max: 86400}`. The new gate asks the class
+  question — no banded level may offer two options that are the same digits at a different place
+  value above its own ceiling — and exempts the DECLARED concept `large-numbers`, which Corner Shop
+  and Hotel deny outright and Office Block and Skyscraper take deliberately.
+- `r6-math-08` — the honeycomb question offered `Square` and `Rectangle` as distinct wrong answers
+  and every square is a rectangle. `Long thin rectangle`, which is disjoint AND still tiles: round 4
+  ruled that a distractor which cannot tile at all is not a wrong answer to this question
+  (`r4-math-09`), so the reviewer's suggested `Regular octagon` is refused and that test now states
+  both halves of the rule.
+- `r6-elevator-feel-03` — `Stay` carried the game's one "this is the thing to tap" fill, so the
+  loudest control on the reward card was the DECLINE. Round 5 made it the only primary to stop
+  `Next building` shouting over the question; its own reasoning is why the fill has no business on
+  either answer. While an offer stands nothing on the card is filled, the bordered block is the
+  emphasis, and the two answers are the same button. The line also changes after the first showing
+  (`Hotel is still there whenever you want it — … Try it?`), because tapping past the offer defers
+  it by design and the identical sentence came back on eight consecutive roofs.
+- `r6-mobile-ux-4` — `Shop` clipped to `Sh...` at 320 px once `Bigger text` was on and the lunchbox
+  reached two digits, i.e. from the end of the first building. The readouts and the pips give way
+  before the name does; the drive's existing ellipsis assertion now runs with the setting on and
+  with a banked building behind it.
+- `r6-mobile-ux-5` — at 320–375 px the Operations group wraps to three rows of keys and the label
+  floated beside the middle of it. The rows whose control group is a set of 56 px keys carry `stack`
+  and put the label above the group below 480 px; toggles and steppers are unchanged.
+- `r6-mobile-ux-6` — the disabled backspace glyph read at 2.57:1, the identical number this project
+  has now rejected twice on the same reasoning (`r3-autism-fit-04`, `r4-autism-fit-3`). Ink at
+  4.6:1; the "cannot act" cue stays in the fill, the border and the shadow.
+- `r6-mobile-ux-7` — the fact card and the part card are `role="dialog"` over a live screen and a
+  touch could not reach past them, but Tab and a screen reader's swipe could — and `src/main.js`
+  documents a paired keyboard as a supported way to play the whole game. `inert` plus `aria-hidden`
+  on everything but the dialog, recomputed on every render so nothing is ever left inert.
+- `r6-code-hostile-2` — fixed with the high, above: `arrive()` takes the floor the car reached.
+- `r6-code-hostile-3` — every Grown-ups stepper drew both buttons live at its limits with an
+  out-of-range `data-value`; `set-setting` clamped, saved, and nothing on screen moved or said why.
+  `stepper()` takes the SAME bounds `set-setting` clamps to, so a button is dead exactly when the
+  reducer would refuse it. The rule ("a lit, undimmed key that does nothing is a dead key") was
+  already enforced on GO, on ⌫ and on the digit cap; this was the one screen it had not reached.
+- `r6-code-hostile-4` — `tagFloors()` had no reference to the car, so switching Passengers
+  mid-building put a `?` on floors the lift had already passed. A floor at or below the car is a
+  passenger nobody can meet again in this building.
+- `r6-code-hostile-5` — `validProblem` checked the arithmetic and accepted any `text` containing a
+  ▮, so a hand-crafted BE1- code could put 614 characters of a stranger's words on the display band.
+  `text` and `key` are recomputed from `kind/a/b/c` rather than trusted; verified over 5 000 real
+  draws that the generator's own text and key are unchanged by it.
+- `r6-trivia-truth-02` — four items listed the same URL twice under titles differing by a
+  parenthetical, so the card printed two `Source:` lines for one document — the shape
+  `r2-autism-fit-09` already refused for the two verification lenses, on the surface the child sees.
+  Each pair is folded into one entry carrying both excerpts; the Otis 1854 card's second entry cited
+  the 1857 Haughwout installation, which supports no claim in an item about the rope-cutting, and is
+  dropped. `src/gate.js` now refuses a repeated URL, so all three banks get it.
+- `r6-trivia-truth-03` — the three-ropes item's CONFIRM lens re-read the item's own primary, which
+  `docs/TRIVIA.md` step 2 forbids and the bank's rule string does not disclose. Re-confirmed on
+  2026-09-08 against an outside copy of the same rule (Seattle Building Code 2018 § 3011.6.12.4, via
+  UpCodes) — a document the round-1 refute check had already fetched and recorded in the audit.
+  `test/round6.test.js` now asserts the class over the whole bank.
+- `r6-trivia-truth-04` — § 3042 carries `EXCEPTION: Existing traction elevators with two hoisting
+  ropes.`, re-read at the primary on 2026-09-08, so "the fewest a traction elevator is allowed to
+  hang from" was true only of NEW installations. The question, the fact and the quote all say which
+  case they are about, and the fact came back under the 360-character card limit.
+- `r6-deploy-pages-2` — `?reset=1` deleted every cache and unregistered every worker on the ORIGIN,
+  not on this path, so a neighbouring app on `syntaxswine.github.io` would lose its offline copy to a
+  reset pressed here. Filtered on the `be-` prefix `sw.js`'s own activate handler has always used,
+  and on the registration's scope. Latent today (no sibling registers a worker) and the origin is
+  shared with every future game the owner ships there.
+- `r6-deploy-pages-3` — the 404 page is served at any depth, so `./favicon.ico` asked for a file
+  that is not there: one 404 request per deep-path visit and a blank tab icon anyway. The static
+  href is now an empty `data:` URL, which fetches nothing and cannot 404, and the inline script that
+  already computes the project root points it at the real file.
+
+### Skipped, and why
+
+- **`r6-mobile-ux-2`** (medium) — *the shaft goes `.tiny` on four trivia items at 320 px with
+  `Bigger text`.* Reproduced exactly; the mechanism and the four ids are right. It is the DOCUMENTED
+  decision, twice over: DESIGN amendment 8 states "Under 64 px the shaft keeps its box but stops
+  drawing (`.shaft.tiny`)", `tools/drive-scenarios.mjs` passes a sub-64 shaft precisely when `.tiny`
+  is set, and `shots/se1-layout-worst-trivia-big.png` has been photographing a 0 px shaft at that
+  geometry for two rounds. The suggested fix is refused by a passing test that carries its own
+  reason — `test/dom-contract.test.js`: `no hard minimum on the one growable band` — which exists
+  because a 200 px shaft floor pushed GO off the bottom of a real iPhone SE in round 1. Taking 64 px
+  back from the trivia panel would put ~36 px of choice C below the fold on exactly the item that
+  triggers it, which is the strictly worse defect `r5-autism-fit-4` was convened for. The residue
+  worth having is the panel's own height at that tier, not a floor on the shaft; handed on.
+- **`r6-elevator-feel-01`** (low) — *every building is the same lift.* Confirmed to the pixel, and
+  already ruled on twice, in writing, against this same complaint: DESIGN amendment 12 ("a level is
+  a maths band, not a height") and amendment 14, which quotes a round-3 reviewer's sentence
+  verbatim. The reason is hard requirement 7: decoupling the band from the building's shape means a
+  promotion — and, more importantly, a RESCUE down a level — never rearranges the physical world
+  under the child. The suggested taller shaft is also not cosmetic: a building is exactly 16 bacon
+  and all 24 part thresholds sit on that grid at offset −4 so each lands on a roof
+  (`test/content-round.test.js`), so `Skyscraper G,1-14,R` desynchronises seventeen part unlocks and
+  six plaques from the card that names them.
+- **`r6-elevator-feel-04`** (low) — *the answer never names the floor.* A v2 design proposal, filed
+  as one by the reviewer: it changes what a correct answer MEANS, and therefore the ride length, the
+  16-bacon-per-building constant and every threshold built on it. Handed on.
+- **`r6-elevator-feel-05`** (low) — *the roof card replaces the lift before the arrival is seen.*
+  The observation is right and the beat is worth having, but the first half is a timing change to the
+  one transition six drive scenarios measure, and the second half is new art. It needs its own
+  measurement pass rather than a number changed under a review commit. Handed on.
+- **`r6-trivia-truth-01`** (low) — *no part of the Source line is above the fold at 320 px.* The
+  finding's own conclusion is "nothing needs to move if the trade-off stands", and it stands: this is
+  `r5-trivia-truth-02`, measured and recorded both in `css/app.css` and in the layout scenario's own
+  comment, and the card scrolls with the four-layer cue. Buying the eight pixels means shrinking the
+  fact text the child is there to read.
+- **`r6-deploy-pages-4`** (low) — *with JavaScript off the 404's back link loops.* The suggested fix
+  is a hard-coded site root, and `test/dom-contract.test.js` refuses one on this page for a stated
+  reason: it is served at any depth. The game itself requires JavaScript (`index.html` says so in a
+  `<noscript>`), and every engine that can play it repairs the link. The favicon half of the same
+  page IS fixed above, in a form that keeps the rule.
+- **`r6-deploy-pages-5`** (low) — *Pages publishes `docs/`, including a brief that names the child's
+  diagnosis.* Not a code change: it is a decision about the Pages source, and the same decision
+  `r6-deploy-pages-1` hands on. Flagged so the choice is conscious rather than incidental. The
+  repository is public already, so what this adds is the adjacency, not the content.
+
+### What the instruments caught while fixing
+
+- **The records gate refused the Climb ledger, and it was right to ask.**
+  `test/parts-inert.test.js` allowed no line outside `tally()` to name `records`, and the ledger has
+  to know how many floors have been ridden. The rule's real question is that `records` has ONE writer
+  and is never read by the sum generator; the test now says that, permits a read of `.floors`, and
+  still fails on any new write by any route. Widening a gate to admit one's own change is the thing
+  to be most suspicious of, so the write half was tightened rather than left alone.
+- **The new `r6-math-07` gate found a sibling immediately** — `math-numbers-pi-memorised-record`
+  offers 7,000 / 70,000 / 700,000 at Office Block's `numbers to 100`. That item declares the concept
+  `large-numbers`, which Office Block and Skyscraper admit on purpose, so the rule exempts it and
+  says so. A rule that had flagged it would have been a rule about magnitude; this one is about a big
+  number arriving under some other label.
+- **The `--tall` pass was nearly turned into a duplicate of the browser-height pass.** The new
+  viewport check restored `ctx.phone.viewport` — the BROWSER height — and the `--tall` pass runs the
+  same scenario at the DEVICE height. It restores `page.viewport()` instead.
+- **The display band spills SIDEWAYS too, and the portrait fix does not reach it.** In landscape
+  `.ride.active` is a grid and the band is a fixed ROW (`grid-template-rows: … var(--display) …`),
+  so `flex: 0 0 auto` on `.display` changes nothing there — and the display column is ~250 px wide,
+  so the same sentences wrap sooner than they do in portrait. The row is
+  `minmax(var(--display), auto)`, the shaft (`1fr`) gives, and the worst-message check now runs one
+  landscape turn as well. Reverted, at 568 × 276: `the display band paints its message outside its
+  own box (34 > 16)` on all three sentences.
+- **The worst-message fixture asked the renderer instead of quoting it.** The first draft carried
+  the two ▮ glosses as string literals — the shape round 4 caught drifting for the trivia worst case
+  (`r4-trivia-truth-04`) and round 5 caught in the drive's own copy of the step-change sentences.
+  `opGloss` is exported and the instrument draws the sentence with it, at the largest numbers the
+  shipped ladder can put in it.
+- **Five fixes were falsified by reverting them and watching the new gate go red.** `.display`'s
+  hard height → `the display band paints its message outside its own box (37 > 23)` at 375 × 553;
+  the magic-20 label rule → `hint tick labels overlap by 4.7 px: 0 1 2 … 20` at 390 × 664; `.big`'s
+  step-down → `repair card text overflows its box: 250 > 198` and `repair card clips .clause: count
+  again` at 320 × 454; `syncHistory()` → `Back from the picker left the game`; `markInert` →
+  `focusable behind #sheet .sheet: Lobby, Sound off`, which is the finding's own measurement, word
+  for word. The Grown-ups and top-bar rules were falsified the same way
+  (`"Operations" sits 80 px below the top of the 184 px group it names`;
+  `building name is clipped to "Mega" in 34 px`).
+
+### Handed on
+
+- **Make `ci.yml`'s claim true, or leave it as an alarm.** Switching the Pages source to GitHub
+  Actions and giving a deploy job `needs: test` is the only thing that turns the stamp check into a
+  refusal. It is a repository-settings change, not a file in this tree. The cheaper refusals are a
+  `pre-push` hook or making `tests` a required status check on `main` — both stop the bad push
+  before any bytes move, which is better than blocking a publish that a child who already has the
+  game would not receive either way. `r6-deploy-pages-5` is decided by the same change.
+- **The trivia panel's own height at 320 px** (`r6-mobile-ux-2`'s residue). The shaft may not have a
+  floor and the panel may not push choice C past the fold, so the lever is the panel's type scale at
+  that tier — the question clamp, the choice line-height, the padding — not a minimum on the shaft.
+  It needs a measurement across all 67 items at both type sizes, which the `worstCase` helper
+  already knows how to do.
+- **Corner Shop and Hotel see the same 17 trivia items.** Promotion opens no new passenger question
+  at all, because nothing in the bank declares a `maths.max` between 11 and 20. That is a content
+  gap rather than a code one, and it is the second half of `r6-math-07`.
+- **The `× only` pool is still ten sums**, and the Largest stepper is still inert from 6 to 35
+  because `facHi` is floored at 5. `r6-math-03` fixed what that pool did to the OTHER guards; it did
+  not make the pool bigger, because `r3-math-06` rules that the tables may not exceed the number the
+  parent set and the tag says honestly which table was built. If a parent turning Largest up should
+  see something change, that is a decision about the ceiling, not about the ring.
+- **The landscape block in the layout scenario restores `ctx.phone.viewport`**, so under `--tall`
+  everything after the first turn is measured at the browser height instead of the device height.
+  One line, but it changes what half the tall pass has been measuring for three rounds, so it wants
+  its own commit and its own before/after.
+- **`shots/` is still not in the repository**, as round 5 recorded. This round moves them again: the
+  display band, the Repair card's headline, the hint's tick labels, the Grown-ups rows, the roof
+  card's offer block and the ride's top bar at 320 px all look different.

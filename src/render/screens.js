@@ -116,7 +116,8 @@ export function baconGoalLine(state) {
 export function climbGoalLine(state) {
   const g = climbGoal(state.records ? state.records.floors : 0, state.climb || [])
   if (!g.next) return ''
-  return `The Climb: ${g.next.remaining} more floors to ${climbLabel(g.next)} — ${g.next.floors} floors.`
+  // `1 more floors` was printed to a child who counts, on the one line whose whole job is a number.
+  return `The Climb: ${g.next.remaining} more ${g.next.remaining === 1 ? 'floor' : 'floors'} to ${climbLabel(g.next)} — ${g.next.floors} floors.`
 }
 
 // A LEVEL WITH ONE BAND HAS NO LADDER TO DRAW (r5-code-hostile-02). Custom is `steps: [{kinds}]`
@@ -292,8 +293,21 @@ export function roof(state) {
   // lunchbox 0-6000 and every floor count 0-20000 (r3-elevator-feel-02, extended).
   const climbLine = climbGoalLine(state)
   const cg = climbGoal(state.records ? state.records.floors : 0, state.climb || [])
+  // EVERY RUNG CROSSED, EACH ANNOUNCED ONCE (r6-elevator-feel-02). This used to take the LAST rung
+  // reached and ask whether it was fewer than 11 floors back — a window exactly one clean building
+  // wide, so the Woolworth (60 floors, and every roof lands on a multiple of 10) was announced on
+  // two consecutive roofs, the second time reading "You have now ridden as many floors as the
+  // Woolworth Building has: 60" directly above "The Climb: 2 more floors to the Shard", i.e. above
+  // its own contradiction. Taking only the last rung also SWALLOWED rungs: Taipei 101 (101) and the
+  // Empire State (102) are overtaken by the Willis Tower (108) inside one building and were never
+  // announced at all. The reducer now records which rungs this roof crossed (state.climbShown is
+  // the ledger, kept the way state.plaques is); `justReached` is the fallback for a save parked at
+  // a roof card written before that ledger existed.
+  const byId = new Map((state.climb || []).map((rg) => [rg.id, rg]))
   const justReached = cg.reached.length ? cg.reached[cg.reached.length - 1] : null
-  const fresh = justReached && state.records && state.records.floors - justReached.floors < 11 ? justReached : null
+  const freshList = Array.isArray(info.climb)
+    ? info.climb.map((id) => byId.get(id)).filter(Boolean)
+    : (justReached && state.records && state.records.floors - justReached.floors < 11 ? [justReached] : [])
   const unlockedParts = info.unlocked.map((id) => PARTS.find((pp) => pp.id === id)).filter(Boolean)
   const offerLevel = info.offer ? LEVELS.find((l) => l.id === info.offer) : null
   const offerName = offerLevel ? offerLevel.name : null
@@ -302,8 +316,16 @@ export function roof(state) {
   // Skyscraper?` are the same eight words with the same two buttons, so after two ruinous buildings
   // the way out read exactly like a reward, and neither card said what the child was agreeing to —
   // the level's tag, which the picker has shown all along. Direction, then the tag.
+  // AND AN OFFER DECLINED MANY TIMES DOES NOT READ AS THE SAME UNANSWERED QUESTION FOR EVER
+  // (r6-elevator-feel-03). Tapping past the offer defers it, by design, and the identical sentence
+  // then came back on every clean roof — eight in a row, measured, while the sums stayed where they
+  // were. The second time onward it says so: the building is still there, and it is still the
+  // child's choice.
+  const again = (info.offerRun || 0) >= 1
   const offerLine = offerLevel
-    ? `${info.dir === 'down' ? 'Back to' : 'Ready for'} ${esc(offerName)} — ${esc(offerLevel.tag)}?`
+    ? (again
+      ? `${esc(offerName)} is still there whenever you want it — ${esc(offerLevel.tag)}. ${info.dir === 'down' ? 'Go back' : 'Try it'}?`
+      : `${info.dir === 'down' ? 'Back to' : 'Ready for'} ${esc(offerName)} — ${esc(offerLevel.tag)}?`)
     : ''
   // Six strips drift up for 2 s inside the picnic band only (never across the text or the buttons); none under reduced motion.
   const drift = Array.from({ length: 6 }, (_, i) => `<svg viewBox="0 0 64 32" style="left:${6 + i * 15}%;bottom:${6 + (i % 3) * 10}%;animation-delay:${i * 120}ms"><use href="#bacon"/></svg>`).join('')
@@ -324,7 +346,7 @@ export function roof(state) {
     <p class="total">${LUNCH} <span id="lunchbox-roof">${state.lunchbox}</span> ${BACON()}</p>
     ${unlockedParts.length ? `<div class="new-parts">${unlockedParts.map((pp) => `<span class="new-part">${partArt(pp.id)}<span><strong>New in the Workshop:</strong><br>${esc(pp.name)}</span></span>`).join('')}</div>` : ''}
     ${info.plaques.length ? `<p><strong>A plaque for ${esc(info.plaques.join(' and '))} bacon hangs in the Lobby.</strong></p>` : ''}
-    ${fresh ? `<p data-climb-reached="${esc(fresh.id)}"><strong>You have now ridden as many floors as ${esc(fresh.name)} has: ${fresh.floors}.</strong><br><span class="small">${esc(fresh.line)}</span></p>` : ''}
+    ${freshList.map((fresh) => `<p data-climb-reached="${esc(fresh.id)}"><strong>You have now ridden as many floors as ${esc(fresh.name)} has: ${fresh.floors}.</strong><br><span class="small">${esc(fresh.line)}</span></p>`).join('')}
     ${next ? `<p class="muted" data-next-goal>${next.part ? `Next part at ${next.at} bacon: ${esc(next.part.name)} — ${next.at - state.lunchbox} more` : `Next plaque at ${next.at} bacon — ${next.at - state.lunchbox} more`}</p>` : ''}
     ${climbLine ? `<p class="muted" data-climb-goal>${esc(climbLine)}</p>` : ''}
     ${taken ? `<p><strong>Next building: ${esc(taken)}.</strong></p>` : ''}
@@ -361,7 +383,7 @@ export function roof(state) {
         four answers. Nothing is gated: tapping past the offer still defers it to the next roof, and
         `step3Run` is untouched, so the same offer comes back on the very next clean building. */''}
   <div class="foot">
-    ${offerLine ? `<div class="offer"><p class="offerq" data-offer-q>${offerLine}</p><div class="row"><button class="btn" style="flex:1" data-offer="yes" data-tap aria-label="Yes, ${esc(offerName)}">Yes</button><button class="btn primary" style="flex:1" data-offer="stay" data-tap aria-label="Stay">Stay</button></div></div>` : ''}
+    ${offerLine ? `<div class="offer"><p class="offerq" data-offer-q>${offerLine}</p><div class="row"><button class="btn" style="flex:1" data-offer="yes" data-tap aria-label="Yes, ${esc(offerName)}">Yes</button><button class="btn" style="flex:1" data-offer="stay" data-tap aria-label="Stay">Stay</button></div></div>` : ''}
     <div class="stack">
       <button class="btn ${offerLine ? 'wide' : 'primary tall wide'}" data-next data-tap aria-label="Next building">Next building</button>
       <button class="btn wide" data-nav="lobby" data-tap aria-label="Lobby, ride down">Lobby</button>
@@ -535,11 +557,23 @@ function ticket(n) {
 function toggle(key, label, on, note) {
   return `<div class="setting"><span class="label">${esc(label)}${note ? `<small>${esc(note)}</small>` : ''}</span><button class="btn ${on ? 'on' : ''}" data-setting="${key}" data-value="${on ? 'false' : 'true'}" data-tap role="switch" aria-checked="${on ? 'true' : 'false'}" aria-label="${esc(label)}">${on ? 'On' : 'Off'}</button></div>`
 }
+// `stack` marks the rows whose control group is a set of 56 px keys: on a phone those wrap, and a
+// label vertically centred against a wrapped group names the middle of it rather than the top of it
+// (r6-mobile-ux-5). The toggles and steppers are one control wide and are left alone.
 function radios(key, label, opts, cur) {
-  return `<div class="setting"><span class="label">${esc(label)}</span><span class="radio-row" role="radiogroup" aria-label="${esc(label)}">${opts.map(([v, t]) => `<button class="radio" role="radio" aria-checked="${cur === v ? 'true' : 'false'}" data-setting="${key}" data-value="${v}" data-tap aria-label="${esc(t)}">${esc(t)}</button>`).join('')}</span></div>`
+  return `<div class="setting stack"><span class="label">${esc(label)}</span><span class="radio-row" role="radiogroup" aria-label="${esc(label)}">${opts.map(([v, t]) => `<button class="radio" role="radio" aria-checked="${cur === v ? 'true' : 'false'}" data-setting="${key}" data-value="${v}" data-tap aria-label="${esc(t)}">${esc(t)}</button>`).join('')}</span></div>`
 }
-function stepper(key, label, val, delta, note) {
-  return `<div class="setting"><span class="label">${esc(label)}${note ? `<small>${esc(note)}</small>` : ''}</span><span class="stepper"><button class="btn" data-setting="${key}" data-value="${val - delta}" data-tap aria-label="${esc(label)} down">−</button><span class="val" aria-live="polite">${val}</span><button class="btn" data-setting="${key}" data-value="${val + delta}" data-tap aria-label="${esc(label)} up">+</button></span></div>`
+// A LIT, UNDIMMED KEY THAT DOES NOTHING IS A DEAD KEY (r6-code-hostile-3) - the rule the panel
+// already enforces on GO, on ⌫ and on the digit cap, and the one screen it had never reached was
+// the one a grown-up uses. Every stepper drew both buttons live at its limits with an out-of-range
+// data-value: tapping − on Volume at 0 emitted `-10`, set-setting clamped it back to 0, a SAVE was
+// written and nothing on screen moved or said why. `lo`/`hi` are the SAME bounds set-setting
+// clamps to, passed in rather than restated as a rule of thumb, so a button is dead exactly when
+// the reducer would refuse it.
+function stepper(key, label, val, delta, lo, hi, note) {
+  const at = (v) => Math.max(lo, Math.min(hi, v)) === val
+  const btn = (v, dir, glyph) => `<button class="btn"${at(v) ? ' disabled aria-disabled="true"' : ''} data-setting="${key}" data-value="${Math.max(lo, Math.min(hi, v))}" data-tap aria-label="${esc(label)} ${dir}">${glyph}</button>`
+  return `<div class="setting"><span class="label">${esc(label)}${note ? `<small>${esc(note)}</small>` : ''}</span><span class="stepper">${btn(val - delta, 'down', '−')}<span class="val" aria-live="polite">${val}</span>${btn(val + delta, 'up', '+')}</span></div>`
 }
 
 // The shapes the game asks, in the order the ladder teaches them, with the child's first-try
@@ -565,7 +599,7 @@ export function grownups(state, extras = {}) {
     <div class="row spread"><h1>Grown-ups</h1><button class="btn" data-nav="lobby" data-tap aria-label="Back to lobby">Lobby</button></div>
     <h2>Sound</h2>
     ${toggle('sound', 'Sound', s.sound, 'Off by default. Only elevator sounds; no music, no voices.')}
-    ${stepper('volume', 'Volume', s.volume, 10)}
+    ${stepper('volume', 'Volume', s.volume, 10, 0, 100)}
     <h2>Elevator</h2>
     ${radios('speed', 'Speed', [['normal', 'Normal'], ['fast', 'Fast']], s.speed)}
     ${radios('motion', 'Motion', [['auto', 'Auto'], ['full', 'Full'], ['reduced', 'Reduced']], s.motion)}
@@ -573,15 +607,15 @@ export function grownups(state, extras = {}) {
     <h2>Maths</h2>
     ${toggle('secondTry', 'Second try', s.secondTry, 'The first wrong answer clears the entry; only the second falls.')}
     ${toggle('adaptive', 'Adaptive step', state.adaptive, 'Three right in a row: step up. A fall: step down, once per building. The elevator says so in words: "Bigger numbers now."')}
-    ${state.adaptive ? '' : stepper('pinnedStep', 'Pinned step', state.pinnedStep, 1)}
+    ${state.adaptive ? '' : stepper('pinnedStep', 'Pinned step', state.pinnedStep, 1, 1, 3)}
     <h2>Level</h2>
     <div class="radio-row" role="radiogroup" aria-label="Level">
       ${[...LEVELS.map((l) => [l.id, `${l.name} — ${l.tag}`]), ['custom', 'Custom']].map(([id, name]) => `<button class="radio" role="radio" aria-checked="${state.level === id ? 'true' : 'false'}" data-level="${id}" data-tap aria-label="${esc(name)}">${esc(name)}</button>`).join('')}
     </div>
     <h2>Custom numbers</h2>
-    <div class="setting"><span class="label">Operations</span><span class="radio-row">${ops.map(([id, t]) => `<button class="radio" role="checkbox" aria-checked="${c.ops.includes(id) ? 'true' : 'false'}" data-custom-op="${id}" data-tap aria-label="${esc(t)}">${esc(t)}</button>`).join('')}</span></div>
-    ${stepper('custom.min', 'Smallest number', c.min, 5)}
-    ${stepper('custom.max', 'Largest number', c.max, 5)}
+    <div class="setting stack"><span class="label">Operations</span><span class="radio-row">${ops.map(([id, t]) => `<button class="radio" role="checkbox" aria-checked="${c.ops.includes(id) ? 'true' : 'false'}" data-custom-op="${id}" data-tap aria-label="${esc(t)}">${esc(t)}</button>`).join('')}</span></div>
+    ${stepper('custom.min', 'Smallest number', c.min, 5, 0, c.max - 2)}
+    ${stepper('custom.max', 'Largest number', c.max, 5, c.min + 2, 9999)}
     ${toggle('custom.negatives', 'Negative answers', c.negatives)}
     <h2>Reading</h2>
     ${toggle('bigText', 'Bigger text', s.bigText)}

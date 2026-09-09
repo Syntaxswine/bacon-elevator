@@ -38,11 +38,27 @@ test('no <input>, <textarea> or contenteditable anywhere under src/ (nothing sum
   for (const f of walk('src')) assert.ok(!/<input|<textarea|contenteditable/i.test(read(f)), f)
 })
 
-test('the CSS keeps the phone rules: dvh with a vh fallback, safe-area insets, touch-action, overscroll, 48 px minimums, the short-landscape query, reduced motion', () => {
+test('the CSS keeps the phone rules: a MEASURED viewport height, safe-area insets, touch-action, overscroll, 48 px minimums, the short-landscape query, reduced motion', () => {
   const css = read('css/app.css')
-  assert.match(css, /height: 100vh; height: 100dvh/)
-  assert.match(css, /--vh: 100vh;/)
+  // THE HEIGHT IS ONE NUMBER, AND SOMETHING MEASURES IT (r6-mobile-ux-3). This test used to assert
+  // the literal `height: 100vh; height: 100dvh` and call it "dvh with a vh fallback" — but 100vh is
+  // not a fallback on the engines that need one. iOS Safari 15.0-15.3, Chrome under 108 (every
+  // Android 6 and older) and Samsung Internet under 21 resolve BOTH to the bars-hidden viewport, so
+  // the layout was computed against a box a toolbar taller than the page, and GO went under the
+  // toolbar with nothing able to scroll to it. What the layout actually needs is that every band be
+  // derived from ONE height, that the height have a sane value before any script runs, and that a
+  // script then correct it from what the browser really gave the page.
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, '')   // the declarations, not the comments about them
+  assert.match(rules, /#app \{[^}]*height: var\(--vh\);/, '#app must take its height from the one variable the whole budget is derived from')
+  assert.ok(!/#app \{[^}]*height: 100vh/.test(rules), '#app must not re-state a raw viewport unit: on a non-dvh engine that is the bars-HIDDEN height')
+  assert.match(css, /--vh: 100vh;/, 'the pre-script floor')
   assert.match(css, /@supports \(height: 100dvh\) \{ :root \{ --vh: 100dvh; \} \}/)
+  const main = read('src/main.js')
+  assert.match(main, /setProperty\('--vh', window\.innerHeight \+ 'px'\)/, 'nothing measures the viewport the browser actually gave the page')
+  const onResize = /const onResize = \(\) => \{[^}]*\}/.exec(main)
+  assert.ok(onResize && /setVH\(\)/.test(onResize[0]), 'the measured height is not re-derived on a resize, a rotation or the toolbar moving')
+  for (const ev of ['resize', 'orientationchange']) assert.match(main, new RegExp(`addEventListener\\('${ev}'`), `nothing re-measures on ${ev}`)
+  assert.match(main, /visualViewport\.addEventListener\('resize', onResize\)/, 'iOS reports the toolbar through visualViewport')
   // Not the literal clamp: a grep policing a spelling. These are the properties that keep every
   // key on screen — the cell's 48 px floor, the shaft as the one yielding band, and the two
   // short-viewport tiers that pay for it out of the display band rather than out of a tap target.

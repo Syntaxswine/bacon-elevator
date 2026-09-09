@@ -65,7 +65,19 @@ export function validProblem(p) {
   // Custom setting: 0 answers over 4 digits); a hand-edited save or a hostile BE1- code can.
   if (String(Math.abs(p.answer)).length > TYPED_MAX) return null
   const q = { kind: p.kind, a: p.a, b: p.b, ...(Number.isSafeInteger(p.c) ? { c: p.c } : {}), ...(p.pair ? { pair: true } : {}), answer: p.answer, text: p.text, key: p.key }
-  return solve(q) === q.answer ? q : null
+  if (solve(q) !== q.answer) return null
+  // THE TEXT IS RECOMPUTED, NOT TRUSTED (r6-code-hostile-5). Everything above is a check on the
+  // ARITHMETIC; `text` was accepted as-is provided it contained a ▮, so a hand-crafted BE1- code
+  // pasted into Grown-ups could put 614 characters beginning "BUY GOLD NOW" on the display band as
+  // the sum. No markup runs (equationHTML escapes every token) and the layout holds; what a parent
+  // hands the child is a stranger's words on the one line the game asks them to read. textOf() is
+  // deterministic from kind/a/b/c and every problem the generator draws already satisfies
+  // textOf(p) === p.text, so nothing legitimate changes and the band can only show a sum this game
+  // could have asked. Same for `key`: keyOf() is what the anti-repeat ring is indexed by, and a
+  // forged key is a sum that can dodge the ring for ever.
+  q.text = textOf(q)
+  q.key = keyOf(q)
+  return q.text.includes(BLANK) ? q : null
 }
 
 export function keyOf(p) {
@@ -312,29 +324,47 @@ export function makeProblem(level, step, ctx, rng) {
   const multiKind = new Set(entries.map((e) => e.kind)).size > 1
   let last = null, lastFresh = null
   const lastServed = c.ring.length ? c.ring[c.ring.length - 1] : null
-  for (let attempt = 0; attempt < 50; attempt++) {
-    const e = pickEntry(entries, c, rng)
-    let p = null
-    for (let k = 0; k < 40 && !p; k++) p = draw(e, rng)
-    if (!p) continue
-    last = p
-    if (p.key !== lastServed) lastFresh = p
-    if (c.ring.includes(p.key)) continue
-    if (c.lastAnswer !== null && p.answer === c.lastAnswer) continue
-    if (c.sameSeen > 0 && p.a === p.b && !p.pair) continue   // a DECLARED double/square is the table, not a coincidence
-    if (c.zeroSeen > 0 && isIdentity(p)) continue            // the answer is already printed in the question
-    if (multiKind && c.kindRun && c.kindRun.kind === p.kind && c.kindRun.n >= 3) continue
-    // The FIRST sum a child ever sees is the game's whole first impression, and it is drawn with no
-    // ring, no last answer and no same-seen latch to steer it: one fresh save in six opened on an
-    // answer of 0 (`5 − 5`, `2 ▼ 2`). Only here, and only on the very first question of a save.
-    //
-    // AND THE ZERO LATCH IS THE SAME KIND OF LATCH (r5-math-05). `zeroSeen` only arms once an
-    // identity HAS been served, so question one was unthrottled: 37.5 % of fresh saves opened on
-    // `0 + 5`, `5 + 0`, `2 − 0` — a sum whose answer is already printed in the question. The
-    // steady-state rate is a healthy 16 %; the single most visible draw in the game was more than
-    // twice that. Same one-line guard, same one question.
-    if (c.count === 0 && (p.answer === 0 || isIdentity(p))) continue
-    return p
+  // A GUARD THAT CANNOT BE SATISFIED TAKES EVERY OTHER GUARD DOWN WITH IT (r6-math-03).
+  // A single-op Custom table can be smaller than the ring — `× only, Largest 20` is a,b ∈ [2,5],
+  // ten sorted keys — and round 3 ruled that legitimate (test/round3.test.js: "The pool can
+  // legitimately be smaller than the 20-key ring"). What was not: on half of all questions the ring
+  // already held every key the pool has, so all fifty attempts were rejected on the FIRST test and
+  // the draw fell out of the bottom of this loop — where the same-answer rule, the doubles fuse and
+  // the zero fuse were never consulted either. Measured on `× only, Largest 20`: a double served
+  // while the doubles fuse was lit on 22 % of questions, and on `+ only, Smallest 0` an identity —
+  // a sum whose answer is already printed in the question — on 37 %, above the 32 % r4-math-06
+  // called a defect. The fix is not a wider table (r3-math-06 rules that the tables may not exceed
+  // the number the parent set): it is a ring that gives way before the fuses do. The window
+  // shortens until a draw can pass it, never below the last key served, which is the one thing
+  // DESIGN §4's "50 retries, then accept" has never been allowed to hand back. A pool the ring can
+  // satisfy never reaches the second rung, so every shipped level draws exactly what it always did.
+  const WINDOWS = [20, 10, 5, 2, 1]
+  for (const w of WINDOWS) {
+    const ring = w >= c.ring.length ? c.ring : c.ring.slice(-w)
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const e = pickEntry(entries, c, rng)
+      let p = null
+      for (let k = 0; k < 40 && !p; k++) p = draw(e, rng)
+      if (!p) continue
+      last = p
+      if (p.key !== lastServed) lastFresh = p
+      if (ring.includes(p.key)) continue
+      if (c.lastAnswer !== null && p.answer === c.lastAnswer) continue
+      if (c.sameSeen > 0 && p.a === p.b && !p.pair) continue   // a DECLARED double/square is the table, not a coincidence
+      if (c.zeroSeen > 0 && isIdentity(p)) continue            // the answer is already printed in the question
+      if (multiKind && c.kindRun && c.kindRun.kind === p.kind && c.kindRun.n >= 3) continue
+      // The FIRST sum a child ever sees is the game's whole first impression, and it is drawn with no
+      // ring, no last answer and no same-seen latch to steer it: one fresh save in six opened on an
+      // answer of 0 (`5 − 5`, `2 ▼ 2`). Only here, and only on the very first question of a save.
+      //
+      // AND THE ZERO LATCH IS THE SAME KIND OF LATCH (r5-math-05). `zeroSeen` only arms once an
+      // identity HAS been served, so question one was unthrottled: 37.5 % of fresh saves opened on
+      // `0 + 5`, `5 + 0`, `2 − 0` — a sum whose answer is already printed in the question. The
+      // steady-state rate is a healthy 16 %; the single most visible draw in the game was more than
+      // twice that. Same one-line guard, same one question.
+      if (c.count === 0 && (p.answer === 0 || isIdentity(p))) continue
+      return p
+    }
   }
   // THE FALLBACK IS STILL BOUND BY THE ONE RULE THE PROJECT WROTE DOWN.
   // DESIGN §4 sanctions "50 retries, then accept", and r2-math-01 states the standard the comeback

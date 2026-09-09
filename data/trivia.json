@@ -479,19 +479,19 @@
       "id": "elevator-engineering-minimum-three-ropes",
       "category": "elevator",
       "difficulty": 2,
-      "question": "Under California's elevator rules, what is the fewest steel hoisting ropes a traction elevator is allowed to hang from?",
+      "question": "Under California's elevator rules, how many steel hoisting ropes must a NEW traction elevator have at least?",
       "answer": "3 ropes",
       "distractors": [
         "1 rope",
         "6 ropes",
         "12 ropes"
       ],
-      "fact": "California's elevator safety rules (Title 8, section 3042) say a traction elevator must have at least three hoisting ropes, and together the ropes must be at least 7.6 times stronger than the loaded car needs, rising to nearly 12 times for the fastest elevators. The ropes are twisted steel cables that link the car to the counterweight over the drive sheave.",
+      "fact": "California's elevator safety rules (Title 8, section 3042) say a NEW traction elevator must have at least three hoisting ropes; ones already running on two may keep them. Together the ropes must be at least 7.6 times stronger than the loaded car needs. They are twisted steel cables linking the car to the counterweight over the drive sheave.",
       "sources": [
         {
           "title": "Cal. Code Regs. Tit. 8, § 3042 — Hoisting Ropes and Their Connections (California DIR, Elevator Safety Orders)",
           "url": "https://www.dir.ca.gov/title8/3042.html",
-          "quote": "The minimum number of hoisting ropes used shall be three for traction elevators, and two for drum-type elevators."
+          "quote": "The minimum number of hoisting ropes used shall be three for traction elevators, and two for drum-type elevators. EXCEPTION: Existing traction elevators with two hoisting ropes."
         },
         {
           "title": "Ropes (Hoists) - TK Elevator Classroom On Demand",
@@ -502,8 +502,8 @@
       "verification": [
         {
           "lens": "confirm",
-          "source_title": "Cal. Code Regs. Title 8, Section 3042. Hoisting Ropes and Their Connections (California DIR)",
-          "source_url": "https://www.dir.ca.gov/title8/3042.html"
+          "source_title": "Seattle Building Code 2018 § 3011.6.12.4 Minimum Number and Diameter of Suspension Ropes (UpCodes)",
+          "source_url": "https://up.codes/s/minimum-number-and-diameter-of-suspension-ropes"
         },
         {
           "lens": "refute",
@@ -1375,12 +1375,7 @@
         {
           "title": "Cambridge Dictionary: the first floor",
           "url": "https://dictionary.cambridge.org/dictionary/english/first-floor",
-          "quote": "UK: the level of a building that is one level above the street"
-        },
-        {
-          "title": "Cambridge Dictionary: the first floor (US sense)",
-          "url": "https://dictionary.cambridge.org/dictionary/english/first-floor",
-          "quote": "US: the level of a building that is at the same level as the street"
+          "quote": "UK: the level of a building that is one level above the street … US: the level of a building that is at the same level as the street"
         }
       ],
       "verification": [
@@ -1603,11 +1598,6 @@
           "title": "Otis Elevator Company: Otis History (Elevator history timeline)",
           "url": "https://www.otis.com/en/us/our-company/history",
           "quote": "Standing high above the crowd on a platform lift, Otis orders the retaining rope to be cut... 'All safe, gentlemen, all safe,' Otis assures them."
-        },
-        {
-          "title": "Otis Elevator Company: Otis History (1857 entry)",
-          "url": "https://www.otis.com/en/us/our-company/history",
-          "quote": "In 1857, Otis installs its first passenger elevator in New York City's E.V. Haughwout Building, a five-story department store."
         }
       ],
       "verification": [
@@ -1640,12 +1630,7 @@
         {
           "title": "MacTutor History of Mathematics: A history of Zero",
           "url": "https://mathshistory.st-andrews.ac.uk/HistTopics/Zero/",
-          "quote": "Brahmagupta attempted to give the rules for arithmetic involving zero and negative numbers in the seventh century."
-        },
-        {
-          "title": "MacTutor History of Mathematics: A history of Zero (Babylonians)",
-          "url": "https://mathshistory.st-andrews.ac.uk/HistTopics/Zero/",
-          "quote": "around 400 BC the Babylonians put two wedge symbols into the place where we would put zero to indicate which was meant."
+          "quote": "Brahmagupta attempted to give the rules for arithmetic involving zero and negative numbers in the seventh century. … around 400 BC the Babylonians put two wedge symbols into the place where we would put zero to indicate which was meant."
         }
       ],
       "verification": [
@@ -1678,12 +1663,7 @@
         {
           "title": "Wolfram MathWorld: Prime Number",
           "url": "https://mathworld.wolfram.com/PrimeNumber.html",
-          "quote": "A prime number (or prime integer, often simply called a 'prime' for short) is a positive integer p>1 that has no positive integer divisors other than 1 and p itself."
-        },
-        {
-          "title": "Wolfram MathWorld: Prime Number (why 1 is excluded)",
-          "url": "https://mathworld.wolfram.com/PrimeNumber.html",
-          "quote": "A good reason not to call 1 a prime number is that if 1 were prime, then the statement of the fundamental theorem of arithmetic would have to be modified since 'in exactly one' way would be false because any n=n·1."
+          "quote": "A prime number (or prime integer, often simply called a 'prime' for short) is a positive integer p>1 that has no positive integer divisors other than 1 and p itself. … A good reason not to call 1 a prime number is that if 1 were prime, then the statement of the fundamental theorem of arithmetic would have to be modified since 'in exactly one' way would be false because any n=n·1."
         }
       ],
       "verification": [
@@ -1981,7 +1961,10 @@
           "source_title": "NIST Special Publication 811, Chapter 5: Units Outside the SI (Table 6)",
           "source_url": "https://www.nist.gov/pml/special-publication-811/nist-guide-si-chapter-5-units-outside-si"
         }
-      ]
+      ],
+      "maths": {
+        "max": 86400
+      }
     },
     {
       "id": "math-numbers-chessboard-doubling",
@@ -2138,7 +2121,7 @@
       "distractors": [
         "Square",
         "Equilateral triangle",
-        "Rectangle"
+        "Long thin rectangle"
       ],
       "fact": "Maths has a rule called the honeycomb conjecture: if you divide a flat surface into rooms that are all the same size, no pattern uses less wall than a grid of regular hexagons. Thomas Hales proved it in 1999. Whether bees build hexagons for this reason is a separate question about bees, not maths.",
       "sources": [

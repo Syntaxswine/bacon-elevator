@@ -57,13 +57,21 @@ function modeOf(state) {
   return 'floor'
 }
 
-function tagFloors(state) {
+// Exported so the reachability rule can be measured without a DOM (test/round6.test.js).
+export function tagFloors(state) {
   const r = state.ride
   const out = []
   // The same gate arrive() applies before it offers a passenger: with no bank loaded there is
   // nobody to tag (r3-code-hostile-04).
   if (!state.pool || !state.pool.length) return out
-  for (let f = 1; f <= 9; f++) if (isPassengerFloor(f, state.settings.passengers) && !(r && r.passengersDone.includes(f))) out.push(f)
+  // A ? BADGE IS A PROMISE THE BUILDING CAN STILL KEEP (r6-code-hostile-4). The cadence and
+  // `passengersDone` were the whole rule, with no reference to where the car is, so a grown-up
+  // switching Passengers from Sometimes to Often mid-building put a badge on floors the car had
+  // already passed — floor 3 marked while the car sits at 5, and a lift that only ever goes up.
+  // arrive() offers a passenger at the floor it REACHES, so a floor at or below the car is a
+  // passenger nobody can meet again in this building.
+  const above = r ? r.floor + 1 : 1
+  for (let f = Math.max(1, above); f <= 9; f++) if (isPassengerFloor(f, state.settings.passengers) && !(r && r.passengersDone.includes(f))) out.push(f)
   return out
 }
 
@@ -177,9 +185,13 @@ function patchKeypad(container, state) {
 function card(state) {
   const r = state.ride
   const rep = repair(r.problem, r.typedWrong)
+  // The headline is mono, so its width is its character count. 12 characters is what a 320 px card
+  // holds at 34/18 with Bigger text on; past that it wrapped to a second line and pushed the clause
+  // off the bottom (r6-math-02). Two steps, so a Custom ceiling's `9110 − 7600 = 1510` fits too.
+  const bigLen = rep.big.length
   return [
     `<div class="card" role="region" aria-label="Repair card"><div class="inner">`,
-    `<div class="big">${equationHTML(r.problem.text, '', r.problem.answer)}</div>`,
+    `<div class="big${bigLen > 15 ? ' longer' : bigLen > 12 ? ' long' : ''}">${equationHTML(r.problem.text, '', r.problem.answer)}</div>`,
     `<div class="small">${esc(rep.small)}</div>`,
     `<div class="worked${rep.worked.length > 56 ? ' long' : ''}">${esc(rep.worked)}</div>`,
     `<div class="clause">${esc(rep.clause)}</div>`,
@@ -236,7 +248,10 @@ const OP_GLOSS = {
   missMul: (p) => `▮ is the missing number: how many ${fmt(p.b)}s make ${fmt(totalOf(p))}?`,
 }
 const totalOf = (p) => (Number.isInteger(p.c) ? p.c : p.kind === 'missMul' ? p.a * p.b : p.a + p.b)
-function opGloss(p) { return (p && OP_GLOSS[p.kind] ? OP_GLOSS[p.kind](p) : '') }
+// Exported so the layout instrument can measure the REAL sentence at the largest numbers the
+// ladder can put in it, instead of keeping its own copy of the words (r6-math-01). A fixture
+// that re-spells what it measures cannot catch that thing drifting.
+export function opGloss(p) { return (p && OP_GLOSS[p.kind] ? OP_GLOSS[p.kind](p) : '') }
 function doorsLine(state) {
   const open = state.car.doors === 'open' || state.car.doors === 'opening'
   return `${floorName(state.car.floor)}. Doors ${open ? 'open' : 'closed'}.`

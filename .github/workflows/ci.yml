@@ -4,8 +4,25 @@
 # phone that already has the game: no worker installs, no cache is replaced, and the cache-first
 # handler never asks the network again. sw.js's own comment records that this happened on three of
 # the last four deploys. test/version.test.js goes red until `node tools/build-stamp.mjs` has been
-# run — and nothing but a human remembering to type `npm test` enforced it, while Pages publishes
-# whatever lands on main. This is that gate, run by the deploy.
+# run — and nothing but a human remembering to type `npm test` enforced it.
+#
+# THIS WORKFLOW IS AN ALARM, NOT A GATE (r6-deploy-pages-1). It said it was "that gate, run by the
+# deploy", and in this repo's own vocabulary a gate is something that REFUSES — DESIGN calls
+# tools/trivia-audit.mjs "link-rot radar, not a test gate" and tools/phone-drive.mjs "the pre-push
+# gate" for exactly that reason. Pages here is a BRANCH source (`dynamic/pages/pages-build-deployment`
+# is GitHub's own builder, not a workflow in this directory), so it publishes whatever lands on main
+# in parallel with this run and regardless of its outcome: measured on the round-5 tip, the
+# github-pages deployment was created eight seconds before this workflow's test job finished. There
+# is no `deploy` job here and no `environment: github-pages`, so the publish structurally cannot
+# consume the result, and `main` carries no branch protection and no required status check.
+#
+# What this workflow is therefore worth: it names the failure within about twenty seconds of the
+# push, to whoever is watching, so a stamp that was forgotten is corrected by a second push rather
+# than discovered a fortnight later on a phone that never updated. THE STAMP IS STILL THE GATE, and
+# it is still enforced by a human running `npm test` (or `node tools/build-stamp.mjs`) BEFORE the
+# push. Making the claim true instead would mean switching the Pages source to GitHub Actions and
+# giving a deploy job `needs: test`; that is a repository-settings change, not a file in this tree,
+# and it is recorded in docs/REVIEW-LOG.md as the open half.
 name: tests
 on:
   push:
@@ -21,7 +38,8 @@ jobs:
         with:
           node-version: '22'
       # Zero runtime dependencies and zero build step (BRIEF §2): there is nothing to install.
-      # `npm test` is `node --test test/`, and it carries the stamp assertion.
+      # `npm test` is `node --test "test/**/*.test.js"` (package.json), and it carries the stamp
+      # assertion.
       - run: npm test
       # Said again, on its own, so a red run names THIS cause rather than one of 200 assertions.
       - run: node tools/build-stamp.mjs --check

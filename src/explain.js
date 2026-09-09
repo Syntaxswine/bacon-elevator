@@ -12,6 +12,15 @@ const line = (expr, value, text) => ({ text: text || `${expr} = ${fmt(value)}`, 
 const tens = (n) => Math.floor(n / 10) * 10
 const ones = (n) => n % 10
 const hundreds = (n) => Math.floor(n / 100) * 100
+const thousands = (n) => Math.floor(n / 1000) * 1000
+// A NUMBER TAKEN APART INTO THE PLACES IT ACTUALLY HAS, biggest first. The split stopped at
+// hundreds, so a Custom ceiling above ~2000 handed the single-part branch below a `unit` of 100
+// and an `n` of 76: `Count back in 100s from 9110: 9010, 8910, ...` listed seventy-six
+// four-digit numbers, 484 characters on a card 296 px wide (r6-math-06). With thousands in the
+// ladder every single part is one leading digit times its place, so no counted run here can
+// ever be longer than nine. Numbers under 1000 split exactly as they always did.
+const places = (n) => [thousands(n), hundreds(n % 1000), tens(n % 100), ones(n)].filter((p) => p > 0)
+const unitOf = (p) => (p >= 1000 ? 1000 : p >= 100 ? 100 : p >= 10 ? 10 : 1)
 const range = (from, to, step) => { const out = []; for (let n = from; step > 0 ? n <= to : n >= to; n += step) out.push(n); return out }
 // A NON-BREAKING SPACE BEFORE THE LAST NUMBER of a counted run. `Start at 0, count 5 more: 1, 2,
 // 3, 4,` wrapping to a lone centred `5` reads as a separate item rather than as the end of the run.
@@ -46,13 +55,13 @@ function explainAdd(a, b) {
   // where falling through to the count-on branches (600 + 34) would not.
   if (a >= 100 || b >= 100) {
     const cols = [[hundreds(a), hundreds(b)], [tens(a % 100), tens(b % 100)], [ones(a), ones(b)]]
-    if (cols.every(([x, y]) => x > 0 && y > 0)) {
+    if (a < 1000 && b < 1000 && cols.every(([x, y]) => x > 0 && y > 0)) {
       const [h, t, o] = cols.map(([x, y]) => x + y)
       return [line(`${cols[0][0]} + ${cols[0][1]}`, h), line(`${cols[1][0]} + ${cols[1][1]}`, t), line(`${cols[2][0]} + ${cols[2][1]}`, o), line(`${h} + ${t} + ${o}`, ans)]
     }
     const [big, small] = a >= b ? [a, b] : [b, a]
-    const parts = [hundreds(small), tens(small % 100), ones(small)].filter((p) => p > 0)
-    if (parts.length === 1) { const unit = parts[0] >= 100 ? 100 : parts[0] >= 10 ? 10 : 1; return unit === 1 ? [countOn(big, small)] : [countOnBy(big, unit, small / unit)] }
+    const parts = places(small)
+    if (parts.length === 1) { const unit = unitOf(parts[0]); return unit === 1 ? [countOn(big, small)] : [countOnBy(big, unit, small / unit)] }
     const steps = []
     let cur = big
     for (const p of parts) { steps.push(line(`${cur} + ${p}`, cur + p)); cur += p }
@@ -83,8 +92,8 @@ function explainSub(a, b) {
   if (b === 0) return [line(`${a} ${MINUS} 0`, a, `${a} ${MINUS} 0 stays ${a}`)]
   if (a === b) return [line(`${a} ${MINUS} ${b}`, 0, `${a} take away all ${b} leaves 0`)]
   if (a >= 100 || b >= 100) {
-    const parts = [hundreds(b), tens(b % 100), ones(b)].filter((p) => p > 0)
-    if (parts.length === 1) { const unit = parts[0] >= 100 ? 100 : parts[0] >= 10 ? 10 : 1; return unit === 1 ? [countBack(a, b)] : [countBackBy(a, unit, b / unit)] }
+    const parts = places(b)
+    if (parts.length === 1) { const unit = unitOf(parts[0]); return unit === 1 ? [countBack(a, b)] : [countBackBy(a, unit, b / unit)] }
     const steps = []
     let cur = a
     for (const p of parts) { steps.push(line(`${cur} ${MINUS} ${p}`, cur - p)); cur -= p }
@@ -147,6 +156,20 @@ function explainMissAdd(a, c) {
   const m = c - a
   if (m === 0) return [line(`${c} ${MINUS} ${a}`, 0, `${a} + 0 stays ${a}, so the missing number is 0`)]
   if (a === 0) return [line(`${c} ${MINUS} 0`, c, `0 + ${c} is ${c}, so the missing number is ${c}`)]
+  // COUNTING ON IS A STRATEGY FOR SMALL GAPS (r6-math-04). The guard here was the TOTAL alone, so
+  // `2 + ▮ = 20` modelled counting eighteen ones — 21 numerals, half again as long as anything else
+  // in this file — directly above the clause that names the right method. Every sibling branch
+  // bounds its counted run (countOn at small ≤ 3, countBack at b ≤ 3, explainSub's countUp at
+  // a ≤ 10 || ans ≤ 3); this one is bounded by BRIDGING THROUGH TEN, which is the method a child of
+  // this age is taught for a gap that crosses the ten: 2 → 10 is 8, 10 → 20 is 10, so ▮ is 18. The
+  // count-up stays wherever it is still the honest model — both numbers in the teens, or the whole
+  // sum inside ten — where its run can never exceed nine, exactly the bound explainAdd's countOn
+  // already carries. It also keeps the worked line short enough that the clause under it survives
+  // on a 320 px phone with Bigger text on, which the four-line version did not (r6-math-02).
+  if (c <= 20 && a > 0 && a < 10 && c > 10) {
+    const toTen = 10 - a, rest = c - 10                                       // 2 + ▮ = 20: 2 + 8 = 10, 10 + 10 = 20
+    return [line(`${a} + ${toTen}`, 10), line(`10 + ${rest}`, c), line(`${toTen} + ${rest}`, m)]
+  }
   if (c <= 20) return [countUp(c, a)]                                         // 3 + ▮ = 7: from 3 count up to 7
   return [line(`${c} ${MINUS} ${a}`, m)]
 }
