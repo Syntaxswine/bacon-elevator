@@ -22,6 +22,11 @@ import { PLAQUES, lunchboxMilestone, initialState, reduce, tally, ROOF_BONUS } f
 import { migrate, encodeCode, serialize, parse } from '../src/save.js'
 import { mulberry32 } from '../src/rng.js'
 import { workshop, logbook, roof, lobby, factbook, partCard, baconGoalLine, climbGoalLine } from '../src/render/screens.js'
+import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { fresh, makeRng, startRide, answer, answerTrivia, run } from './_helpers.js'
+const READ_ROOT = fileURLToPath(new URL('..', import.meta.url))
+const read = (p) => readFileSync(join(READ_ROOT, p), 'utf8')
 
 const partsJson = JSON.parse(readFileSync(new URL('../data/parts.json', import.meta.url), 'utf8'))
 const climbJson = JSON.parse(readFileSync(new URL('../data/climb.json', import.meta.url), 'utf8'))
@@ -260,18 +265,56 @@ test('a hostile or half-written save cannot equip a part the child has not earne
   assert.equal(clamped.records.longest, 3, 'the longest single ride cannot exceed every floor ever ridden')
 })
 
-test('the save code stays hand-copyable at a large reachable state', () => {
-  // a child who has earned every part, hung every plaque and heard every fact
-  let s = initialState(1)
-  s = { ...s, lunchbox: 6000, buildings: 375, unlocks: PARTS.filter((p) => p.at > 0).map((p) => p.id), plaques: PLAQUES.map(String), records: { floors: 3750, rides: 3750, longest: 11, passengers: 750 } }
-  s = { ...s, equipped: Object.fromEntries(SLOT_IDS.map((slot) => [slot, partsBySlot(slot).slice(-1)[0].id])) }
-  s = { ...s, facts: { seen: Array.from({ length: 67 }, (_, i) => `elevator-history-a-fact-with-a-long-id-${i}`), right: [], retry: [] } }
-  const code = encodeCode(s)
-  assert.ok(code.startsWith('BE1-'))
-  // The parent is told they may have to copy this by hand. Round 2 fixed the unbounded growth once
-  // (facts.seen, 1 727 characters over twelve buildings); the content round adds four integers and
-  // 23 short unlock ids, and no array that grows with play.
-  assert.ok(code.length < 9000, `the save code is ${code.length} characters`)
+// THE GATE MEASURED 60 % OF THE TRUTH (r5-code-hostile-03). It built its state BY HAND with
+// `facts.right: []` and `facts.retry: []` - two of the three PERSIST fields that dominate the blob
+// and that real play fills - so it read 5 434 characters against its own `< 9000` while a state
+// reached by playing 20-40 buildings encodes at 9 000-12 000. `facts.right` alone puts it over the
+// old bound. A gate that cannot fail at any size the game can produce is not a bound; this one
+// PLAYS the reducer, so the number it asserts is the number a parent gets.
+function playedPeak({ salt, level, accuracy, buildings }) {
+  const rng = makeRng(salt)
+  let s = fresh(salt)
+  for (const [key, value] of [['passengers', 'often'], ['secondTry', false]]) s = reduce(s, { type: 'set-setting', key, value }, rng).state
+  s = reduce(s, { type: 'set-level', id: level }, rng).state
+  s = startRide(s, rng)
+  let peak = 0, done = 0
+  for (let b = 0; b < buildings; b++) {
+    let guard = 0
+    while (s.phase !== 'roof' && guard++ < 300) {
+      if (s.phase === 'floor' || s.phase === 'keypad') s = answer(s, rng, rng() < accuracy).state
+      else if (s.phase === 'trivia') s = answerTrivia(s, rng, rng() < accuracy)
+      else if (s.phase === 'repair') s = run(s, { type: 'card-continue' }, rng).state
+      else break
+    }
+    if (s.phase !== 'roof') break
+    peak = Math.max(peak, encodeCode(s).length); done = b + 1
+    if (s.roof && s.roof.offer) s = reduce(s, { type: 'offer', accept: true }, rng).state
+    s = reduce(s, { type: 'next-building' }, rng).state
+  }
+  return { peak, done, state: s }
+}
+
+test('the save code has a ceiling, and it is measured on a state the reducer actually reaches', () => {
+  let worst = { peak: 0 }
+  for (const level of ['corner', 'office', 'megatall']) {
+    for (const accuracy of [0.55, 0.7, 0.85]) {
+      const r = playedPeak({ salt: 7, level, accuracy, buildings: 60 })
+      assert.equal(r.done, 60, `${level} @ ${accuracy}: only ${r.done} buildings played`)
+      assert.ok(encodeCode(r.state).startsWith('BE1-'))
+      if (r.peak > worst.peak) worst = { ...r, level, accuracy }
+    }
+  }
+  // The bug this replaces: the hand-built fixture was UNDER the old bound, so the gate could not
+  // fail. Real play is over it, which is the fact the old number hid.
+  assert.ok(worst.peak > 9000, `real play now peaks at ${worst.peak}: the old 9 000 gate would hold and this test is stale`)
+  // BOUNDED, which is the invariant round 2 established and the one that matters: `facts.seen`
+  // dedupes, `right` is includes-guarded and `retry` is filtered before it is concatenated, so each
+  // is at most one entry per fact in the bank. Nothing here grows with buildings played.
+  const long = playedPeak({ salt: 7, level: worst.level, accuracy: worst.accuracy, buildings: 140 })
+  assert.ok(long.peak <= worst.peak + 400, `the code grew ${worst.peak} → ${long.peak} between 60 and 140 buildings`)
+  assert.ok(long.peak < 14000, `the save code reaches ${long.peak} characters (${worst.level} @ ${worst.accuracy})`)
+  // …and nothing anywhere asks a parent to transcribe it by hand.
+  assert.ok(!/copy it by hand/.test(read('src/main.js') + read('src/render/screens.js')), 'a screen still offers hand-copying as the fallback')
 })
 
 // ---- the screens say the right things -----------------------------------------------------------

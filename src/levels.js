@@ -35,7 +35,13 @@ export const LEVELS = [
     ],
   },
   {
-    id: 'hotel', name: 'Hotel', short: 'Hotel', tag: 'numbers to 20; tables 2, 5, 10',
+    // THE TAG MAY NOT UNDERCUT WHAT THE LEVEL PRINTS (r5-math-07). `numbers to 20` is shown
+    // verbatim in the picker and in the offer card ("Ready for Hotel - numbers to 20; tables 2, 5,
+    // 10?"), and step 3's `mul` row is tables 2, 5 and 10 up to 10 x 10, so 11.8 % of its questions
+    // put a number above 20 on the panel. The trailing clause arguably licensed it; a parent
+    // choosing Hotel for a child who has numbers to 20 should not have to infer that. levelBound()
+    // returns 100 for this level, and test/round5.test.js now holds every tag to its own bound.
+    id: 'hotel', name: 'Hotel', short: 'Hotel', tag: 'numbers to 20; tables 2, 5, 10 (to 100)',
     steps: [
       { kinds: [K('add', 3, { a: [2, 18], b: [2, 18], max: 20, regroup: false }), K('sub', 3, { a: [2, 20], b: [2, 18], max: 20, regroup: false }), K('up', 1, { a: [2, 9], b: [2, 8], max: 10 })] },
       { kinds: [K('add', 3, { a: [2, 18], b: [2, 18], max: 20, regroup: true }), K('sub', 3, { a: [2, 20], b: [2, 18], max: 20, regroup: true }), K('add', 1, { a: [2, 10], b: [2, 10], max: 20, double: true }), K('down', 1, { a: [2, 10], b: [2, 9], max: 10 })] },

@@ -7,6 +7,7 @@
 //   node tools/phone-drive.mjs --only smoke    # one scenario (substring match)
 //   node tools/phone-drive.mjs --url http://localhost:8791/   # against a running server
 //   node tools/phone-drive.mjs --shots         # write PNGs to shots/
+//   node tools/phone-drive.mjs --report        # always write shots/drive-report.json (written anyway on a failure)
 //   node tools/phone-drive.mjs --headed        # watch it
 //
 // Exit code 1 if any scenario fails or any console/page error is seen.
@@ -14,7 +15,7 @@
 
 import puppeteer from 'puppeteer-core'
 import { existsSync } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'
 import { join, extname, normalize } from 'node:path'
@@ -164,6 +165,20 @@ async function main() {
   }
   const total = report.length
   console.log(`\n${total - failures}/${total} passed`)
+  // A FLAKE MUST BE DIAGNOSABLE AFTER THE FACT (r5-code-hostile-06). One run in three reported a
+  // failure that the next two did not reproduce on an unchanged tree, and the failing scenario
+  // could not be named: the run was backgrounded and only the tail of its output survived, so the
+  // FAIL line and its detail were gone. Every run's full report is written next to the shots on a
+  // failure (and on demand with --report), so the next red run can be read rather than re-run. Not
+  // a retry: a scenario that failed is reported as failed, and this is the evidence for it.
+  if (failures || flag('--report')) {
+    const path = join(ROOT, 'shots', 'drive-report.json')
+    try {
+      await mkdir(join(ROOT, 'shots'), { recursive: true })
+      await writeFile(path, JSON.stringify({ at: new Date().toISOString(), url, argv, total, failures, report }, null, 2) + '\n')
+      console.log(`report: ${path}`)
+    } catch (e) { console.warn('could not write the report:', e && e.message) }
+  }
   process.exit(failures ? 1 : 0)
 }
 

@@ -925,3 +925,178 @@ worse one, and in both cases **the instrument that pinned the fix could not see 
 - **The free-ride, or express-to-a-floor-you-have-already-reached, mode** from `r4-elevator-feel-04`
   is the best unbuilt idea in this packet: it would give the car panel back its point without
   weakening "maths moves the elevator". It needs a lead's ruling on the bacon price, not a fixer's.
+
+## Round 5 — hostile review (2026-09-08)
+
+Thirty-four findings: **1 high, 10 medium, 23 low**. The eleven at high and medium carried three
+independent verifier reports each; the twenty-three lows were filed unverified. The severity census
+is the score: round 3 was 0 high / 14 medium / 30 low, round 4 was 2 high / 8 medium / 21 low, this
+round is 1 high / 10 medium / 23 low. The top of the scale is closing again and the tail is not.
+**Thirty fixed, four skipped**, with reasons below.
+
+The high and four of the mediums are the same shape as round 4's two highs, one more time: **an
+earlier fix that solved its finding, in a place the instrument that pinned it does not look.**
+
+**Instruments before → after:** `npm test` 242 → **261 passing** (a new `test/round5.test.js`, 19
+cases, one per finding whose surface is not geometry, plus the rewritten save-code gate);
+`node tools/phone-drive.mjs` **105 → 105 passing**, with the chip scenario extended to five
+landscape turns, the top bar and the roof card's hierarchy measured for the first time, and the
+hint's tick-label floor raised from 9 to 14 CSS px; `npm run drive:update` 15 → **20 passing**,
+with a third session that lands a second deploy so TWO `be-` caches are live at once and the build
+line is read against the one actually serving the tab. Every fix is pinned by one of those, or by an
+assertion added to the layout instrument, that fails without it — update-drive's assert 8c was run
+against the old `caches.keys().sort().pop()` policy and reported `ffffffffffff`, the pending build.
+
+One thing the round changed about the instruments themselves: `tools/drive-scenarios.mjs` kept its
+own copy of the two step-change sentences, so telling the truth in the display band turned it red on
+five phones. The list is exported from `src/math.js` as `STEP_NOTE_WORDS` and the drive reads it —
+an instrument that re-spells what it measures cannot catch that thing drifting, and here it went one
+better and refused the fix.
+
+### The high, and the four mediums that share its shape
+
+`r5-mobile-ux-1` is a CSS comment that states its own invariant — "over the (untappable) shaft,
+never over the panel" — and a rule three lines below it that only satisfies the invariant in
+portrait. `left: 50%` is the middle of the VIEWPORT, and round 3's landscape grid moved the panel
+into a right-hand column, so the middle of the viewport became the middle of the keypad. Measured on
+the reviewed tree: key 7 100 % covered at 568 × 276 with its own centre returning the chip's take
+button, so a child pressing a digit posted `skip-waiting` and the tab reloaded mid-sum; keys 4 and 5
+at 568 × 232; HINT at 667 × 331; and the answer blank 100 % covered at **all five** landscape turns,
+so the digits already typed were invisible sideways at every size. The chip scenario restored the
+portrait viewport before it ever looked (`drive-scenarios.mjs` line 1228, then the chip block at
+1288), so `--only layout` reported `chip(160x70 at 80,56)` and stayed green through two rounds.
+
+The same shape, four more times:
+
+- `r5-code-hostile-01` — `pool` is carried across `import`, `reset` and `adoptDiskSave` BY NAME, and
+  the content round added two more banks beside it. All three sites forgot both.
+  `test/state.test.js:289` pins `s.pool.length > 0` after a reset: the invariant exists and is
+  tested, for the first bank only.
+- `r5-code-hostile-03` — the save-code gate builds its state by hand with `facts.right: []` and
+  `facts.retry: []`, two of the three PERSIST fields that dominate the blob and that real play
+  fills. It measured 5 434 characters against its own `< 9000` while play reaches 11 900.
+- `r5-code-hostile-02` — `stepNote` and the step bar were written for levels with three steps, and
+  Custom has one; nothing joins the two facts.
+- `r5-deploy-pages-1` — `test/round3.test.js:382` asserts main.js contains the literal
+  `caches.keys()`. That is a grep policing a spelling, and it stays green under any selection
+  policy, including the broken one it was pinning.
+
+### Fixed
+
+| id | what changed, and why |
+| --- | --- |
+| r5-mobile-ux-1 (high) | In landscape the chip is pinned into the LEFT column, below the display band — over the shaft, which `render/shaft.js` draws with no `[data-tap]` on it, exactly where the portrait rule already puts it. Non-ride screens keep the centred placement: they have no panel column and no blank to avoid. The chip scenario now runs its occlusion sweep at 568 × 232, 568 × 276, 640 × 304, 667 × 331 and 844 × 390, includes `#question .blank` in the sweep, and fails on ANY overlap with a panel key rather than only on a stolen centre — the reviewed tree covered key 8 by 67 % and HINT by 64 % at turns where their centres were still their own, and a key three quarters hidden is a key the child cannot find. |
+| r5-math-02 (medium) | `math.stepNote(level, from, to)` reads the two step tables and names what differs: `Carrying now.`, `Times tables now.`, `Sharing now.`, `Missing numbers now.`, `Below zero now.`, `Bigger numbers now.` only where the ceiling really rises, `Smaller numbers for a bit.` only where it really falls, `Easier sums for a bit.` otherwise. The old sentence was derived from the sign of the step alone and is false more often than true at three of ten step-ups; the mirror lands on the floor screen straight after a fall, the one moment the copy exists to reassure. The test asserts each sentence against the tables it is spoken over, at all twenty transitions. |
+| r5-math-01 (medium) | `explainAdd` takes the three-column split only where every column has something in it; otherwise the smaller operand is added in the places it actually HAS (`600 + 30 = 630 · 630 + 4 = 634`), or counted on where it has one. `explainSub`'s mirror branch, twenty-nine lines below, has filtered its empty columns since it was written. HINT shows `explain(p)[0].text` and nothing else, so on 41 % of Megatall step-1 draws the game's only help read `100 + 0 = 100` over `168 + 6`. The repair card's own instrument printed the defect on every run — `repair-megatall(card 204px: 800 + 0 = 800 · 70 + 0 = 70 · …)` — and passed, because it measures whether the card FITS. The test sweeps ~26 000 worked lines and refuses any clause that adds nothing. |
+| r5-math-04 (medium) | `demotions`, one persisted integer beside `demotedFrom`. Round 4 gave the ladder a memory and then cleared it when the promotion back was accepted, which made it a fuse that resets itself: a child clean at Skyscraper and hopeless at Megatall bounced on a fixed six-building cycle for ever. Each rescue out of a level now buys another `UP_AGAIN` clean buildings before that level is offered again, capped at four, because an offer may never become a permanent gate (r4-math-02's own ruling, which `test/round4.test.js:158` still pins). Model-free ladder probe over 60 buildings: promotions into the band the child cannot do fall by more than half, and the level is still offered again. |
+| r5-code-hostile-01 (medium) | `RUNTIME_BANKS` and `state.carryBanks(next, from)`, used by `import`, `reset` and `adoptDiskSave`. `partsPool` 24 → 0 and `climb` 10 → 0 on all three routes, for the rest of the session, with nothing said and a reload the only cure: all 24 Workshop cards read "The card for this part did not load. The part still works.", the Logbook's Climb section rendered its heading over nothing, and the lobby and roof lost the Climb goal line. One of the three routes needs no adult at all (a second tab), and it empties BOTH tabs. |
+| r5-code-hostile-02 (medium) | `stepbar(step, id, steps)` returns nothing when the level has one band, `sb.hidden` does the same on the ride's chip with a truthful `step N of M` label, and `stepNote` returns `''`. Custom's three steps are the same table object — measured, 10.39 mean answer and 270 problem keys at all three — and the game announced `Bigger numbers now.` over it, then `Smaller numbers for a bit.` after a fall, on the level the roof card itself recommends for a struggling child. |
+| r5-math-03 (medium) | The roof help line says what Custom can do (`give one kind of sum at a time, and choose the numbers`) instead of what it cannot (`make the numbers smaller still`). Swept all 127 operation subsets against every reachable stepper value: the lowest ceiling any Custom setting can build is `ADD_FLOOR` = 6, against Corner Shop step 1's 5, with a higher mean. Two earlier fixes collided — r4-math-01 added the sentence, r4-math-10 added the floor — and no test connected them. The test now re-derives the sweep, so if `ADD_FLOOR` ever drops the old sentence becomes true and this test says so. |
+| r5-autism-fit-1, r5-elevator-feel-01 (medium x2) | While an offer stands, `Next building` drops `primary tall` and the offer's question and its two answers are drawn as one bordered block. `btn primary tall wide` occurs in exactly two places in the game — the Lobby's `Ride` and this button — so the single "this is the thing to tap" idiom was spent on the one control that does not answer the question printed 50 px above it, at 2.6x the pixel area of `Yes` and 24 px type against 18. `Stay` stays the primary and the default; that is DESIGN §4's ruling and the reason the offer exists. **Nothing is gated**, deliberately: `next-building` does not touch `step3Run`, so ignoring the offer defers it to the very next clean roof, while the suggested `accept: false` routing would zero it and cost two more buildings — the suggested fix was strictly worse than the defect. |
+| r5-code-hostile-03 (medium) | The gate PLAYS the reducer — nine profiles of 60 buildings, then one of 140 — and asserts the observed peak (11 900) rather than a hand-built 5 434. It also asserts real play is over the old 9 000 bound, so the test fails if it is ever made stale, and that the code does not grow between 60 and 140 buildings, which is the invariant round 2 established and which does still hold. The copy that made 9 000 load-bearing is gone: the fallback said "Select the code and copy it by hand" for a string that has been thousands of characters at every size the game can produce. |
+| r5-deploy-pages-1, r5-deploy-pages-2 (medium, low) | `sw.js` answers a `which-build` message with its own `CACHE` literal — which it cannot get wrong — and the page asks the controller, again on `controllerchange`. Two `be-` caches coexist from the moment a new worker installs until the chip is tapped, so the old `caches.keys().sort().pop()` was decided by hex ordering of the BUILD hash: the same pending update read one build on one load and the other on the next. On a first-ever visit it printed no stamp at all, because the read ran at module evaluation, before `install` had made a cache. This surface exists because an identical version string on two builds made a stale install undiagnosable; a confidently wrong stamp is worse than the missing one it replaced. |
+| r5-autism-fit-2 (low) | The hint's tick labels scale with the card the way its operand labels already do, and the drive's floor moves from 9 to **14 CSS px**. 12.0 px at 320 × 454 passed the old floor and was still the smallest text in the game — under the 14 px status line, less than half the keypad's digits — on the one help a struggling child can ask for. Now 15.0 px. |
+| r5-autism-fit-3, r5-elevator-feel-02 (low x2) | The ride's top bar keeps the building name at 320 px, and stops clipping `Shop` to `Sh…` at 360 px once the lunchbox reaches four digits. Both are one shortage: the tray and the lunchbox are `min-width: 48px` on SPANS — readouts, not touch targets — holding 96 px of the bar against a name that needed 30, and three 14 px step pips were another 48. The spans size to their content, the pips are 11 px in the top bar only, and every BUTTON keeps its 48 px floor. Three unlabelled pips were the whole on-screen record of which building and which band the child was in, and nothing anywhere says what a pip is. |
+| r5-autism-fit-4 (low) | The trivia panel carries `.sheet .body`'s four-layer scroll cue. It scrolls at 320 × 454 with Bigger text on and said nothing, so a child who does not know it scrolls can read A and B and never learn C exists. |
+| r5-autism-fit-5 (low) | A missed passenger is answered in words: `0 bacon this time. Nothing is lost. This passenger asks again later.` A right answer prints `+2 bacon`; a wrong one printed nothing where that line had been, so the feedback for a miss was an absence, and a child who counts bacon had to infer both that none arrived and that the passenger was gone. Same register as the Repair card's `Nobody is hurt. Nothing is lost.`, and the second half is true — `pickFact` re-serves a missed fact after 20 questions. |
+| r5-math-05 (low) | The `count === 0` guard covers identities as well as zero answers. `zeroSeen` only arms once an identity HAS been served, so question one was unthrottled: 37.5 % of fresh saves opened on `0 + 5`, `5 + 0`, `2 − 0`. The steady-state rate is a healthy 16 %; the single most visible draw in the game was more than twice that. |
+| r5-math-06 (low) | ⌫ is disabled on an empty entry, like GO. A lit, undimmed key that does nothing is a dead key — the rule `state.js` states for the digit keys past the cap, and ⌫ was the one key left that was live, looked live and answered nothing (20 142 such taps in an 11.4M-tap walk). |
+| r5-math-07 (low) | Hotel reads `numbers to 20; tables 2, 5, 10 (to 100)`. `levelBound(hotel)` is 100 and step 3's × row reaches 10 × 10 on 11.8 % of its questions, and that tag is printed verbatim in the picker and in the offer card. The test holds every level's tag to its own bound, so the two cannot drift again. |
+| r5-math-09 (low) | `Which of these numbers is NOT a prime number?` becomes `Which of these numbers has only one factor?` — the two MathWorld quotes already on the card carry it — and the fact gains one clause naming the factor count. Negative-form multiple choice is a comprehension trap for a literal reader, on a bank written for one. Also, `About 4 million digits` against the answer `About 41 million digits` is replaced by `About 500 thousand digits`: one character apart, and `makeChoices` shows two of three distractors, so the pair appeared together about two thirds of the time. |
+| r5-elevator-feel-03 (low) | The lobby's title art drops its `▲`. The car is drawn parked with its doors open; a lit direction arrow belongs to a car answering a call, which is what the ride screen's own indicator draws. |
+| r5-mobile-ux-2 (low) | Fixed by the same top-bar change as r5-autism-fit-3, plus a 4 px margin on the chip in the landscape block: the pips start 7.3 px from the `Lobby` label's ink, where they used to overlap it by 0.7. The instrument measures the gap with a `Range` over the label's own ink, not its button box. |
+| r5-mobile-ux-3 (low) | `.ride .panel { max-width: 460px; margin-inline: auto }` above 600 px of viewport width. At 1024 × 698 each key was 333 × 56 — six times wider than tall — with the shaft squeezed to 244 px. Costs nothing on any phone the project ships a profile for, and nothing in the landscape grid, whose column is narrower than the cap. |
+| r5-code-hostile-04 (low) | Both roof exits call `bankOnLeave()`, which is idempotent. Every roof the game reaches itself has `banked === tray`, so this is a no-op in play; a ride restored from a hand-edited BE1- code can be parked at the roof with bacon unbanked, and the lobby names the exact number (`…with 16 bacon on the tray`) one screen before both exits dropped it. |
+| r5-code-hostile-06 (low) | `tools/phone-drive.mjs` writes its full report to `shots/drive-report.json` on any failure (and on `--report`). One run in three reported a failure that the next two did not reproduce, and the failing scenario could not even be NAMED, because the run was backgrounded and only the tail of its output survived. Not a retry: a scenario that failed is still reported as failed, and this is the evidence for it. |
+| r5-code-hostile-07 (low) | The display band's `keypad` branch guards `r.problem`, like its two neighbours and like `modeOf()`. Unreachable today — `normaliseRide` rewrites phase `keypad` to `floor` whenever `problem` is null — so this is the asymmetry, not a live bug: it is the one place where a future save-shape change turns into a blank screen instead of a floor. |
+| r5-code-hostile-08 (low) | Two ternaries whose branches were the same string, collapsed to the literal. They read as a resume-vs-start distinction that was flattened and never removed. The test forbids the shape rather than the two instances. |
+| r5-trivia-truth-01 (low) | The KONE MonoSpace card drops `which KONE calls the world's first machine-room-less elevator`. Neither source the card PRINTS makes that claim — the kone.com story says only that MonoSpace launched in 1996 and that EcoDisc is flat enough to sit in the hoistway, and the second source is a competitor's glossary page that does not mention MonoSpace at all — and MRL priority in 1996 is genuinely contested (Schindler Mobile shipped the same year), so the attribution was the load-bearing part of the clause. Cut to what the cited page carries rather than propped up with a source nobody re-fetched: an unverifiable claim is cut, not softened. |
+| r5-trivia-truth-03 (low) | `by around 300-400 BC` becomes `by around 400 BC`, which is the MacTutor quote the item itself stores. The answer (7th century, Brahmagupta) was never in question. |
+
+### Skipped, and why
+
+- **`r5-code-hostile-05`** — `Paste code` is the only route a save code has back in, and Firefox does
+  not expose `navigator.clipboard.readText` to page script, so on that browser a lunchbox can be
+  copied out and never put back. The finding is correct and its suggested fix — a one-line text
+  field beside the button — is **ruled out by the spec twice over**: DESIGN §4 says entry is
+  `<button data-key>` elements, "never an `<input>`", and DESIGN's Grown-ups section says "custom
+  level knobs (steppers, no `<input>`)". `test/dom-contract.test.js` enforces it as
+  "nothing summons the keyboard". BRIEF item 1 names iOS Safari and Android Chrome, and both support
+  `readText`. What IS fixed is the dead end the message left behind: it now says where the code can
+  be loaded (`This browser cannot paste here. Open the game in Safari or Chrome to load a code.`).
+  A text field in Grown-ups is a lead's ruling, not a fixer's.
+- **`r5-trivia-truth-02`** — the fact card's `Source:` line starts below the fold at 320 × 454.
+  Filed as an `Opinion-level nicety` by its own reporter, and its text already says the CSS comment
+  records this as a deliberate trade-off. It was **tried and reverted**: shrinking `.src` on the
+  narrowest breakpoint moved the line and did not clear the fold, because the longest cards are
+  taller than the body box by more than a source line, so getting a whole citation above the cut
+  means shrinking the FACT the child is there to read. The drive assertion written for it
+  (`at least one whole Source line inside the body box at rest`) is left in the file as a comment
+  naming what was measured. The card scrolls and says so — r2-autism-fit-04's four-layer cue exists
+  for exactly this — and a citation one flick away is not the same defect as a hidden one.
+- **`r5-elevator-feel-04`** — the hint card covers the whole hoistway, so the car is behind it while
+  the number line is up. Filed by its own reporter as `opinion`. It is real and it is a genuine cost;
+  it is skipped because **the fix competes directly with `r5-autism-fit-2`, which is fixed in this
+  same round.** At 320 × 454 the shaft is 82 px and `.hint` is already at its 64 px floor — the floor
+  exists because a percentage of a collapsed shaft rendered the tick labels at 2 CSS px — so there is
+  no height to give back, and moving the card to the top of the band puts it over the indicator
+  instead of the car. The two findings want the same 82 px and the teaching aid has the better claim
+  to it: the car is still there, drawn, one tap away when the hint is dismissed. Handed on below.
+- **`r5-math-08`** — the `±` key is live at Megatall steps 1 and 2 where no answer can be negative.
+  Filed by its own reporter as `opinion`, and its own text says the predicate is sound and explains
+  why: `signKeyLive` uses `levelAllowsNegatives(level)` because the PROBLEM outlives the step that
+  drew it — a comeback, a re-shown sum after a fall, a pinned-step change — and deriving the key from
+  level + step takes it away from a sum that needs it, which is a keypad that cannot answer the sum
+  on screen with no way out. The suggested remedy (a display-band gloss the first time a negative
+  answer is possible) adds a sentence to the band on a step where nothing has changed, which is the
+  class of defect `r5-math-02` and `r5-code-hostile-02` exist to close. Handed on below.
+
+### Three things the round found that no finding named
+
+- **The suggested fix was worse than the defect, three times over two findings.** `r5-autism-fit-1` proposes routing
+  `next-building` through the `offer` reducer with `accept: false`; that zeroes `step3Run` and turns
+  today's harmless deferral into a real decline costing two more clean buildings. It also proposes
+  gating the navigation buttons until the offer is answered, which turns the reward screen into a
+  modal a child cannot leave. `r5-math-03` proposes lowering `ADD_FLOOR` to 5, which is parity on the
+  ceiling and re-opens the three-sum pool r4-math-10 closed. In all three cases the finding was real
+  and the fix had to be re-derived. One verifier per finding said so before the fixer did, which is
+  the argument for the three-report format.
+- **A handoff can be wrong about the repository.** Round 4 asked a future round to regenerate
+  `shots/` as "a commit of its own"; `.gitignore` has excluded `shots/` since the start and
+  `git ls-files shots` returns nothing, so there is no such commit to make. It is under Handed on
+  below rather than quietly fixed, because the decision — commit them, or stop calling them
+  committed — is the lead's.
+- **A general rule was not always available.** `r5-math-09`'s distractor half looks like a class
+  (`no choice may be another choice with a piece cut out`) and is not: `70,000` against `7,000` and
+  `100` against `10` are one character apart too, and for a maths bank an order-of-magnitude
+  distractor IS the question. The general half — no question turning on a negation — is pinned over
+  the whole bank; the distractor half is pinned on the one item, with the reason written beside it.
+
+### Handed on
+
+- **`shots/` is NOT in the repository, and round 4's handoff said it was.** `.gitignore` has carried
+  `shots/` since the start and `git ls-files shots` returns nothing: the "500 committed screenshots"
+  round 4 asked a future round to regenerate as "a commit of its own" have never been committed at
+  all. They are a local artefact of `--shots`, which means the review's only durable picture of the
+  layout is whatever a reviewer runs for themselves. That is worth deciding rather than inheriting:
+  either commit them (and pay for the churn on every layout round) or stop describing them as a
+  thing a commit can refresh. This round's changes do move them — the roof card's foot, the ride's
+  top bar, the hint's tick labels and the landscape chip all look different.
+- **`struggleRun` needs two CONSECUTIVE ruinous buildings**, so a child at ~3.8 falls per building
+  sits just under the rescue threshold for ever. One verifier measured 20+ buildings stranded in
+  Megatall with no offer down at all. `r5-math-04` fixed the bounce; it did not fix the strand. `2 of
+  the last 3` is the obvious shape and it needs a measurement, not a guess.
+- **A hint that does not hide the lift** (`r5-elevator-feel-04`). Skipped above because at 320 px
+  there is no room for both, which is an argument about the SHAFT's height, not about the hint: a
+  drawing that sat beside the car rather than over it, or a shaft that yields differently while the
+  hint is up, would give a child who is here for the elevator their elevator back at the moment they
+  most need reassurance the ride is still waiting. It needs a layout proposal, not a CSS tweak.
+- **`r5-math-08`'s real question**: the keypad is honest about what it can express and silent about
+  what the step needs. A gloss on the FIRST negative answer a child actually meets (not on every
+  question of a step that has none) would be the version worth building.
+- **A text field in Grown-ups**, if the lead wants Firefox to be a supported way in. It is a spec
+  change to two DESIGN lines and one test, not a bug fix.
+- **The save code is ~11 900 characters at a played save** and the fact bank is the growing term
+  (~120 characters of BE1- per new fact across `seen`/`right`/`retry`). It is bounded and it round
+  trips, and every content round adds to it. An index list over a stable id order would cut it by
+  more than half and would silently remap on a bank reorder, so it needs a versioned id table first.

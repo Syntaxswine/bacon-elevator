@@ -968,7 +968,7 @@
         "1976",
         "2016"
       ],
-      "fact": "In 1996 KONE launched MonoSpace, which KONE calls the world's first machine-room-less elevator. Its flat, disc-shaped EcoDisc motor is thin enough to sit inside the hoistway, so the bulky machine no longer needed its own room at the top or bottom of the building.",
+      "fact": "In 1996 KONE launched MonoSpace, its machine-room-less elevator. Its flat, disc-shaped EcoDisc motor is thin enough to sit inside the hoistway, so the bulky machine no longer needed its own room at the top or bottom of the building.",
       "difficulty": 2,
       "sources": [
         {
@@ -1012,7 +1012,7 @@
             "1976",
             "2016"
           ],
-          "fact": "In 1996 KONE launched MonoSpace, which KONE calls the world's first machine-room-less elevator. Its flat, disc-shaped EcoDisc motor is thin enough to sit inside the hoistway, so the bulky machine no longer needed its own room at the top or bottom of the building. (Otis had tested a linear-motor elevator with no machine room in Tokyo in 1990, but MonoSpace was the one that caught on.)",
+          "fact": "In 1996 KONE launched MonoSpace, its machine-room-less elevator. Its flat, disc-shaped EcoDisc motor is thin enough to sit inside the hoistway, so the bulky machine no longer needed its own room at the top or bottom of the building. (Otis had tested a linear-motor elevator with no machine room in Tokyo in 1990, but MonoSpace was the one that caught on.)",
           "sources": [
             {
               "title": "Making room for more since 1996 - KONE Corporation",
@@ -2430,7 +2430,7 @@
         "The 12th century",
         "The 17th century"
       ],
-      "fact": "In the 7th century the Indian mathematician Brahmagupta wrote down rules for arithmetic with zero, such as 'the sum of zero and zero is zero'. Much earlier, by around 300-400 BC, Babylonian scribes were putting two little wedge marks in the place where we would write a 0 - a placeholder, not yet a number in its own right.",
+      "fact": "In the 7th century the Indian mathematician Brahmagupta wrote down rules for arithmetic with zero, such as 'the sum of zero and zero is zero'. Much earlier, by around 400 BC, Babylonian scribes were putting two little wedge marks in the place where we would write a 0 - a placeholder, not yet a number in its own right.",
       "difficulty": 2,
       "sources": [
         {
@@ -2467,14 +2467,14 @@
     {
       "id": "math-numbers-one-not-prime",
       "category": "math",
-      "question": "Which of these numbers is NOT a prime number?",
+      "question": "Which of these numbers has only one factor?",
       "answer": "1",
       "distractors": [
         "2",
         "3",
         "5"
       ],
-      "fact": "A prime number is a whole number bigger than 1 that can only be divided by 1 and itself, so 1 is not counted as prime. Leaving 1 out means every number can be built from primes in exactly one way.",
+      "fact": "1 has only one factor: itself. A prime number is a whole number bigger than 1 whose only factors are 1 and itself, so 2, 3 and 5 are prime and 1 is not counted as prime. Leaving 1 out means every number can be built from primes in exactly one way.",
       "difficulty": 1,
       "sources": [
         {
@@ -2515,7 +2515,7 @@
       "answer": "About 41 million digits",
       "distractors": [
         "About 41 thousand digits",
-        "About 4 million digits",
+        "About 500 thousand digits",
         "About 41 billion digits"
       ],
       "fact": "As of 2026 the largest known prime is 2^136,279,841 minus 1, which has 41,024,320 digits. It was found on 12 October 2024 by Luke Durant, who ran GIMPS prime-hunting software on thousands of graphics chips (GPUs) in cloud data centres across 17 countries.",
@@ -3498,6 +3498,16 @@
       "elevator-history-otis-1854-safety-demo",
       "elevator-records-eiffel-lifts-around-the-world",
       "math-numbers-pi-day"
+    ]
+  },
+  "round5": {
+    "date": "2026-09-08",
+    "what": "Hostile review round 5. Three items amended, no item added or removed (67 in, 67 out). (1) elevator-engineering-kone-monospace-1996 credited KONE with a \"world's first machine-room-less elevator\" claim that neither of the two sources the card PRINTS makes: the kone.com story says only that MonoSpace was launched in 1996 and that EcoDisc is flat enough to sit in the hoistway, and the TK Elevator glossary page does not mention MonoSpace at all (r5-trivia-truth-01). MRL priority in 1996 is also genuinely contested (Schindler Mobile shipped the same year), so the load-bearing part of that clause was its attribution. Resolved by cutting the clause to what the cited page carries rather than by adding a source nobody re-fetched: an unverifiable claim is cut, not softened. (2) math-numbers-zero-brahmagupta widened \"around 400 BC\" - the MacTutor quote the item itself stores - into \"around 300-400 BC\" (r5-trivia-truth-03). The date in the fact now matches the quote beside it. The answer (7th century, Brahmagupta) was never in question and is quoted from the same page. (3) math-numbers-one-not-prime asked \"Which of these numbers is NOT a prime number?\" - negative-form multiple choice, a known comprehension trap for a literal reader, on a bank written for one (r5-math-09). Re-worded positively as \"Which of these numbers has only one factor?\", which the two MathWorld quotes already carry: a prime is an integer p>1 whose only divisors are 1 and p, so 2, 3 and 5 have two factors and 1 has one. The fact text was extended by one clause to name that, and the answer, distractors, sources and quotes are unchanged. The id keeps its old spelling because facts.seen in every existing save is keyed on it. Also amended, and NOT a correction to any fact: math-numbers-largest-known-prime-2026 carried the distractor \"About 4 million digits\" against the answer \"About 41 million digits\" - one character apart, and makeChoices shows two of the three distractors, so the pair appeared together about two thirds of the time. Replaced with \"About 500 thousand digits\". No source, quote or verification lens changed.",
+    "items": [
+      "elevator-engineering-kone-monospace-1996",
+      "math-numbers-zero-brahmagupta",
+      "math-numbers-one-not-prime",
+      "math-numbers-largest-known-prime-2026"
     ]
   }
 }

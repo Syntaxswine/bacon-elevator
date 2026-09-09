@@ -218,17 +218,30 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .ride { position: relative; }
 .right { display: contents; }
 .topbar { flex: 0 0 var(--topbar); height: var(--topbar); display: flex; align-items: stretch; gap: 4px; padding: 0 4px; border-bottom: 2px solid #cfc9bb; background: var(--paper); }
-.topbar .tb { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 48px; min-height: 48px; padding: 0 8px; border-radius: 10px; font-weight: 700; font-size: calc(var(--body) / 18 * 17); }
+.topbar .tb { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 48px; min-height: 48px; padding: 0 4px; border-radius: 10px; font-weight: 700; font-size: calc(var(--body) / 18 * 17); }
 .topbar .tb.nav { color: var(--go); }
 .topbar .tb.nav:disabled { color: #9A968C; }
-.topbar .chip { flex: 1 1 auto; justify-content: center; min-width: 0; font-size: calc(var(--body) / 18 * 13); font-weight: 600; color: var(--ink-soft); gap: 6px; }
+.topbar .chip { flex: 1 1 auto; justify-content: center; min-width: 0; font-size: calc(var(--body) / 18 * 13); font-weight: 600; color: var(--ink-soft); gap: 4px; }
 .topbar .chip .lname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* …and the pips give some of the bar back too. Three 14 px pips plus their gaps are 48 px of a
+   77 px chip at 320 px wide, which is why there was no room for a four-letter name beside them;
+   11 px reads exactly as well at arm's length and is 39. The lobby and the picker, which have a
+   whole row each, keep the larger pip. */
+.topbar .stepbar i { width: 11px; }
 .topbar .count { font-variant-numeric: tabular-nums; font-size: calc(var(--body) / 18 * 19); }
 .topbar .lunch-icon { width: 24px; height: 20px; }
 .tb.speaker[aria-pressed="true"] { background: #E8F0E4; }
-/* At 320 wide the chip is 79 px and the step bar leaves 17–43 px: no name fits, so none is shown.
-   The level is named on the lobby chip, the picker and Grown-ups. */
-@media (max-width: 340px) { .topbar .chip .lname { display: none; } }
+/* THE NAME IS THE ONLY `WHERE AM I` THE RIDE HAS (r5-autism-fit-3, r5-elevator-feel-02).
+   The old rule hid `.lname` below 341 px outright, so at 320 x 454 - the smallest phone the project
+   ships a profile for - the top bar read `Lobby [pip][pip][pip]`, and three unlabelled pips were
+   the whole on-screen record of which building and which band the child was in, with nothing on any
+   screen saying what a pip is. At 360 px the same squeeze clipped `Shop` to `Sh...` once the
+   lunchbox reached four digits, which the game's own reward ladder aims the child at.
+   Both are the same shortage: the tray and the lunchbox are `min-width: 48px` on SPANS, which are
+   readouts, not touch targets, so they were holding 96 px of the bar against a name that needed 30.
+   They size to their content instead, every button keeps its 48 px floor, and the name (`short`,
+   at most 6 characters) stays. */
+.topbar .tb:not(button) { min-width: 0; }
 
 /* The shaft is the spring: it yields all of its height before any key does. It keeps its box
    (so no blank paper ever opens under the panel) but stops drawing a cropped sliver of car below
@@ -337,7 +350,20 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
      panel is allowed to shrink, which clips the question rather than scrolling it; `min-content`
      sizes each row to its own wrapped text and lets the panel be the thing that scrolls. The 48 px
      floor is unaffected: it lives on `.panel .cell`. */
-  .ride .panel[data-mode="trivia"] { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; align-content: start; grid-auto-rows: min-content; }
+  /* AND IT SAYS SO (r5-autism-fit-4). The panel scrolls here, and nothing on screen said it did:
+     at 320 x 454 with Bigger text the instrument's worst case puts 359 px of question and three
+     choices in a 346 px box, so choice C's last line sits on the cut and a child who does not know
+     the panel scrolls can read A and B and never learn C exists. Same four-layer cue `.sheet .body`
+     has carried since r2-autism-fit-04: two `local` gradients paint over two `scroll` shadows as
+     the content reaches each end, so the shadow shows only while there is more. No listener. */
+  .ride .panel[data-mode="trivia"] {
+    flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; align-content: start; grid-auto-rows: min-content;
+    background:
+      linear-gradient(var(--paper) 40%, rgba(244, 241, 234, 0)) top / 100% 16px no-repeat local,
+      linear-gradient(rgba(244, 241, 234, 0), var(--paper) 60%) bottom / 100% 16px no-repeat local,
+      radial-gradient(farthest-side at 50% 0, rgba(43, 43, 43, 0.20), rgba(43, 43, 43, 0)) top / 100% 10px no-repeat scroll,
+      radial-gradient(farthest-side at 50% 100%, rgba(43, 43, 43, 0.20), rgba(43, 43, 43, 0)) bottom / 100% 10px no-repeat scroll;
+  }
 }
 .panel .tq { grid-column: span 3; display: flex; align-items: center; justify-content: center; text-align: center; font-size: clamp(calc(var(--body) / 18 * 14), 4.6vw, calc(var(--body) / 18 * 17.5)); line-height: 1.25; padding: 2px 4px; font-weight: 600; }
 .panel .choice { grid-column: span 3; display: flex; align-items: center; justify-content: flex-start; gap: 10px; background: #fff; border: 3px solid var(--line); border-radius: 12px; font-size: clamp(calc(var(--body) / 18 * 16), 4.6vw, calc(var(--body) / 18 * 18)); font-weight: 600; line-height: 1.2; padding: 6px 10px; min-height: var(--cell); height: auto; text-align: left; white-space: normal; box-shadow: 0 3px 0 #b9b3a4; transition: background 200ms ease, opacity 200ms ease; }
@@ -423,7 +449,13 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
    geometry — which was the whole point of the sticky. */
 .roof .foot { flex: 0 0 auto; width: 100%; padding: 8px 12px; background: var(--paper); border-top: 2px solid #cfc9bb; }
 .roof .foot .stack { width: 100%; max-width: 360px; margin: 0 auto; }
-.roof .foot .offer { width: 100%; max-width: 360px; margin: 0 auto 8px; }
+/* THE QUESTION AND ITS TWO ANSWERS ARE ONE BLOCK (r5-autism-fit-1, r5-elevator-feel-01). Four
+   buttons in a near-uniform rhythm under one question - 4-6 px from the question to `Yes`, 6-8 px
+   between the answer row and the navigation row, no border and no label - read by proximity as four
+   answers to that question, and at 320 x 454 the short-screen rule below lays them out as a 2 x 2
+   where the two blue ones fall on a diagonal meaning different things. The offer gets its own
+   bordered card so the grouping is drawn rather than inferred. */
+.roof .foot .offer { width: 100%; max-width: 360px; margin: 0 auto 10px; padding: 8px; background: #fff; border: 3px solid var(--line); border-radius: 12px; }
 .roof .foot .offer .offerq { margin: 0 0 6px; font-size: calc(var(--body) / 18 * 17); font-weight: 700; }
 /* The picnic is the one block on the card that can yield. At 320 x 454 a fixed 300 px drawing took
    102 px of a 454 px screen and pushed the reward text under the fold on arrival; capping it
@@ -440,7 +472,7 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
   .roof .foot .btn, .roof .foot .btn.tall { min-height: 48px; font-size: calc(var(--body) / 18 * 18); }
   .roof .foot .stack { flex-direction: row; gap: 8px; }
   .roof .foot .stack .btn { flex: 1; width: auto; }
-  .roof .foot .offer { margin-bottom: 6px; }
+  .roof .foot .offer { margin-bottom: 6px; padding: 6px; }
   .roof .foot .offer .offerq { font-size: calc(var(--body) / 18 * 15); margin-bottom: 4px; }
 }
 /* the drift stays inside the picnic band: never over the text or the buttons */
@@ -472,6 +504,8 @@ button:focus-visible { outline: 3px solid var(--go); outline-offset: 2px; }
 .chip-update .chip-take { flex: 1 1 auto; color: #fff; font: inherit; text-align: left; min-height: 44px; padding: 2px 4px; }
 .chip-update .chip-later { flex: 0 0 auto; color: #fff; font-size: calc(var(--body) / 18 * 18); min-width: 44px; min-height: 44px; border-radius: 999px; }
 .chip-update button:active { filter: brightness(0.85); }
+/* ...and the same reasoning does not survive a turn of the phone: see the landscape block at the
+   bottom of this file, which repins the chip into the left column (r5-mobile-ux-1). */
 
 /* ---------- motion ---------- */
 html.reduced .panel .floor.target .face { animation: none; background: #FFF0CC; box-shadow: 0 0 0 6px rgba(232, 176, 74, 0.45); }
@@ -579,6 +613,43 @@ html.reduced * { transition-duration: 0ms !important; }
   #question.text { font-size: calc(var(--body) / 18 * 24); }
   .panel .tq { font-size: calc(var(--body) / 18 * 16); }
   .panel .card .big { font-size: calc(var(--body) / 18 * 28); }
+  /* THE UPDATE CHIP WAS PLACED WITH PORTRAIT REASONING (r5-mobile-ux-1). `.chip-update` is
+     `position: fixed; left: 50%; top: safe-top + --topbar + 8px` - the middle of the VIEWPORT, one
+     row down. In portrait that is the middle of the shaft, which carries no [data-tap] and is the
+     safe ground its own comment describes. The rules above move the panel into a 288-320 px column
+     on the RIGHT and the display band into row 2 on the LEFT, and the viewport's middle is then
+     inside the keypad. Measured, iOS UA, isMobile + hasTouch, elementFromPoint at each control's
+     own centre: at 568x276 key 7 was 100 % covered and its centre returned the chip's take button,
+     so a real tap on a digit posted skip-waiting and reloaded the tab mid-sum; key 8's centre
+     returned the dismiss cross; at 568x232 keys 4 and 5; at 667x331 HINT. The answer blank was
+     100 % covered at ALL FIVE landscape turns, so the digits the child had typed were invisible
+     sideways at every size. The chip is therefore pinned into the left column, below the display
+     band - over the shaft, exactly where the portrait rule puts it. Non-ride screens keep the
+     centred placement: they have no panel column and no blank to avoid. */
+  #app[data-screen="ride"] .chip-update {
+    left: 8px; right: auto; transform: none;
+    top: calc(env(safe-area-inset-top, 0px) + var(--topbar) + var(--display) + 8px);
+    max-width: calc(100% - 336px);
+  }
+  /* AND THE PIPS SAT ON THE `y` OF `Lobby` (r5-mobile-ux-2). The panel column takes 288-320 px of a
+     568 px viewport, so five top-bar items share ~248 px, every one of them at its floor; the chip
+     was the only thing that could yield, and it shrank below its own step bar, which then
+     overflowed leftwards into the label (pips at x=51.3, the label's ink ending at x=52.0). The
+     readouts giving up their 48 px minimum above is most of the fix; the chip's content is centred
+     in whatever the flex line leaves it, so a margin is what moves the pips clear rather than a gap
+     every item pays for. Measured after: 7.3 px. */
+  .ride .topbar .chip { margin-left: 4px; }
+}
+
+/* A PHONE LAYOUT RUN AT TABLET WIDTH (r5-mobile-ux-3). The landscape grid above needs max-height
+   500px, so an iPad in either orientation gets the portrait layout at full width: measured at
+   1024x698 each key was 333 x 56, six times wider than tall, with the shaft - the thing the child
+   is here for - squeezed to 244 px. Nothing was broken and every target was far over 44 px; it
+   simply did not look designed. Capping the panel costs nothing on any phone (no phone profile
+   this project ships is 600 px wide) and nothing in the landscape grid, whose column is narrower
+   than the cap. */
+@media (min-width: 600px) and (min-height: 501px) {
+  .ride .panel { max-width: 460px; margin-inline: auto; }
 }
 
 /* THE KEYPAD LOSES A ROW BEFORE IT LOSES A KEY (r4-mobile-ux-2, r4-autism-fit-2,

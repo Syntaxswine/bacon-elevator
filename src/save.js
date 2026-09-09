@@ -12,8 +12,19 @@ export const SAVE_KEY = 'bacon-elevator.save.v1'
 // `buildings`, which is already here — an array of one entry per building would grow the BE1- code
 // a grown-up is told they may have to copy BY HAND without bound, which is the bug round 2 fixed
 // once already (facts.seen, measured at 1 727 characters over twelve buildings). Four integers do
-// not grow. test/save.test.js holds encodeCode under 9 000 characters at a large reachable state.
-const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'struggleRun', 'demotedFrom', 'plaques', 'records']
+// not grow.
+//
+// HOW BIG THE CODE ACTUALLY GETS (r5-code-hostile-03). The gate that guards this was in
+// test/content-round.test.js, not test/save.test.js, and it built its state by hand with
+// `facts.right: []` and `facts.retry: []` - two of the three PERSIST fields that dominate the blob
+// and that real play fills. It measured 5 434 characters and passed under 9 000 while a state
+// reached by playing 20-40 buildings encodes at 9 000-12 000 (measured peak 11 876). The bank is the growing term: 67 fact
+// ids across seen/right/retry at ~35 characters each. It is BOUNDED - `seen` dedupes, `right` is
+// includes-guarded, `retry` is filtered before it is concatenated, so each is at most one entry per
+// fact in the bank - which is the invariant round 2 established and which still holds. The gate now
+// plays the reducer and asserts the real ceiling; nothing here claims a number a parent could not
+// meet, and no copy anywhere asks anyone to transcribe it by hand.
+const PERSIST = ['v', 'created', 'salt', 'writes', 'lunchbox', 'buildings', 'level', 'step', 'adaptive', 'pinnedStep', 'settings', 'facts', 'unlocks', 'equipped', 'history', 'ride', 'rulesSeen', 'step3Run', 'struggleRun', 'demotedFrom', 'demotions', 'plaques', 'records']
 
 export function serialize(state) {
   const out = {}
@@ -54,6 +65,9 @@ export function migrate(obj) {
   s.step3Run = Math.max(0, int(obj.step3Run, 0))
   s.struggleRun = Math.max(0, int(obj.struggleRun, 0))
   s.demotedFrom = oneOf(obj.demotedFrom, LEVEL_IDS, null)
+  // How many rescues out of that level (r5-math-04). Clamped like every other counter here: an
+  // imported code cannot make the next promotion unreachable by naming a huge one.
+  s.demotions = clampInt(obj.demotions, 0, 1000, 0)
   // PLAQUES ARE THRESHOLDS, and every other field here is range-checked against the set it comes
   // from — `unlocks` against PART_IDS on the very next line. This took any string of any length, so
   // a hand-edited BE1- code hung `<b>200</b> bacon` and a 120-character one on the Lobby wall

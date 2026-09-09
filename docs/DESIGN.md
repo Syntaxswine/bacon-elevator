@@ -122,7 +122,78 @@ Base: Design 1 (judges 1 and 3). Grafts two or more judges named are in, rejects
      shows a third worked example with the blank in the middle; the display band glosses `▮` the
      way it already glosses ▲ and ▼.
 
-16. **Everything else** in the sections below is the spec. Where two sentences below still conflict, the Module contract (§12) and the Verification plan (§13) win, then §2 Core loop, then the rest.
+16. **Round 5, hostile review (2026-09-08) — binding.**
+   - **The update chip is placed against the LAYOUT, not against the viewport.** `.chip-update` was
+     `position: fixed; left: 50%; top: safe-top + --topbar + 8px`, which is the shaft in portrait and
+     the KEYPAD in landscape, where the panel is a 288–320 px right-hand column and the display band
+     is row 2 of the left one. Measured: key 7 100 % covered at 568 × 276 with its own centre
+     returning the chip's take button, so a tap on a digit posted `skip-waiting` and reloaded the tab
+     mid-sum; keys 4 and 5 at 568 × 232; HINT at 667 × 331; and the answer blank 100 % covered at all
+     five landscape turns. In landscape the chip is pinned into the left column below the display
+     band. The chip scenario now measures every panel key and the blank at those five turns, and any
+     OVERLAP fails it, not only a stolen centre (r5-mobile-ux-1).
+   - **A step change names the variable that moved.** `Bigger numbers now.` / `Smaller numbers for a
+     bit.` were derived from the sign of the step alone and are false more often than true at three
+     of the ten step-ups and two of the step-downs (Office Block 1 → 2 drops `tens ± tens`, max 100,
+     for the 3s and 4s, max 40: mean largest number 60 → 43 under a sentence saying it rises). The
+     steps do get harder; the sentence named the wrong variable. `math.stepNote(level, from, to)`
+     reads the two tables: `Carrying now.` / `Times tables now.` / `Sharing now.` / `Missing numbers
+     now.` / `Below zero now.`, `Bigger numbers now.` only where the ceiling really rises,
+     `Easier sums for a bit.` for a step down that is not smaller, and `New sums now.` for a step up
+     that changes none of those things. `STEP_NOTE_WORDS` is exported beside it so an instrument
+     never keeps its own copy of the list (r5-math-02).
+   - **A level with ONE band announces nothing and draws no ladder.** Custom builds a single step and
+     `stepOf` clamps, so its steps 1, 2 and 3 are the same table — and the pips still moved, the band
+     still said `Bigger numbers now.`, and the chip told a screen reader `step 2 of 3`. `stepbar()`
+     takes the level's step count and returns nothing at one; `stepNote` returns `''` (r5-code-hostile-02).
+   - **A worked line may not add nothing.** `explainAdd` took the three-column split whenever EITHER
+     operand was 3-digit, so with the second under 100 the first line — the only line HINT shows —
+     was `X00 + 0 = X00`, on 41 % of Megatall step-1 draws. The split is taken only where every
+     column has something in it; otherwise the smaller operand is added in the places it actually
+     has. `explainSub` has filtered its empty columns since it was written (r5-math-01).
+   - **The ladder's memory accumulates.** `demotedFrom` was cleared when the promotion back was
+     accepted, so a child who sits between two buildings bounced on a fixed six-building cycle for
+     ever. `demotions` counts the rescues out of that level and each one buys another `UP_AGAIN`
+     clean buildings before it is offered again, capped at four — an offer may never become a
+     permanent gate (r5-math-04, amending amendment 15's ruling on the same field).
+   - **The one rescue at the bottom of the ladder names what Grown-ups can actually do.** The roof
+     help line promised numbers `smaller still` than Corner Shop step 1, and no reachable Custom
+     setting delivers that: swept all 127 operation subsets against every stepper value, the lowest
+     ceiling is `ADD_FLOOR` = 6 against Corner Shop step 1's 5. What Custom does give is FEWER
+     SHAPES, and that is what the card offers now (r5-math-03).
+   - **On the reward card, while an offer stands, the only primary is an answer to it.** `Next
+     building` carried `btn primary tall wide` — the game's one "tap this" idiom — so two blue
+     primaries sat 8 px apart meaning different things and the bigger one did not answer the question
+     above it. `Stay` is still the primary and the default (§4); `Next building` drops to a plain
+     button until the question is answered, and the question and its two answers are drawn as one
+     bordered block. Nothing is gated: tapping past the offer still defers it to the next clean roof
+     (r5-autism-fit-1, r5-elevator-feel-01).
+   - **A tag may not undercut the largest number its own steps can print.** Hotel read `numbers to
+     20` and its step-3 × row reaches 10 × 10; it reads `numbers to 20; tables 2, 5, 10 (to 100)`
+     (r5-math-07).
+   - **The runtime content banks are carried by ONE named list.** `pool`, `partsPool` and `climb` are
+     content, not progress, and `import`, `reset` and `adoptDiskSave` each carried the first by hand
+     and dropped the other two — for the whole session, on a paste, a reset OR a second tab, so the
+     Workshop read "The card for this part did not load" for all 24 parts and the Logbook's Climb
+     section rendered empty under its own heading. `state.carryBanks()` (r5-code-hostile-01).
+   - **The build stamp is answered by the worker serving the tab.** Reading `caches.keys()` and
+     taking the greatest `be-` name picked by hex ordering of the BUILD hash while two caches
+     coexist, and named nothing at all on a first-ever visit. `sw.js` replies to a `which-build`
+     message with its own `CACHE` literal, and the page asks again on `controllerchange`
+     (r5-deploy-pages-1, r5-deploy-pages-2).
+   - **Small ones:** ⌫ is disabled on an empty entry, like GO (a lit key that does nothing is a dead
+     key); the first sum a save ever shows is never one whose answer is already printed in it; the
+     hint's tick labels scale with the card and the drive holds them at 14 CSS px; the ride's top bar
+     keeps the building name at 320 px and the step pips off the `Lobby` label sideways; the trivia
+     panel carries `.sheet .body`'s scroll cue; a missed passenger is answered in words (`0 bacon
+     this time. Nothing is lost. This passenger asks again later.`) rather than by the absence of the
+     `+2 bacon` line; both roof exits bank the tray; the display band guards `r.problem` in every
+     branch; the lobby's parked car shows no direction arrow; the keypad is capped at 460 px on a
+     viewport over 600 px wide and over 500 px tall (a tablet, where the landscape grid does not
+     apply and each key was 333 x 56); and the save-code gate PLAYS the reducer instead of hand-building a
+     state with the two fields that dominate the blob left empty.
+
+17. **Everything else** in the sections below is the spec. Where two sentences below still conflict, the Module contract (§12) and the Verification plan (§13) win, then §2 Core loop, then the rest.
 
 ## Concept
 
@@ -173,11 +244,11 @@ Wrong answer at floor 6, pressing 7, typing 11:
 | 3 | Office Block — numbers to 100 | 2-digit ± 1-digit, tens ± tens, no regroup | with regroup; ×3 ×4 | tables to 10, ÷ exact, 2-digit ± 2-digit |
 | 4 | Skyscraper — times tables | tables to 10, ÷ exact | tables to 12, ▮ × b = c | ÷ within 144, squares to 12², 2-digit ± 2-digit regroup |
 | 5 | Megatall — big numbers | 3-digit ± (≤ 2 regroups) | 2-digit × 1-digit | 2-digit × 2-digit (one ≤ 25 or a multiple of 10), 3-digit ÷ 1-digit, negatives (`±` live) |
-| 6 | Custom (Grown-ups) | ops, min, max, negatives knobs | | |
+| 6 | Custom (Grown-ups) | ops, min, max, negatives knobs | one step: no step bar, no step-change sentence | |
 
 Data in `src/levels.js`, one row per level and step, not a formula; a 20 000-draw test per row pins it. Operands 0 and 1 only at Corner Shop; no negatives below Megatall; division always exact. Default: Corner Shop, step 1.
 
-**Adaptive rule** (visible, never silent): a three-segment step bar under the level name. 3 correct in a row → step +1 (max 3); a fall → step −1 (min 1), once per building at most. Levels never change on their own: two consecutive buildings at step 3 with ≤ 1 fall → the roof offers `Try Hotel?` (`Yes` / `Stay`, default Stay). `Adaptive: off` pins a parent-chosen step. Each kind keeps its last 8 results; a kind at 8/8 is drawn at weight 0.25, the rest at 1.0. **Decision:** Design 3's below-40 % easing is dropped (judge 3: no silent difficulty change).
+**Adaptive rule** (visible, never silent): a three-segment step bar under the level name, on levels that have three steps, and a sentence in the display band naming what changed (`Carrying now.`, `Times tables now.`, `Sharing now.`, `Missing numbers now.`, `Below zero now.`, `Bigger numbers now.` only where the ceiling rises, `Easier sums for a bit.` / `Smaller numbers for a bit.` on the way down). 3 correct in a row → step +1 (max 3); a fall → step −1 (min 1), once per building at most. Levels never change on their own: two consecutive buildings at step 3 with ≤ 1 fall → the roof offers `Ready for Hotel — <tag>?` (`Yes` / `Stay`, default Stay, and the only primary on the card while the question stands). `Adaptive: off` pins a parent-chosen step. Each kind keeps its last 8 results; a kind at 8/8 is drawn at weight 0.25, the rest at 1.0. **Decision:** Design 3's below-40 % easing is dropped (judge 3: no silent difficulty change).
 
 **Anti-repeat and comeback:** a ring of the last 20 keys (`op:a:b`, commutative pairs sorted); rejected if the key is in the ring, the answer repeats the previous answer, `a = b` already occurred this building, or the kind has run three times; 50 retries, then accept. A missed sum returns verbatim at +5 and +15, overriding both. RNG: mulberry32 seeded by `?seed=` or `buildingIndex ^ saveSalt`; a seed replays identically.
 

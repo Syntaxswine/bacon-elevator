@@ -12,7 +12,7 @@ const VERSION = '1.0.0'
 // the browser was /sw.js. A child who already had the game could not be reached by a correction at
 // all, and `Version 1.0.0` on the Grown-ups screen said the same on both builds, so nobody could
 // tell. The cache name is now a function of the CONTENT, not of a literal somebody has to remember.
-const BUILD = '5cf76f2de52c'
+const BUILD = '753e4dbf4e68'
 const CACHE = 'be-' + VERSION + '-' + BUILD
 const ASSETS = [
   './', './index.html', './404.html', './manifest.webmanifest', './favicon.ico',
@@ -66,7 +66,19 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'skip-waiting') self.skipWaiting()
+  if (!event.data) return
+  if (event.data.type === 'skip-waiting') self.skipWaiting()
+  // WHICH BUILD IS SERVING THIS TAB (r5-deploy-pages-1, r5-deploy-pages-2). The page used to answer
+  // that by taking the lexicographically greatest `be-` cache name. Two caches coexist for the whole
+  // window between a new worker finishing install and the tab being closed or the chip tapped - the
+  // window a grown-up would go looking in - so the winner was decided by hex ordering of the BUILD
+  // hash, and the line named the running build or the pending one at random (measured: the same
+  // pending update read `5cf76f2de52c` on one load and `a7ce2523f75b` on the next). On a first-ever
+  // visit it named nothing at all, because caches.keys() resolves before install has made a cache.
+  // Only the worker actually serving the page knows, and it cannot get this wrong: CACHE is its own
+  // literal. This surface exists because an identical version string on two builds made a stale
+  // install undiagnosable; a confidently wrong stamp is worse than the missing one it replaced.
+  if (event.data.type === 'which-build' && event.source) event.source.postMessage({ type: 'build', cache: CACHE })
 })
 
 self.addEventListener('fetch', (event) => {

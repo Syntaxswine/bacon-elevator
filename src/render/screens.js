@@ -1,6 +1,6 @@
 // Screen markup: lobby, picker, rules, roof, fact book, workshop, grown-ups, and the fact sheet.
 import { LEVELS, customLevel } from '../levels.js'
-import { PARTS, PLAQUES, lunchboxMilestone } from '../state.js'
+import { PARTS, PLAQUES, currentLevel, lunchboxMilestone } from '../state.js'
 import { SLOTS, partsBySlot, partById, nextPart, isUnlocked, partsOwned } from '../parts.js'
 import { climbGoal, climbLabel } from '../climb.js'
 import { domainOf, letterFor } from '../trivia.js'
@@ -119,8 +119,14 @@ export function climbGoalLine(state) {
   return `The Climb: ${g.next.remaining} more floors to ${climbLabel(g.next)} — ${g.next.floors} floors.`
 }
 
-export function stepbar(step, id) {
-  return `<span class="stepbar" ${id ? `id="${id}"` : ''} data-step="${step}" aria-label="step ${step} of 3"><i></i><i></i><i></i></span>`
+// A LEVEL WITH ONE BAND HAS NO LADDER TO DRAW (r5-code-hostile-02). Custom is `steps: [{kinds}]`
+// and stepOf() clamps, so steps 1, 2 and 3 are the same table object: measured over 2 000 draws,
+// mean |answer| 10.39 at all three and the same 270 problem keys. The pips still moved 1 -> 2 -> 3
+// and the chip still told a screen reader "step 2 of 3". Three pips and a count are a claim about
+// the question set; where there is one set, neither is drawn.
+export function stepbar(step, id, steps = 3) {
+  if (steps <= 1) return ''
+  return `<span class="stepbar" ${id ? `id="${id}"` : ''} data-step="${step}" aria-label="step ${step} of ${steps}"><i></i><i></i><i></i></span>`
 }
 
 function silhouette(id) {
@@ -166,13 +172,12 @@ function noticeHTML(extras = {}) {
 
 export function lobby(state, extras = {}) {
   const { name, tag } = levelName(state)
-  const rideLabel = state.ride ? 'Ride' : 'Ride'
   const plaques = state.plaques.length ? `<div class="plaques" aria-label="plaques">${state.plaques.map((p) => `<span class="plaque">${esc(p)} bacon</span>`).join('')}</div>` : ''
   return `<div class="page">
     <div class="lobby-head">
       <svg class="title-art" viewBox="0 0 220 120" aria-hidden="true">
         <rect x="70" y="8" width="80" height="104" rx="6" fill="#E9E4D8" stroke="#6B6B6B" stroke-width="4"/>
-        <rect x="80" y="16" width="60" height="16" rx="3" fill="#2B2B2B"/><text x="110" y="29" text-anchor="middle" font-family="ui-monospace, monospace" font-weight="700" font-size="13" fill="#E8B04A">G ▲</text>
+        <rect x="80" y="16" width="60" height="16" rx="3" fill="#2B2B2B"/>${/* No arrow on a parked car: the bezel reads the floor, and the doors below it are drawn open. A lit direction arrow belongs to a car answering a call, which is what the ride screen's own indicator draws (r5-elevator-feel-03). */''}<text x="110" y="29" text-anchor="middle" font-family="ui-monospace, monospace" font-weight="700" font-size="13" fill="#E8B04A">G</text>
         <rect x="84" y="40" width="26" height="64" fill="#D9D4C7" stroke="#6B6B6B" stroke-width="3"/><rect x="110" y="40" width="26" height="64" fill="#D9D4C7" stroke="#6B6B6B" stroke-width="3"/>
         <line x1="104" y1="64" x2="104" y2="80" stroke="#6B6B6B" stroke-width="3" stroke-linecap="round"/><line x1="116" y1="64" x2="116" y2="80" stroke="#6B6B6B" stroke-width="3" stroke-linecap="round"/>
         <use href="#bacon" x="6" y="30" width="60" height="30"/><use href="#bacon" x="154" y="30" width="60" height="30"/>
@@ -187,8 +192,8 @@ export function lobby(state, extras = {}) {
       ${noticeHTML(extras)}
     </div>
     <div class="stack">
-      <button class="btn primary tall wide" data-nav="ride" data-tap aria-label="Ride">${rideLabel}</button>
-      <button class="btn wide level" data-nav="picker" data-tap aria-label="Level: ${esc(name)}, ${esc(tag)}">${silhouette(state.level)}<span><span class="name">${esc(name)}</span><br><span class="tag">${esc(tag)}</span></span><span style="margin-left:auto">${stepbar(state.step)}</span></button>
+      <button class="btn primary tall wide" data-nav="ride" data-tap aria-label="Ride">Ride</button>
+      <button class="btn wide level" data-nav="picker" data-tap aria-label="Level: ${esc(name)}, ${esc(tag)}">${silhouette(state.level)}<span><span class="name">${esc(name)}</span><br><span class="tag">${esc(tag)}</span></span><span style="margin-left:auto">${stepbar(state.step, '', currentLevel(state).steps.length)}</span></button>
       <div class="row">
         <button class="btn" style="flex:1" data-nav="factbook" data-tap aria-label="Fact Book">Fact Book</button>
         <button class="btn" style="flex:1" data-nav="workshop" data-tap aria-label="Workshop">Workshop</button>
@@ -252,7 +257,6 @@ const PIC = {
 }
 
 export function rules(state) {
-  const from = state.ride && state.screen === 'rules' ? 'Ride' : 'Ride'
   const second = !!state.settings.secondTry
   return `<div class="sheet rules" role="dialog" aria-label="Rules">
     <div class="body">
@@ -274,7 +278,7 @@ export function rules(state) {
       <p>${second ? 'Wrong: the entry clears and you try again. Miss it twice and the panel shows the true sum, then the elevator falls onto the springy spikes. The safety brake catches it.' : 'Wrong: the panel shows the true sum, then the elevator falls onto the springy spikes. The safety brake catches it. A repair card shows the sum, and you answer it again.'}</p>
       <p class="never">Bacon rides on the tray and goes into the lunchbox at the roof. <strong>Bacon is never lost. There is no clock.</strong></p>
     </div>
-    <div class="foot"><button class="btn primary wide" data-continue data-tap aria-label="${from}">${from}</button></div>
+    <div class="foot"><button class="btn primary wide" data-continue data-tap aria-label="Ride">Ride</button></div>
   </div>`
 }
 
@@ -324,7 +328,15 @@ export function roof(state) {
     ${next ? `<p class="muted" data-next-goal>${next.part ? `Next part at ${next.at} bacon: ${esc(next.part.name)} — ${next.at - state.lunchbox} more` : `Next plaque at ${next.at} bacon — ${next.at - state.lunchbox} more`}</p>` : ''}
     ${climbLine ? `<p class="muted" data-climb-goal>${esc(climbLine)}</p>` : ''}
     ${taken ? `<p><strong>Next building: ${esc(taken)}.</strong></p>` : ''}
-    ${info.help ? `<p class="muted small" data-roof-help>Corner Shop is the smallest building. A grown-up can make the numbers smaller still: Grown-ups → Custom numbers.</p>` : ''}
+    ${/* WHAT CUSTOM CAN ACTUALLY DO (r5-math-03). This line used to promise "smaller numbers
+          still", and no reachable Grown-ups setting delivers that: Corner Shop step 1 tops out at 5
+          with a mean largest number of 3.78, while the lowest table the Custom steppers can build
+          tops out at 6 with a mean of 4.38 (ADD_FLOOR, src/levels.js, exists to stop the pool
+          collapsing to a handful of sums). Swept all 127 operation subsets against every reachable
+          stepper value: nothing goes below Corner Shop step 1. What Custom really gives a drowning
+          child is FEWER SHAPES - Corner Shop step 1 serves add, take away, ▲ and ▼, and Custom can
+          serve one - so that is what the card offers. */''}
+    ${info.help ? `<p class="muted small" data-roof-help>Corner Shop is the smallest building. A grown-up can give one kind of sum at a time, and choose the numbers: Grown-ups → Custom numbers.</p>` : ''}
   </div>
   ${/* THE FOOT IS NOT INSIDE THE SCROLLER (r4-code-hostile-01, r4-autism-fit-1, r4-elevator-feel-01,
         r4-mobile-ux-1). It used to be the last block of the `.page` with `position: sticky; bottom:
@@ -336,10 +348,22 @@ export function roof(state) {
         ladder (DESIGN §4), so it moves into the foot with the buttons where it cannot be covered,
         and the body below scrolls with its own cue and nothing on top of it. Same two-band shape as
         `.sheet .body` / `.sheet .foot`, which the Rules card and the fact card have always used. */''}
+  ${/* A QUESTION AND FOUR BUTTONS, AND THE LOUDEST ONE WAS NOT AN ANSWER (r5-autism-fit-1,
+        r5-elevator-feel-01). `Next building` carries `btn primary tall wide` - the game's one "this
+        is the thing to tap" idiom, used in exactly one other place, the Lobby's `Ride` - so while
+        an offer stood, two blue primaries sat 8 px apart on one card meaning different things, and
+        the bigger one (2.6x the pixel area of `Yes` at 390 px, and 24 px type against 18) did not
+        answer the question printed above it. A child who has learned that the big blue button means
+        keep going never accepts. `Stay` remains the primary and the default, which is DESIGN 4's
+        ruling and the reason the offer exists at all; what changes is that while the question is
+        unanswered it is the ONLY primary, the navigation buttons drop to plain, and the question and
+        its two answers are drawn as one bordered block so proximity cannot make four buttons read as
+        four answers. Nothing is gated: tapping past the offer still defers it to the next roof, and
+        `step3Run` is untouched, so the same offer comes back on the very next clean building. */''}
   <div class="foot">
     ${offerLine ? `<div class="offer"><p class="offerq" data-offer-q>${offerLine}</p><div class="row"><button class="btn" style="flex:1" data-offer="yes" data-tap aria-label="Yes, ${esc(offerName)}">Yes</button><button class="btn primary" style="flex:1" data-offer="stay" data-tap aria-label="Stay">Stay</button></div></div>` : ''}
     <div class="stack">
-      <button class="btn primary tall wide" data-next data-tap aria-label="Next building">Next building</button>
+      <button class="btn ${offerLine ? 'wide' : 'primary tall wide'}" data-next data-tap aria-label="Next building">Next building</button>
       <button class="btn wide" data-nav="lobby" data-tap aria-label="Lobby, ride down">Lobby</button>
     </div>
   </div>`
@@ -612,6 +636,13 @@ export function factSheet(state) {
       <p class="q">${esc(t.fact.q)}</p>
       <p class="verdict ${right ? 'right' : ''}">You chose ${esc(letterFor(t.chosen))}: ${esc(chosen)}.${right ? ' +2 bacon' : ''}</p>
       ${right ? '' : `<p class="verdict">The answer is ${esc(letterFor(t.answer))}: ${esc(t.fact.answer)}.</p>`}
+      ${/* THE FEEDBACK FOR A MISS WAS AN ABSENCE (r5-autism-fit-5). A right answer prints "+2
+            bacon"; a wrong one printed nothing where that line had been, and a child who counts
+            bacon was left to infer both that none arrived and that the passenger is gone for good.
+            Neither is a thing to work out from a gap. Same register as the Repair card's "Nobody is
+            hurt. Nothing is lost." - and the second half is true: pickFact re-serves a missed fact
+            once 20 questions have passed. */''}
+      ${right ? '' : '<p class="verdict">0 bacon this time. Nothing is lost. This passenger asks again later.</p>'}
       <p class="factline">${esc(t.fact.fact)}</p>
       ${t.fact.sources.map((s) => `<p class="src">Source: ${esc(s.title)} (${esc(domainOf(s.url))})</p>`).join('')}
     </div>

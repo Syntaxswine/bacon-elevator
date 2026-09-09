@@ -555,7 +555,7 @@
         "1976",
         "2016"
       ],
-      "fact": "In 1996 KONE launched MonoSpace, which KONE calls the world's first machine-room-less elevator. Its flat, disc-shaped EcoDisc motor is thin enough to sit inside the hoistway, so the bulky machine no longer needed its own room at the top or bottom of the building.",
+      "fact": "In 1996 KONE launched MonoSpace, its machine-room-less elevator. Its flat, disc-shaped EcoDisc motor is thin enough to sit inside the hoistway, so the bulky machine no longer needed its own room at the top or bottom of the building.",
       "sources": [
         {
           "title": "Making room for more since 1996 - KONE Corporation",
@@ -1635,7 +1635,7 @@
         "The 12th century",
         "The 17th century"
       ],
-      "fact": "In the 7th century the Indian mathematician Brahmagupta wrote down rules for arithmetic with zero, such as 'the sum of zero and zero is zero'. Much earlier, by around 300-400 BC, Babylonian scribes were putting two little wedge marks in the place where we would write a 0 - a placeholder, not yet a number in its own right.",
+      "fact": "In the 7th century the Indian mathematician Brahmagupta wrote down rules for arithmetic with zero, such as 'the sum of zero and zero is zero'. Much earlier, by around 400 BC, Babylonian scribes were putting two little wedge marks in the place where we would write a 0 - a placeholder, not yet a number in its own right.",
       "sources": [
         {
           "title": "MacTutor History of Mathematics: A history of Zero",
@@ -1666,14 +1666,14 @@
       "category": "math",
       "difficulty": 1,
       "concept": "number-theory",
-      "question": "Which of these numbers is NOT a prime number?",
+      "question": "Which of these numbers has only one factor?",
       "answer": "1",
       "distractors": [
         "2",
         "3",
         "5"
       ],
-      "fact": "A prime number is a whole number bigger than 1 that can only be divided by 1 and itself, so 1 is not counted as prime. Leaving 1 out means every number can be built from primes in exactly one way.",
+      "fact": "1 has only one factor: itself. A prime number is a whole number bigger than 1 whose only factors are 1 and itself, so 2, 3 and 5 are prime and 1 is not counted as prime. Leaving 1 out means every number can be built from primes in exactly one way.",
       "sources": [
         {
           "title": "Wolfram MathWorld: Prime Number",
@@ -1708,7 +1708,7 @@
       "answer": "About 41 million digits",
       "distractors": [
         "About 41 thousand digits",
-        "About 4 million digits",
+        "About 500 thousand digits",
         "About 41 billion digits"
       ],
       "fact": "As of 2026 the largest known prime is 2^136,279,841 minus 1, which has 41,024,320 digits. It was found on 12 October 2024 by Luke Durant, who ran GIMPS prime-hunting software on thousands of graphics chips (GPUs) in cloud data centres across 17 countries.",

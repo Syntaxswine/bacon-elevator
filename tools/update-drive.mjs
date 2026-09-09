@@ -80,6 +80,21 @@ await rm(PROFILE, { recursive: true, force: true }).catch(() => {})
 await mkdir(PROFILE, { recursive: true })
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: !flag('--headed'), userDataDir: PROFILE, args: ['--no-first-run', '--no-default-browser-check', '--disable-gpu', '--mute-audio'] })
 
+// WHICH BUILD DOES THE GROWN-UPS SCREEN SAY THIS PHONE IS RUNNING (r5-deploy-pages-1, -2)?
+// Two taps of the gear, then the last line of the screen: `Version 1.0.0 · <12 hex>`, or the same
+// stamp on the `Load the new version` button when a worker is waiting.
+const buildLine = async (page) => {
+  await page.evaluate(() => { const g = document.querySelector('[data-gear]'); g.click(); g.click() })
+  await page.waitForFunction(() => document.getElementById('app').dataset.screen === 'grownups', { timeout: 5000 })
+  const txt = await page.$eval('.screen.grownups', (e) => e.innerText)
+  const m = /(?:Version|version)[^\n]*?(\d+\.\d+\.\d+)(?:\s*\u00b7\s*([0-9a-f]{12}))?/.exec(txt) || /(\d+\.\d+\.\d+)\s*\u00b7\s*([0-9a-f]{12})/.exec(txt)
+  return { version: m && m[1], stamp: m && m[2], txt: txt.slice(-120) }
+}
+const cacheHash = (page, prefix) => page.evaluate(async (pre) => {
+  const k = (await caches.keys()).find((x) => x.startsWith(pre))
+  return k ? k.split('-').pop() : null
+}, prefix)
+
 const phone = async () => {
   const page = await browser.newPage()
   await page.setViewport({ width: 390, height: 664, deviceScaleFactor: 3, isMobile: true, hasTouch: true })
@@ -97,6 +112,14 @@ try {
   })
   const v0 = await page.evaluate(() => window.__bacon.version)
   assert(v0 === '1.0.0', `session 1 runs VERSION 1.0.0 (got ${v0})`)
+  // 7 — THE FIRST-EVER VISIT NAMES ITS BUILD (r5-deploy-pages-2). The stamp used to be read from
+  // caches.keys() at module evaluation, which resolves before `load` registers the worker and
+  // before `install` creates a cache, so the very first visit — a parent setting the game up —
+  // printed a bare `Version 1.0.0` and no stamp for the whole session.
+  const first = await buildLine(page)
+  const h100 = await cacheHash(page, 'be-1.0.0')
+  assert(first.version === '1.0.0' && !!first.stamp, `assert 7a: the first-ever visit prints a build stamp (${JSON.stringify(first)})`)
+  assert(first.stamp === h100, `assert 7b: and it is the cache serving this tab (said ${first.stamp}, cache ${h100})`)
   await page.close()
   log = []
 
@@ -192,6 +215,38 @@ try {
   assert(back.version === '1.0.1', `assert 6b: the reload runs 1.0.1 (got ${back.version})`)
   assert(back.screen === 'ride' && back.phase === 'keypad', `assert 6c: the child lands back on the sum (${back.screen}/${back.phase})`)
   assert(back.typed === '35', `assert 6d: the typed digits survive (${JSON.stringify(back.typed)})`)
+  await page.close()
+
+  // ---- session 3: two caches at once, which is where the old stamp guessed --------------------
+  // `caches.keys().filter(be-).sort().pop()` takes the lexicographically greatest name, and from the
+  // moment a new worker finishes installing until the chip is tapped there are TWO. A VERSION bump
+  // makes that always wrong, not merely half the time: `be-1.0.2-…` sorts above `be-1.0.1-…` on
+  // every hash, so the line paired the RUNNING build's version with the PENDING build's stamp — a
+  // pair naming a build that has never existed (r5-deploy-pages-1).
+  // The BUILD literal moves too, and to `ffffffffffff` ON PURPOSE: it sorts above every real hash,
+  // so `sort().pop()` would pick the PENDING cache. Without that the two caches share this repo's
+  // BUILD and the check cannot tell a right answer from a lucky one.
+  for (const f of ['sw.js', 'src/version.js']) {
+    const q = join(SITE, f)
+    await writeFile(q, (await readFile(q, 'utf8')).replace(/'1\.0\.1'/, "'1.0.2'").replace(/const BUILD = '[0-9a-f]{12}'/, "const BUILD = 'ffffffffffff'"))
+  }
+  page = await phone()
+  await page.goto(URL_, { waitUntil: 'load' })
+  await page.waitForFunction('navigator.serviceWorker.controller !== null', { timeout: 20000 })
+  await page.waitForFunction(async () => (await caches.keys()).some((k) => k.startsWith('be-1.0.2')), { timeout: 25000 }).catch(() => {})
+  // AND THEN RELOAD, which is the whole repro: on the load where the deploy ARRIVES the new cache
+  // does not exist yet, so any policy reads the right one by luck. It is the next load - both caches
+  // present from the first frame - where a guess is a guess.
+  await page.reload({ waitUntil: 'load' })
+  await page.waitForFunction('navigator.serviceWorker.controller !== null', { timeout: 20000 })
+  await wait(800)
+  const keys = await page.evaluate(() => caches.keys())
+  const running = await cacheHash(page, 'be-1.0.1')
+  const pending = await cacheHash(page, 'be-1.0.2')
+  const line = await buildLine(page)
+  assert(!!running && pending === 'ffffffffffff' && running !== pending, `assert 8a: both caches are present and tell apart (${keys.join(', ')})`)
+  assert(line.version === '1.0.1', `assert 8b: the line names the version this tab is running (got ${line.version})`)
+  assert(line.stamp === running, `assert 8c: and the build serving this tab, not the one waiting (said ${line.stamp}, running ${running}, pending ${pending})`)
   await page.close()
 } finally {
   await browser.close()

@@ -3,7 +3,7 @@
 // Nothing here touches window, document, storage, timers or Date.
 
 import { LEVELS, LEVEL_ORDER, levelById, customLevel } from './levels.js'
-import { makeProblem, afterAnswer, checkAnswer, adaptStep, initialCtx, parseTyped, signKeyLive, typedCap, validProblem } from './math.js'
+import { makeProblem, afterAnswer, checkAnswer, adaptStep, initialCtx, parseTyped, signKeyLive, stepNote, typedCap, validProblem } from './math.js'
 import { initialCar, sequence, step as carStep, FLOORS } from './elevator.js'
 import { isPassengerFloor, pickFact, makeChoices, TRIVIA_LIMITS } from './trivia.js'
 import { PARTS, defaultEquipped, newlyUnlocked, partById } from './parts.js'
@@ -154,6 +154,10 @@ export function initialState(salt) {
     // One field. The level the child was demoted FROM needs UP_AGAIN clean buildings, not two,
     // before it is offered again; a grown-up picking a level clears it.
     demotedFrom: null,
+    // How many times the child has been rescued out of `demotedFrom` (r5-math-04). One demotion
+    // buys UP_AGAIN clean buildings before that level is offered again; each further one buys
+    // another, to a cap.
+    demotions: 0,
     plaques: [],
     // runtime (not persisted)
     phase: 'lobby',
@@ -184,6 +188,23 @@ export function usableFact(f) {
     && typeof f.fact === 'string'
     && Array.isArray(f.sources)
     && (f.kind === 'elevator' || f.kind === 'math')
+}
+
+// THE RUNTIME CONTENT BANKS, IN ONE PLACE (r5-code-hostile-01).
+// `pool` (the facts), `partsPool` (the 24 part cards) and `climb` (the ten rungs) are fetched at
+// boot and are not in PERSIST: they are content, not progress. Three transitions rebuild the state
+// from a serialised record - `import` (Paste code), `reset`, and main.js's adoptDiskSave (a second
+// tab, or the storage event) - and all three carried `pool` forward by hand and forgot the two
+// banks the content round added. Measured: partsPool 24 -> 0 and climb 10 -> 0 on every one of
+// them, for the rest of the session, so the Workshop's card read "The card for this part did not
+// load" for all 24 parts, the Logbook's Climb section rendered empty under its own heading, and the
+// lobby and the roof lost the Climb goal line - with nothing said, and a reload the only cure.
+// Naming the list once means a fourth bank cannot be forgotten at three call sites again.
+export const RUNTIME_BANKS = Object.freeze(['pool', 'partsPool', 'climb'])
+export function carryBanks(next, from) {
+  const out = { ...next }
+  for (const k of RUNTIME_BANKS) out[k] = from[k]
+  return out
 }
 
 export function currentLevel(state) {
@@ -319,16 +340,20 @@ function applyAdapt(state, correct, fell) {
   // top bar were the whole announcement, and nothing anywhere tells the child what a pip is: the
   // numbers simply got bigger or smaller between one floor and the next. The level offer is named in
   // words (`Try Hotel?`); a step change now is too, in the same band that carries `Try once more.`
-  let stepNote = state.stepNote || ''
+  let note = state.stepNote || ''
   if (state.adaptive) {
     const a = adaptStep({ step, streak, stepDowns }, correct, fell)
     step = a.step; streak = a.streak; stepDowns = a.stepDowns
-    if (a.delta > 0) stepNote = 'Bigger numbers now.'
-    else if (a.delta < 0) stepNote = 'Smaller numbers for a bit.'
+    // WHICH VARIABLE MOVED (r5-math-02, r5-code-hostile-02). `Bigger numbers now.` was written from
+    // the sign of the step alone and is followed by a SMALLER number most of the time at three of
+    // the ten step-ups; on Custom, which has one step, both sentences described a table that had
+    // not changed at all. math.stepNote reads the two tables and names what actually differs, and
+    // returns '' when the level has a single step, so nothing is announced that did not happen.
+    if (a.delta !== 0) note = stepNote(currentLevel(state), state.step, a.step)
   } else {
     step = Math.max(1, Math.min(3, state.pinnedStep))
   }
-  return { ...state, history, ride: ride ? { ...ride, streak, stepDowns } : ride, step, stepNote }
+  return { ...state, history, ride: ride ? { ...ride, streak, stepDowns } : ride, step, stepNote: note }
 }
 
 function arrive(state, rng) {
@@ -364,7 +389,15 @@ function arrive(state, rng) {
     // so it says nothing about Megatall, and the up-offer used to discard twenty questions of
     // direct, freshly measured counter-evidence two buildings after collecting it. A level the
     // child was demoted from is offered again only after UP_AGAIN clean buildings.
-    const needUp = nextUp && nextUp === state.demotedFrom ? UP_AGAIN : 2
+    // ...AND IT ACCUMULATES (r5-math-04). One bit was not enough: accepting the promotion back
+    // cleared `demotedFrom`, so a child who sits between two buildings - clean at Skyscraper,
+    // nothing at Megatall - bounced for ever on a fixed six-building cycle, a third of steady-state
+    // play at ~9 falls per 10 sums, and the card that re-offered Megatall for the twentieth time
+    // read exactly like the first. `demotions` counts how many times this child has been rescued
+    // out of THIS level, and each one buys another UP_AGAIN clean buildings of evidence before it
+    // is offered again. Capped at four, because an offer may never become a permanent gate
+    // (r4-math-02): sixteen clean buildings is a great deal of evidence, and it is still eventually.
+    const needUp = nextUp && nextUp === state.demotedFrom ? UP_AGAIN * Math.max(1, Math.min(4, state.demotions)) : 2
     const up = state.adaptive && step3Run >= needUp && nextUp ? nextUp : null
     const down = state.adaptive && !up && struggleRun >= 2 && idx > 0 ? LEVEL_ORDER[idx - 1] : null
     const next = up || down
@@ -700,7 +733,13 @@ export function reduce(state, action, rng) {
 
     case 'next-building': {
       if (phase !== 'roof') return same(state)
-      let s = { ...state, ride: newRide(state, seedFor(state)), car: initialCar(), roof: null, trivia: null, hint: false, message: '' }
+      // BANK BEFORE THE BUILDING IS THROWN AWAY (r5-code-hostile-04). Every roof the game reaches
+      // itself has banked === tray, so this is a no-op in play; a ride RESTORED from a hand-edited
+      // BE1- code can be parked at the roof with bacon still unbanked, and the lobby names the exact
+      // number ("...with 16 bacon on the tray") one screen before both roof exits dropped it.
+      // bankOnLeave is idempotent - gained = max(0, tray - banked).
+      let s = bankOnLeave(state)
+      s = { ...s, ride: newRide(s, seedFor(s)), car: initialCar(), roof: null, trivia: null, hint: false, message: '' }
       s = stable(s, 'floor', { screen: 'ride' })
       return { state: s, effects: [SCREEN('ride'), SAVE] }
     }
@@ -713,9 +752,13 @@ export function reduce(state, action, rng) {
       if (accept) {
         // Accepting a RESCUE records the level being left, so the ladder cannot recommend it again
         // on the strength of two clean buildings at a level that never asked its arithmetic.
-        // Accepting the promotion back clears the note; the child has now earned it twice over.
-        const demotedFrom = state.roof.dir === 'down' ? state.level : (state.demotedFrom === state.roof.offer ? null : state.demotedFrom)
-        return { state: { ...s, level: state.roof.offer, step: 1, demotedFrom, history: { ...s.history, comeback: [] } }, effects: [SOUND('click'), SAVE] }
+        // Accepting the promotion BACK used to clear the note, which is what made the memory a fuse
+        // that reset itself and the bounce endless (r5-math-04). It is kept, and the number of
+        // rescues out of that level is what the next re-offer is priced in.
+        const down = state.roof.dir === 'down'
+        const demotedFrom = down ? state.level : state.demotedFrom
+        const demotions = down ? (state.demotedFrom === state.level ? state.demotions + 1 : 1) : state.demotions
+        return { state: { ...s, level: state.roof.offer, step: 1, demotedFrom, demotions, history: { ...s.history, comeback: [] } }, effects: [SOUND('click'), SAVE] }
       }
       return { state: s, effects: [SOUND('click'), SAVE] }
     }
@@ -723,10 +766,11 @@ export function reduce(state, action, rng) {
     case 'to-lobby': {
       if (phase === 'lobby') return { state: { ...state, screen: 'lobby' }, effects: [SCREEN('lobby')] }
       if (phase === 'roof' && r) {
-        // The victory descent: R → G at express speed, two dings.
+        // The victory descent: R → G at express speed, two dings. `timeline-done` for 'descend'
+        // clears the ride outright, so the tray is banked here or not at all (r5-code-hostile-04).
         const res = sequence(state.car, [{ type: 'closeDoors' }, { type: 'descend', to: 0 }])
         if (res.blocked) return same(state)
-        const st = startTimeline({ ...state, screen: 'ride', roof: null }, 'descend', res, 'descending')
+        const st = startTimeline({ ...bankOnLeave(state), screen: 'ride', roof: null }, 'descend', res, 'descending')
         return { state: st.state, effects: [SCREEN('ride'), st.effect, SAVE] }
       }
       if (!STABLE.has(phase)) return same(state)
@@ -757,7 +801,7 @@ export function reduce(state, action, rng) {
       // "pick a different building, then pick this one back" — two taps, and undiscoverable.
       // Picking a building is always a fresh start in it.
       const history = { ...s.history, comeback: [] }
-      return { state: { ...s, history, level: id, step, demotedFrom: id === state.level ? s.demotedFrom : null, step3Run: id === state.level ? s.step3Run : 0, struggleRun: id === state.level ? s.struggleRun : 0 }, effects: [SOUND('click'), SAVE] }
+      return { state: { ...s, history, level: id, step, demotedFrom: id === state.level ? s.demotedFrom : null, demotions: id === state.level ? s.demotions : 0, step3Run: id === state.level ? s.step3Run : 0, struggleRun: id === state.level ? s.struggleRun : 0 }, effects: [SOUND('click'), SAVE] }
     }
 
     case 'set-setting': {
@@ -806,12 +850,12 @@ export function reduce(state, action, rng) {
       if (!inc || typeof inc !== 'object') return same(state)
       // Its one caller feeds a decodeCode() result, already through parse -> migrate; normalising
       // here means a second caller can never open a doorway back into the dead states.
-      const s = { ...initialState(inc.salt), ...inc, ride: normaliseRide(inc.ride), pool: state.pool, seedOverride: state.seedOverride, phase: 'lobby', screen: 'lobby', car: initialCar(), pending: null, trivia: null, roof: null, hint: false }
+      const s = carryBanks({ ...initialState(inc.salt), ...inc, ride: normaliseRide(inc.ride), seedOverride: state.seedOverride, phase: 'lobby', screen: 'lobby', car: initialCar(), pending: null, trivia: null, roof: null, hint: false }, state)
       return { state: s, effects: [SCREEN('lobby'), SAVE] }
     }
 
     case 'reset': {
-      const s = { ...initialState(state.salt), pool: state.pool, seedOverride: state.seedOverride, created: state.created }
+      const s = carryBanks({ ...initialState(state.salt), seedOverride: state.seedOverride, created: state.created }, state)
       return { state: s, effects: [SCREEN('lobby'), SAVE] }
     }
 

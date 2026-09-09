@@ -35,9 +35,28 @@ function explainAdd(a, b) {
   const ans = a + b
   if (b === 0) return [line(`${a} + 0`, a, `${a} + 0 stays ${a}`)]
   if (a === 0) return b <= 10 ? [countOn(0, b)] : [line(`0 + ${b}`, b, `0 + ${b} stays ${b}`)]
+  // A COLUMN WITH NOTHING IN IT IS NOT A STEP (r5-math-01). The guard here was `a >= 100 || b >= 100`
+  // and it emitted `hundreds(a) + hundreds(b)` unconditionally — so with the second operand under
+  // 100 the FIRST line, which is the only line HINT shows, was `X00 + 0 = X00`: true, naming neither
+  // number in the question and moving nothing. 41 % of Megatall step-1 draws, the step
+  // `Try Megatall?` lands on and the step a fall cannot leave. explainSub's mirror branch has
+  // filtered its empty columns since it was written; this is the same filter. Where the split does
+  // not survive it, the smaller operand is taken apart into the places it actually HAS and added one
+  // at a time — which is also what keeps the Repair card's worked line inside its 110 characters,
+  // where falling through to the count-on branches (600 + 34) would not.
   if (a >= 100 || b >= 100) {
-    const h = hundreds(a) + hundreds(b), t = tens(a % 100) + tens(b % 100), o = ones(a) + ones(b)
-    return [line(`${hundreds(a)} + ${hundreds(b)}`, h), line(`${tens(a % 100)} + ${tens(b % 100)}`, t), line(`${ones(a)} + ${ones(b)}`, o), line(`${h} + ${t} + ${o}`, ans)]
+    const cols = [[hundreds(a), hundreds(b)], [tens(a % 100), tens(b % 100)], [ones(a), ones(b)]]
+    if (cols.every(([x, y]) => x > 0 && y > 0)) {
+      const [h, t, o] = cols.map(([x, y]) => x + y)
+      return [line(`${cols[0][0]} + ${cols[0][1]}`, h), line(`${cols[1][0]} + ${cols[1][1]}`, t), line(`${cols[2][0]} + ${cols[2][1]}`, o), line(`${h} + ${t} + ${o}`, ans)]
+    }
+    const [big, small] = a >= b ? [a, b] : [b, a]
+    const parts = [hundreds(small), tens(small % 100), ones(small)].filter((p) => p > 0)
+    if (parts.length === 1) { const unit = parts[0] >= 100 ? 100 : parts[0] >= 10 ? 10 : 1; return unit === 1 ? [countOn(big, small)] : [countOnBy(big, unit, small / unit)] }
+    const steps = []
+    let cur = big
+    for (const p of parts) { steps.push(line(`${cur} + ${p}`, cur + p)); cur += p }
+    return steps
   }
   const [big, small] = a >= b ? [a, b] : [b, a]
   if (a >= 10 && b >= 10) {

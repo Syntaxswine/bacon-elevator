@@ -327,7 +327,13 @@ export function makeProblem(level, step, ctx, rng) {
     // The FIRST sum a child ever sees is the game's whole first impression, and it is drawn with no
     // ring, no last answer and no same-seen latch to steer it: one fresh save in six opened on an
     // answer of 0 (`5 − 5`, `2 ▼ 2`). Only here, and only on the very first question of a save.
-    if (c.count === 0 && p.answer === 0) continue
+    //
+    // AND THE ZERO LATCH IS THE SAME KIND OF LATCH (r5-math-05). `zeroSeen` only arms once an
+    // identity HAS been served, so question one was unthrottled: 37.5 % of fresh saves opened on
+    // `0 + 5`, `5 + 0`, `2 − 0` — a sum whose answer is already printed in the question. The
+    // steady-state rate is a healthy 16 %; the single most visible draw in the game was more than
+    // twice that. Same one-line guard, same one question.
+    if (c.count === 0 && (p.answer === 0 || isIdentity(p))) continue
     return p
   }
   // THE FALLBACK IS STILL BOUND BY THE ONE RULE THE PROJECT WROTE DOWN.
@@ -422,6 +428,41 @@ export function adaptStep({ step = 1, streak = 0, stepDowns = 0 } = {}, correct,
 
 export function allowsNegatives(level, step) {
   return stepOf(level, step).kinds.some((e) => e.negatives)
+}
+
+// WHAT ACTUALLY CHANGED, IN WORDS (r5-math-02, r5-code-hostile-02).
+// The step change is announced in the display band (DESIGN §4: the adaptive rule is visible, never
+// silent), and the announcement used to be derived from the SIGN OF THE STEP alone: up said "Bigger
+// numbers now.", down said "Smaller numbers for a bit." Measured over 20 000 draws either side of
+// every transition, that sentence is false more often than it is true at three of the ten step-ups
+// and at two of the step-downs — Office Block 1 → 2 drops the `tens ± tens` row (max 100) for the
+// 3s and 4s (max 40), so the mean largest number on the panel falls 60 → 43 under a sentence saying
+// it rises, and the mirror lands on the floor screen straight after a fall, which is the one moment
+// the copy exists to reassure. The steps really do get harder; the sentence just named the wrong
+// variable. This names the variable that moved, in the order a child meets it, and falls back to
+// size only where the ceiling genuinely rises. A level with ONE step (Custom) returns '': stepOf
+// clamps, so both sides are the same table and nothing changed at all.
+const REGROUPS = (st) => Math.max(0, ...st.kinds.map((k) => (Number.isInteger(k.regroups) ? k.regroups : k.regroup === true ? 1 : 0)))
+const CEILING = (st) => Math.max(0, ...st.kinds.map((k) => k.max ?? 0))
+const NEW_KIND_WORD = [['div', 'Sharing now.'], ['mul', 'Times tables now.'], ['missMul', 'Missing numbers now.'], ['missAdd', 'Missing numbers now.']]
+// Every sentence stepNote can return, in one place, so an instrument does not have to re-spell the
+// list it is measuring (tools/drive-scenarios.mjs asserted against two hard-coded strings and went
+// red on the other five the moment the copy told the truth).
+export const STEP_NOTE_WORDS = Object.freeze(['Bigger numbers now.', 'Smaller numbers for a bit.', 'Easier sums for a bit.', 'New sums now.', 'Carrying now.', 'Times tables now.', 'Sharing now.', 'Missing numbers now.', 'Below zero now.'])
+export function stepNote(level, from, to) {
+  const a = stepOf(level, from), b = stepOf(level, to)
+  if (a === b) return ''
+  const kindsA = new Set(a.kinds.map((k) => k.kind)), kindsB = new Set(b.kinds.map((k) => k.kind))
+  const up = (to | 0) > (from | 0)
+  if (up) {
+    if (b.kinds.some((k) => k.negatives) && !a.kinds.some((k) => k.negatives)) return 'Below zero now.'
+    for (const [k, w] of NEW_KIND_WORD) if (kindsB.has(k) && !kindsA.has(k)) return w
+    if (REGROUPS(b) > REGROUPS(a)) return 'Carrying now.'
+    if (CEILING(b) > CEILING(a)) return 'Bigger numbers now.'
+    return 'New sums now.'
+  }
+  if (CEILING(b) < CEILING(a)) return 'Smaller numbers for a bit.'
+  return 'Easier sums for a bit.'
 }
 
 // THE KEYPAD MUST BE ABLE TO EXPRESS THE ANSWER TO THE PROBLEM IT IS SHOWING.

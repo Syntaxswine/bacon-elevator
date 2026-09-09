@@ -157,11 +157,17 @@ test('r4-math-02: the ladder remembers the level it just took the child out of',
   assert.equal(offerAfter(s, 2), null, 'a level the child was just demoted from was re-offered after two clean buildings')
   assert.equal(offerAfter(s, UP_AGAIN), 'megatall', `it must be offered again eventually (at ${UP_AGAIN})`)
 
-  // accepting the promotion back clears the note; so does a grown-up picking a level
+  // ACCEPTING THE PROMOTION BACK USED TO CLEAR THE NOTE, and that is what round 5 found makes the
+  // bounce endless: the memory was a fuse that reset itself, so the same pair repeated on a fixed
+  // six-building cycle for ever (r5-math-04). It is kept, and `demotions` counts the rescues, so
+  // the second bounce off the same level costs 2 x UP_AGAIN clean buildings. A grown-up picking a
+  // level still clears both.
   let up = { ...s, roof: { offer: 'megatall', dir: 'up', gained: 0, bonus: 3, unlocked: [], plaques: [], help: false }, phase: 'roof', screen: 'roof' }
   up = reduce(up, { type: 'offer', accept: true }, rng).state
-  assert.equal(up.demotedFrom, null)
+  assert.equal(up.demotedFrom, 'megatall', 'the level the child was rescued out of is still remembered')
+  assert.equal(up.demotions, 1)
   assert.equal(reduce(s, { type: 'set-level', id: 'office' }, rng).state.demotedFrom, null)
+  assert.equal(reduce(s, { type: 'set-level', id: 'office' }, rng).state.demotions, 0)
 })
 
 // ---- r4-math-03 -----------------------------------------------------------------------------

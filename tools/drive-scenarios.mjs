@@ -10,7 +10,7 @@
 // the real keys, never a dispatch. Answers are computed in Node with the same solve() the game uses.
 // The URL is ?drive=1&seed=7&fast=1 (timescale 0.1); ?reset=1 clears the previous scenario's save.
 
-import { solve } from '../src/math.js'
+import { solve, STEP_NOTE_WORDS } from '../src/math.js'
 import { customLevel } from '../src/levels.js'
 import { label } from '../src/elevator.js'
 import { readFileSync } from 'node:fs'
@@ -93,7 +93,11 @@ const inOrder = (evs, seq) => { let i = 0; for (const e of evs) if (i < seq.leng
 const inFlight = (page) => page.evaluate(() => window.__bacon.inFlight())
 // The adaptive rule is specified as "visible, never silent" (DESIGN §4) and its whole announcement
 // used to be three pips nothing explains. The words share the band that carries the doors line.
-const STEP_NOTES = new Set(['Bigger numbers now.', 'Smaller numbers for a bit.'])
+// READ FROM THE MODULE, NEVER RE-SPELLED HERE (r5-math-02). This was two hard-coded strings, and a
+// step change now names what actually changed - `Carrying now.`, `Times tables now.`, `Sharing
+// now.`, `Missing numbers now.`, `Below zero now.`, `Easier sums for a bit.` - so an instrument
+// holding its own copy of the list would fail on the truth and pass on the old lie.
+const STEP_NOTES = new Set(STEP_NOTE_WORDS)
 const stripShown = (page) => page.$eval('#car .strip', (e) => e.getAttribute('visibility') === 'visible')
 
 async function load(ctx, extra = '&reset=1') {
@@ -389,7 +393,10 @@ async function checkLayout(page, name, opts = {}) {
         if (!texts.length) out.problems.push('the hint drawing carries no labels')
         const hs = texts.map((t) => t.getBoundingClientRect().height)
         const min = Math.min(...hs)
-        if (min < 9) out.problems.push(`hint labels render at ${min.toFixed(1)} CSS px`)
+        // 9 px was the floor for "not a smudge"; 12.0 px at 320 x 454 passed it and was still the
+        // SMALLEST text in the game - under the 14 px status line, less than half the keypad's
+        // digits - on the one help a struggling child can ask for (r5-autism-fit-2).
+        if (min < 14) out.problems.push(`hint labels render at ${min.toFixed(1)} CSS px`)
         const bb = svg.getBoundingClientRect()
         const drawn = texts.reduce((a, t) => { const r = t.getBoundingClientRect(); return { l: Math.min(a.l, r.left), r: Math.max(a.r, r.right) } }, { l: Infinity, r: -Infinity })
         const fill = (drawn.r - drawn.l) / Math.max(1, bb.width)
@@ -1216,11 +1223,33 @@ scenarios.push(
       // the bar is the whole fix to the instrument; the assertions were already right.
       const portrait = ctx.phone.viewport
       const turn = async (w, h) => { await page.setViewport({ ...portrait, width: w, height: h, isLandscape: true }); await wait(180) }
+      // THE TOP BAR IS THE RIDE'S ONLY `WHERE AM I` (r5-autism-fit-3, r5-mobile-ux-2). The name
+      // was hidden outright below 341 px, leaving three unlabelled pips; and at 568 px wide the
+      // squeezed chip let its step bar overflow leftwards onto the `y` of `Lobby` (measured: pips
+      // at x=51.3, the label's ink ending at x=52.0). Both are one measurement: the label reads,
+      // and the step bar starts to the right of the button beside it.
+      const topbar = async (where) => {
+        const t = await page.evaluate(() => {
+          const nav = document.querySelector('.ride .topbar [data-nav="lobby"]')
+          const name = document.getElementById('levelname')
+          const bar = document.getElementById('stepbar')
+          const rng = document.createRange(); rng.selectNodeContents(nav)
+          const ink = rng.getBoundingClientRect()
+          const nb = name.getBoundingClientRect(), bb = bar.getBoundingClientRect()
+          return { text: name.textContent, clipped: name.scrollWidth > Math.ceil(nb.width) + 1, nameW: nb.width, gap: bb.left - ink.right }
+        })
+        if (!t.text.trim()) bad.push(`${where}: the ride names no building at all`)
+        if (t.clipped) bad.push(`${where}: the building name is clipped to "${t.text}" in ${t.nameW.toFixed(0)} px`)
+        if (t.gap < 3) bad.push(`${where}: the step pips start ${t.gap.toFixed(1)} px from the Lobby label's ink`)
+        return `topbar ${where}(name "${t.text}", pips +${t.gap.toFixed(1)}px)`
+      }
+      seen.push(await topbar('portrait'))
       await turn(667, 331); await check('landscape-keypad-667x331', { ride: true, go: true })
       await turn(640, 304); await check('landscape-keypad-640x304', { ride: true, go: true })
       await turn(568, 276); await check('landscape-keypad-568x276', { ride: true, go: true })
       // and the floor of the range: shorter than five 48 px keys need, where the panel must scroll
       await turn(568, 232); await check('landscape-keypad-568x232', { ride: true, go: true })
+      await turn(568, 276); seen.push(await topbar('568x276'))
       await turn(640, 304)
       await rideOne(page)
       await check('landscape-floor-640x304', { ride: true })
@@ -1232,6 +1261,11 @@ scenarios.push(
       const s = await slim(page)
       await tap(page, `button[data-choice="${s.trivia.answer}"]`); await waitPhaseIn(page, ['fact'])
       await check('fact')
+      // r5-trivia-truth-02 asks that a whole `Source:` line sit above the fold on the narrowest
+      // phone. Measured and NOT fixed: at 320 x 454 the longest cards are taller than the body box
+      // by more than a source line, so getting one above the cut means shrinking the fact text the
+      // child is there to read. The card scrolls and says so (r2-autism-fit-04's four-layer cue),
+      // which is what the CSS comment already records as the trade-off. See the round-5 log.
       await tap(page, '#sheet [data-continue]'); await waitPhaseIn(page, ['floor'])
       // a fall for the repair card
       const p = await press(page)
@@ -1292,10 +1326,15 @@ scenarios.push(
       const chipRect = await page.$eval('#update-chip', (e) => { const b = e.getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), x: Math.round(b.left), y: Math.round(b.top) } })
       if (chipRect.h < 48) bad.push(`update chip is ${chipRect.h}px tall, under the 48 px floor`)
       if (chipRect.y < 0 || chipRect.y + chipRect.h > page.viewport().height) bad.push(`update chip at y=${chipRect.y} h=${chipRect.h} is off screen`)
-      const occ = async (where) => {
-        const out = await page.evaluate(() => {
+      // `extra` carries the surfaces that are not buttons and so are not [data-tap]: the answer
+      // blank is where the digits the child has typed appear, and a banner over it is as bad as a
+      // banner over a key (r5-mobile-ux-1).
+      const occ = async (where, extra = []) => {
+        const out = await page.evaluate((extras) => {
           const o = []
-          for (const el of document.querySelectorAll('[data-tap]')) {
+          const list = [...document.querySelectorAll('[data-tap]')]
+          for (const q of extras) { const e = document.querySelector(q); if (e) list.push(e) }
+          for (const el of list) {
             const b = el.getBoundingClientRect()
             if (!b.width || !b.height || !el.offsetParent) continue
             const cx = b.left + b.width / 2, cy = b.top + b.height / 2
@@ -1303,10 +1342,26 @@ scenarios.push(
             // position:fixed, so it can only ever cover something the viewport already shows.
             if (cx < 0 || cy < 0 || cx > innerWidth || cy > innerHeight) continue
             const hit = document.elementFromPoint(cx, cy)
-            if (hit && hit !== el && !el.contains(hit)) o.push((el.dataset.key || el.dataset.floor || el.dataset.nav || el.tagName) + ' <- #' + (hit.id || hit.className))
+            if (hit && hit !== el && !el.contains(hit)) o.push((el.dataset.key || el.dataset.floor || el.dataset.nav || el.className || el.tagName) + ' <- #' + (hit.id || hit.className))
+          }
+          // AND A CENTRE TEST IS NOT ENOUGH. The chip covered key 8 by 67 % and HINT by 64 % at
+          // turns where their centres were still their own, and a key three quarters hidden is a
+          // key the child cannot find. Any overlap at all, on a panel key or on the blank, is a
+          // failure - the placement rule is that the chip lives over the shaft, which nothing is
+          // drawn on and nothing is tapped on.
+          const chip = document.getElementById('update-chip')
+          if (chip) {
+            const c = chip.getBoundingClientRect()
+            for (const el of [...document.querySelectorAll('.panel [data-tap]'), ...extras.map((q) => document.querySelector(q)).filter(Boolean)]) {
+              const b = el.getBoundingClientRect()
+              if (!b.width || !b.height) continue
+              const w = Math.min(b.right, c.right) - Math.max(b.left, c.left)
+              const h = Math.min(b.bottom, c.bottom) - Math.max(b.top, c.top)
+              if (w > 0.5 && h > 0.5) o.push(`${el.dataset.key || el.className} ${(100 * w * h / (b.width * b.height)).toFixed(0)} % under the chip`)
+            }
           }
           return o
-        })
+        }, extra)
         if (out.length) bad.push(`the update chip occludes at ${where}: ${out.join('; ')}`)
       }
       await occ('lobby')
@@ -1317,9 +1372,26 @@ scenarios.push(
       await shot('chip-floor')
       await click(`button[data-floor="${label((await slim(page)).ride.target)}"]`)
       await waitPhaseIn(page, ['keypad'])
-      await occ('keypad')
+      await occ('keypad', ['#question .blank'])
       await shot('chip-keypad')
-      seen.push(`chip(${chipRect.w}x${chipRect.h} at ${chipRect.x},${chipRect.y})`)
+      // THE PLACEMENT WAS ONLY EVER MEASURED IN PORTRAIT (r5-mobile-ux-1). The landscape grid puts
+      // the panel in a right-hand column and the display band in row 2 of the left one, and
+      // `.chip-update` is `position: fixed; left: 50%; top: topbar + 8px` - the middle of the
+      // VIEWPORT, which sideways is inside the keypad. Measured on the reviewed tree: key 7 100 %
+      // covered at 568x276 with its own centre returning the chip's take button, so a real tap on a
+      // digit posted skip-waiting and reloaded the tab mid-sum; keys 4 and 5 at 568x232; HINT at
+      // 667x331; and the answer blank 100 % covered at ALL FIVE turns. This scenario restored the
+      // portrait viewport before it ever looked, so `--only layout` reported `chip(160x70 at
+      // 80,56)` and stayed green.
+      const chipPortrait = ctx.phone.viewport
+      const chipTurn = async (w, h) => { await page.setViewport({ ...chipPortrait, width: w, height: h, isLandscape: true }); await wait(200) }
+      for (const [w, h] of [[568, 232], [568, 276], [640, 304], [667, 331], [844, 390]]) {
+        await chipTurn(w, h)
+        await occ(`keypad ${w}x${h}`, ['#question .blank'])
+      }
+      await chipTurn(568, 276); await shot('chip-keypad-568x276')
+      await page.setViewport(chipPortrait); await wait(200)
+      seen.push(`chip(${chipRect.w}x${chipRect.h} at ${chipRect.x},${chipRect.y}, clear at 5 landscape turns)`)
       if (bad.length) throw new Error(bad.join(' ;; '))
       return seen.join(', ')
     },
@@ -1904,13 +1976,35 @@ scenarios.push({
     await checkLayout(page, 'offer-portrait', { roof: true, offer: true, onScreen: ['.roof [data-next]', '.roof [data-nav="lobby"]'] })
     for (const [w, h] of [[568, 276], [640, 304], [568, 232]]) { await turn(w, h); await checkLayout(page, `offer-${w}x${h}`, { roof: true, offer: true }) }
     await page.setViewport(portrait); await wait(150)
+    // THE ACCEPT PATH MAY NOT BE THE QUIETEST CONTROL ON THE CARD (r5-autism-fit-1,
+    // r5-elevator-feel-01). `Next building` carried `btn primary tall wide`, the game's one "tap
+    // this" idiom, so two blue primaries sat 8 px apart meaning different things and the bigger of
+    // them (2.6x the area of `Yes`, 24 px type against 18) did not answer the question above it.
+    // `Stay` stays the primary and the default - that is DESIGN 4's ruling - and while the question
+    // is unanswered it is the only one.
+    const hier = await page.evaluate(() => {
+      const fs = (e) => parseFloat(getComputedStyle(e).fontSize)
+      const name = (b) => (b.dataset.offer || (b.hasAttribute('data-next') ? 'next' : b.dataset.nav || '?'))
+      const btns = [...document.querySelectorAll('.roof .foot .btn')]
+      const yes = document.querySelector('.roof .foot [data-offer="yes"]')
+      const box = document.querySelector('.roof .foot .offer')
+      const bs = getComputedStyle(box)
+      return {
+        primaries: btns.filter((b) => b.classList.contains('primary')).map(name),
+        louder: btns.filter((b) => !b.dataset.offer && fs(b) > fs(yes)).map(name),
+        grouped: parseFloat(bs.borderTopWidth) > 0 || bs.backgroundColor !== 'rgba(0, 0, 0, 0)',
+      }
+    })
+    expect(hier.primaries.length === 1 && hier.primaries[0] === 'stay', `while the offer stands the primaries are [${hier.primaries}]`)
+    expect(hier.louder.length === 0, `a control that does not answer the offer is set louder than Yes: ${hier.louder}`)
+    expect(hier.grouped, 'the question and its two answers are not drawn as one block')
     // …and the tap actually promotes, rather than ending the building under a covered button.
     await tap(page, '.roof [data-offer="yes"]')
     const after = await slim(page)
     expect(after.screen === 'roof', 'answering the offer left the roof: ' + after.screen)
     const lvl = await page.evaluate(() => window.__bacon.state().level)
     expect(lvl === 'hotel', `Yes did not promote: level is ${lvl}`)
-    return `offer reached, whole and hit-testable at 4 geometries; Yes -> ${lvl}`
+    return `offer reached, whole and hit-testable at 4 geometries, one primary (Stay); Yes -> ${lvl}`
   },
 })
 

@@ -383,7 +383,11 @@ test('r3-deploy-pages-02: a grown-up can read which build this phone is running'
   const screens = read('src/render/screens.js')
   assert.match(screens, /Version \$\{esc\(extras\.version \|\| ''\)\}\$\{extras\.build/, 'the footer never shows the build')
   const main = read('src/main.js')
-  assert.match(main, /caches\.keys\(\)/, 'nothing reads the cache name')
+  // THIS USED TO GREP FOR `caches.keys()`, which is the call round 5 found was answering with the
+  // wrong cache (r5-deploy-pages-1): a test that polices a spelling stays green under any selection
+  // policy, including a broken one. The stamp must come from the worker serving the tab; the
+  // mechanism is asserted in test/round5.test.js and this keeps the surface it feeds.
+  assert.match(main, /which-build/, 'nothing asks which build is serving this tab')
   assert.match(main, /build: ui\.build/, 'the build never reaches the Grown-ups screen')
 })
 

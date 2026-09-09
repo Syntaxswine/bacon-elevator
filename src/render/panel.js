@@ -148,7 +148,7 @@ function keypad(state, ctx) {
   return [
     `<button class="cell key hint-key" data-key="hint" data-tap aria-label="Hint" aria-pressed="${state.hint ? 'true' : 'false'}">HINT</button>`,
     sign,
-    `<button class="cell key" data-key="back" data-tap aria-label="Delete last digit">⌫</button>`,
+    `<button class="cell key" data-key="back" data-tap ${typed ? '' : 'disabled'} aria-label="Delete last digit">⌫</button>`,
     digit(7), digit(8), digit(9),
     digit(4), digit(5), digit(6),
     digit(1), digit(2), digit(3),
@@ -159,8 +159,16 @@ function keypad(state, ctx) {
 
 function patchKeypad(container, state) {
   const r = state.ride
+  const typed = r ? r.typed : ''
   const go = container.querySelector('button[data-key="go"]')
-  if (go) go.disabled = !/\d/.test(r ? r.typed : '')
+  if (go) go.disabled = !/\d/.test(typed)
+  // A LIT, UNDIMMED KEY THAT DOES NOTHING IS A DEAD KEY (r5-math-06, the rule src/state.js states
+  // for the digit keys past the cap). ⌫ on an empty entry returned same(state): no digit, no
+  // sound, no message, and no dimming to say why - the one key on the panel that was live, looked
+  // live and answered nothing. Measured at 20 142 such taps in an 11.4M-tap walk. Same treatment as
+  // GO, which has been disabled on an empty entry all along.
+  const back = container.querySelector('button[data-key="back"]')
+  if (back) back.disabled = !typed
   const hint = container.querySelector('button[data-key="hint"]')
   if (hint) hint.setAttribute('aria-pressed', state.hint ? 'true' : 'false')
 }
@@ -261,7 +269,12 @@ export function createDisplay(questionEl, messageEl) {
       // the rules card only ever shows `7 + 5 = 12`, and the same two glyphs mean DIRECTION on the
       // hall calls and the lantern on the same screen. The gloss sits under the sum itself, where a
       // child who has just met the glyph is looking, and yields to any real message.
-      case 'keypad': set(equationHTML(r.problem.text, r.typed), '', state.message || (r.retrying ? 'Same sum. Ride back up.' : opGloss(r.problem))); break
+      // The one branch here that read `r.problem` with no guard, while its two neighbours and
+      // modeOf() above all test `r && r.problem` first (r5-code-hostile-07). Unreachable today -
+      // normaliseRide rewrites phase 'keypad' to 'floor' whenever problem is null - so this is the
+      // asymmetry, not a live bug: it is the one place where a future save-shape change turns into
+      // a blank screen instead of a floor.
+      case 'keypad': set(r && r.problem ? equationHTML(r.problem.text, r.typed) : '', '', state.message || (r && r.retrying ? 'Same sum. Ride back up.' : (r && r.problem ? opGloss(r.problem) : ''))); break
       case 'moving': set(r && r.problem ? equationHTML(r.problem.text, '', r.problem.answer) + '<span class="tick"> ✓</span>' : 'Going up', r && r.problem ? '' : 'text', ''); break
       // THE 1.2 s BEFORE THE FALL WAS THE REWARD DISPLAY MINUS A TICK (r3-elevator-feel-01).
       // `moving` (a CORRECT answer) draws exactly this string plus a green ✓, and `.blank.filled`

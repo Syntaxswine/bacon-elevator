@@ -1,7 +1,7 @@
 // Bacon Elevator — the DOM side. Dispatches from taps, plays effects and timelines off rAF.
 import { VERSION } from './version.js'
 import { mulberry32 } from './rng.js'
-import { initialState, reduce, hydrate, currentLevel, STABLE } from './state.js'
+import { initialState, reduce, hydrate, carryBanks, currentLevel, STABLE } from './state.js'
 import { serialize, parse, SAVE_KEY, decodeCode } from './save.js'
 import * as storage from './storage.js'
 import { loadFacts } from './trivia.js'
@@ -282,7 +282,9 @@ function adoptDiskSave(reason, pre) {
   if (!incoming) return false
   cancelTimeline(); rng = null
   writeCount = Number.isSafeInteger(incoming.writes) ? incoming.writes : 0
-  state = { ...incoming, pool: state.pool, seedOverride: state.seedOverride }
+  // carryBanks, not `pool:` by hand: the part cards and The Climb are runtime content too, and
+  // adopting a record used to empty both of them for the rest of the session (r5-code-hostile-01).
+  state = carryBanks({ ...incoming, seedOverride: state.seedOverride }, state)
   ui.transient = null
   ui.adopted = reason
   panel.invalidate()
@@ -352,7 +354,13 @@ function render() {
   const lvl = currentLevel(state)
   document.getElementById('levelname').textContent = lvl.short || lvl.name
   const sb = document.getElementById('stepbar')
-  sb.dataset.step = String(state.step); sb.setAttribute('aria-label', `step ${state.step} of 3`)
+  // A LEVEL WITH ONE BAND HAS NO LADDER (r5-code-hostile-02). Custom builds a single step, so the
+  // pips moved 1 -> 2 -> 3 over one unchanging table and the chip told a screen reader "step 2 of
+  // 3" about a level that has one. Hidden rather than frozen: three grey pips would still be a
+  // claim about a ladder.
+  const nsteps = lvl.steps.length
+  sb.hidden = nsteps <= 1
+  sb.dataset.step = String(state.step); sb.setAttribute('aria-label', `step ${state.step} of ${nsteps}`)
   // The ride's speaker is an icon with no words, so its LABEL carries the state; the lobby's is a
   // switch whose visible words are the label and whose pill is the state (r4-autism-fit-4).
   for (const b of app.querySelectorAll('[data-sound]')) {
@@ -437,7 +445,13 @@ function numberLine(p, H = 110) {
   const W = 320, x0 = 16, x1 = W - 16
   // Everything below is measured DOWN from the baseline so the line, its labels and its hops keep
   // their proportions whatever height the card was given.
-  const axis = H - 24, tickText = H - 6, labelY = Math.max(15, axis - 44), tickSize = 13, labelSize = H < 76 ? 17 : 20
+  // THE TEACHING AID CARRIES THE GAME'S SMALLEST NUMERALS (r5-autism-fit-2). `tickSize` was a fixed
+  // 13 in a 320-unit viewBox scaled by the ~304 px hint box, i.e. 12.0 CSS px at 320 x 454 - smaller
+  // than the 14 px status line and less than half the keypad's digits, on the one help a struggling
+  // child can ask for. `labelSize` has scaled with the box since the 2 px regression this comment's
+  // header records; the ticks now do too, and the axis is measured from the taller of the two.
+  const tickSize = H < 76 ? 16 : 18, labelSize = H < 76 ? 17 : 20
+  const axis = H - (tickSize + 11), tickText = H - 4, labelY = Math.max(15, axis - 44)
   const X = (n) => x0 + ((x1 - x0) * n) / hi
   let start, end, lab
   if (p.kind === 'add' || p.kind === 'up') { start = p.a; end = p.answer; lab = `+ ${p.b}` }
@@ -546,7 +560,10 @@ app.addEventListener('click', (e) => {
   }
   if (d.copy !== undefined) {
     const code = document.getElementById('savecode')?.textContent || ''
-    const done = (ok) => { ui.codeMsg = ok ? 'Copied.' : 'Could not copy. Select the code and copy it by hand.'; render() }
+    // The old fallback offered transcription as the remedy. The code is thousands of characters
+    // long at any save the game can reach, and always was (r5-code-hostile-03), so the gesture that
+    // works is select-all inside the box, which is what this now says.
+    const done = (ok) => { ui.codeMsg = ok ? 'Copied.' : 'Could not copy. Press and hold the code, choose Select All, then Copy.'; render() }
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(() => done(true), () => done(false))
     else done(false)
     return
@@ -559,7 +576,15 @@ app.addEventListener('click', (e) => {
       dispatch({ type: 'import', state: inc })
     }
     if (navigator.clipboard && navigator.clipboard.readText) navigator.clipboard.readText().then(apply, () => { ui.codeMsg = 'Could not read the clipboard. Allow paste, then try again.'; render() })
-    else { ui.codeMsg = 'This browser cannot paste here.'; render() }
+    else {
+      // A DEAD END WITH NO WAY OUT NAMED (r5-code-hostile-05). `Paste code` is the only route a
+      // code has back in - DESIGN 190 and 216 rule out a text field anywhere in the app, and nothing
+      // else reads text - so a browser without navigator.clipboard.readText (Firefox does not
+      // expose it to page script) could copy a lunchbox out and never put it back. The API is not
+      // being replaced; the message now says where the code CAN be loaded, which is both of the two
+      // browsers docs/BRIEF.md names.
+      ui.codeMsg = 'This browser cannot paste here. Open the game in Safari or Chrome to load a code.'; render()
+    }
     return
   }
   if (d.reset !== undefined) {
@@ -692,15 +717,20 @@ function applyUpdate() {
 // WHICH BUILD IS THIS PHONE ACTUALLY RUNNING? `Version 1.0.0` was the only human-readable answer,
 // and sw.js's own comment records that the identical string on two different builds is what made a
 // stale install undiagnosable. The fix made the CACHE NAME content-derived (`be-1.0.0-239e82454a4f`)
-// and left the one surface a parent can read un-fingerprinted (r3-deploy-pages-02). The name of the
-// cache serving THIS tab is the honest answer, and reading it costs nothing: it cannot be stamped
-// into src/version.js, because version.js is itself one of the files BUILD hashes.
-if (globalThis.caches && caches.keys) {
-  caches.keys().then((ks) => {
-    const k = ks.filter((x) => x.startsWith('be-')).sort().pop()
-    const stamp = k ? k.split('-').pop() : ''
-    if (stamp && stamp !== ui.build) { ui.build = stamp; if (state.screen === 'grownups') render() }
-  }).catch(() => { /* no cache storage (private mode, a blocked origin): the version line stands alone */ })
+// and left the one surface a parent can read un-fingerprinted (r3-deploy-pages-02).
+//
+// READING IT OFF caches.keys() WAS A GUESS (r5-deploy-pages-1, r5-deploy-pages-2). It took the
+// lexicographically greatest `be-` name, and from the moment a new worker finishes installing until
+// the chip is tapped there are TWO — so which one the line named was decided by hex ordering of the
+// BUILD hash, not by which build is running, and it read the OLD build on one load and the PENDING
+// one on the very next with nothing else changed. On a first-ever visit it printed no stamp at all,
+// because the read runs at module evaluation, before `load` registers the worker and before
+// `install` creates a cache. Ask the worker instead: it replies with its own CACHE literal, which
+// it cannot get wrong, and it is asked again whenever the controller changes.
+function askBuild() {
+  const c = navigator.serviceWorker && navigator.serviceWorker.controller
+  if (!c) return
+  try { c.postMessage({ type: 'which-build' }) } catch { /* a worker mid-teardown: the line stands alone */ }
 }
 if ('serviceWorker' in navigator && params.get('nosw') !== '1') {
   window.addEventListener('load', () => {
@@ -713,8 +743,19 @@ if ('serviceWorker' in navigator && params.get('nosw') !== '1') {
         w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) offer(w) })
       })
     }).catch((err) => { console.warn('service worker registration failed', err) })
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      const d = e.data
+      if (!d || d.type !== 'build' || typeof d.cache !== 'string' || !d.cache.startsWith('be-')) return
+      const stamp = d.cache.split('-').pop()
+      if (stamp && stamp !== ui.build) { ui.build = stamp; if (state.screen === 'grownups') render() }
+    })
+    askBuild()
     let reloading = false
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (updateRequested && !reloading) { reloading = true; location.reload() } })
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (updateRequested && !reloading) { reloading = true; location.reload(); return }
+      // A first-ever install claims the page here: this is the first moment there is anyone to ask.
+      askBuild()
+    })
   })
 }
 
